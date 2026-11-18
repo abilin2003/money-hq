@@ -1,101 +1,71 @@
-import { SCHEMA_VERSION, loadData, saveData, emptyData, getMeta, setMeta, keepBeforeRestore } from './store.js';
-import { makeBackup, backupFileName, parseBackup } from './backup.js';
-import { armConfirm, formatDate } from './ui.js';
+import { loadData, saveData, emptyData } from './store.js';
+import { toast } from './ui.js';
+import { initHome } from './views/home.js';
+import { initAdd } from './views/add.js';
+import { initTransactions } from './views/transactions.js';
+import { initImport } from './views/import.js';
+import { initData } from './views/data.js';
 
 const $ = (id) => document.getElementById(id);
-let pendingRestore = null;
+const VIEWS = ['home', 'add', 'transactions', 'import', 'data'];
+const views = {};
 
-function setStatus(message, kind = '') {
-  const el = $('status');
-  el.textContent = message;
-  el.className = `status ${kind}`.trim();
-}
-
-async function refresh() {
-  const data = await loadData();
-  const meta = await getMeta();
-  $('fact-tx').textContent = data ? String(data.transactions.length) : '0';
-  $('fact-backup').textContent = meta.lastBackupAt ? formatDate(meta.lastBackupAt) : 'Never';
-  $('fact-schema').textContent = String(data ? data.schemaVersion : SCHEMA_VERSION);
-}
-
-// ---- Download backup ----
-$('btn-download').addEventListener('click', async () => {
-  try {
-    const data = (await loadData()) ?? emptyData();
-    const now = new Date();
-    const blob = new Blob([JSON.stringify(makeBackup(data, now), null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = backupFileName(now);
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    await setMeta({ lastBackupAt: now.toISOString() });
-    setStatus('Backup downloaded. It stays on this device only, so keep a copy somewhere safe.', 'ok');
-    await refresh();
-  } catch (err) {
-    setStatus(`Could not make a backup: ${err.message}`, 'bad');
-  }
-});
-
-// ---- Restore backup ----
-const restorePanel = $('restore-panel');
-
-function hideRestorePanel() {
-  pendingRestore = null;
-  restorePanel.hidden = true;
-  resetRestoreButton();
-}
-
-const resetRestoreButton = armConfirm(
-  $('btn-restore'),
-  'Restore backup',
-  'Tap again to replace my data',
-  async () => {
-    if (!pendingRestore) return;
-    try {
-      const current = await loadData();
-      if (current) await keepBeforeRestore(current);
-      await saveData(pendingRestore.data);
-      hideRestorePanel();
-      setStatus('Restored. Your previous data is kept as a safety copy on this device.', 'ok');
-      await refresh();
-    } catch (err) {
-      setStatus(`Restore failed. Nothing was changed: ${err.message}`, 'bad');
-    }
+// Shared by every screen. `update` saves a change and refreshes the screens.
+// If saved data could not be read, saving is switched off so nothing can overwrite it.
+const ctx = {
+  data: emptyData(),
+  locked: false,
+  async update(mutator) {
+    if (ctx.locked) throw new Error('Your saved data could not be read, so changes are switched off to protect it.');
+    const next = structuredClone(ctx.data);
+    const result = mutator(next);
+    await saveData(next);
+    ctx.data = next;
+    ctx.refresh();
+    return result;
   },
-);
+  refresh() {
+    for (const v of Object.values(views)) v.render();
+  },
+};
 
-$('btn-cancel-restore').addEventListener('click', () => {
-  hideRestorePanel();
-  setStatus('Restore cancelled. Nothing was changed.');
-});
-
-$('file-restore').addEventListener('change', async (event) => {
-  const input = event.target;
-  const file = input.files[0];
-  input.value = '';
-  if (!file) return;
-  try {
-    pendingRestore = parseBackup(await file.text());
-    resetRestoreButton();
-    $('restore-info').textContent =
-      `Ready to restore a backup made ${pendingRestore.exported ? formatDate(pendingRestore.exported) : 'on an unknown date'}, ` +
-      `with ${pendingRestore.transactionCount} transactions. This replaces the data saved on this device. ` +
-      'Your current data is kept as a safety copy first.';
-    restorePanel.hidden = false;
-    setStatus('');
-  } catch (err) {
-    hideRestorePanel();
-    setStatus(err.message, 'bad');
+function show(name) {
+  const view = VIEWS.includes(name) ? name : 'home';
+  for (const v of VIEWS) {
+    $(`view-${v}`).hidden = v !== view;
+    const tab = document.querySelector(`.tabs [data-view="${v}"]`);
+    tab.classList.toggle('active', v === view);
+    if (v === view) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
   }
-});
+}
 
-// ---- Start up ----
-refresh().catch((err) => setStatus(`Could not open your saved data: ${err.message}`, 'bad'));
+function route() {
+  show(location.hash.replace('#', ''));
+}
+
+views.home = initHome(ctx);
+views.add = initAdd(ctx, $('view-add'));
+views.transactions = initTransactions(ctx, $('view-transactions'));
+views.import = initImport(ctx, $('view-import'));
+views.data = initData(ctx);
+
+for (const tab of document.querySelectorAll('.tabs [data-view]')) {
+  tab.addEventListener('click', () => { location.hash = tab.dataset.view; });
+}
+$('home-go').addEventListener('click', () => { location.hash = 'import'; });
+window.addEventListener('hashchange', route);
+
+(async function start() {
+  try {
+    const saved = await loadData();
+    if (saved) ctx.data = saved;
+  } catch (err) {
+    ctx.locked = true;
+    toast(`Could not open your saved data, so saving is switched off: ${err.message}`, 'bad');
+  }
+  ctx.refresh();
+  route();
+})();
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

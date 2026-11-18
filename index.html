@@ -16,42 +16,83 @@
 <body>
   <header class="top">
     <h1>Money HQ</h1>
-    <span class="tag">Phase 0</span>
+    <span class="tag">Phase 1</span>
   </header>
 
   <main class="wrap">
-    <section class="card" aria-labelledby="home-h">
-      <h2 id="home-h">Am I okay?</h2>
-      <p class="lead">Nothing to worry about yet. Once your data is in, this page will tell you where things stand in plain words.</p>
-    </section>
+    <!-- Home -->
+    <div id="view-home" class="view">
+      <section class="card" aria-labelledby="home-h">
+        <h2 id="home-h">Am I okay?</h2>
+        <p class="lead" id="home-msg">Nothing to worry about yet. Bring your data in, and this page will tell you where things stand in plain words.</p>
+        <p class="muted" id="home-coverage"></p>
+        <button class="btn" id="home-go" type="button">Bring my data in</button>
+      </section>
+    </div>
 
-    <section class="card" aria-labelledby="data-h">
-      <h2 id="data-h">Your data</h2>
-      <p class="muted">Saved on this device only. It never goes to GitHub.</p>
+    <!-- Add, List and Import are built by the scripts -->
+    <div id="view-add" class="view" hidden></div>
+    <div id="view-transactions" class="view" hidden></div>
+    <div id="view-import" class="view" hidden></div>
 
-      <dl class="facts">
-        <div><dt>Transactions saved</dt><dd id="fact-tx">0</dd></div>
-        <div><dt>Last backup</dt><dd id="fact-backup">Never</dd></div>
-        <div><dt>Data version</dt><dd id="fact-schema">1</dd></div>
-      </dl>
+    <!-- Data -->
+    <div id="view-data" class="view" hidden>
+      <section class="card" aria-labelledby="data-h">
+        <h2 id="data-h">Your data</h2>
+        <p class="muted">Saved on this device only. It never goes to GitHub.</p>
 
-      <div class="actions">
-        <button class="btn" id="btn-download" type="button">Download backup</button>
-        <label class="btn ghost" for="file-restore">Restore backup</label>
-        <input type="file" id="file-restore" accept="application/json,.json" hidden>
-      </div>
+        <dl class="facts">
+          <div><dt>Transactions saved</dt><dd id="fact-tx">0</dd></div>
+          <div><dt>Last backup</dt><dd id="fact-backup">Never</dd></div>
+          <div><dt>Data version</dt><dd id="fact-schema">2</dd></div>
+        </dl>
 
-      <div class="panel" id="restore-panel" hidden>
-        <p id="restore-info"></p>
         <div class="actions">
-          <button class="btn ghost" id="btn-cancel-restore" type="button">Cancel</button>
-          <button class="btn danger" id="btn-restore" type="button">Restore backup</button>
+          <button class="btn" id="btn-download" type="button">Download backup</button>
+          <label class="btn ghost" for="file-restore">Restore backup</label>
+          <input type="file" id="file-restore" accept="application/json,.json" hidden>
         </div>
-      </div>
 
-      <p class="status" id="status" role="status" aria-live="polite"></p>
-    </section>
+        <div class="panel" id="restore-panel" hidden>
+          <p id="restore-info"></p>
+          <div class="actions">
+            <button class="btn ghost" id="btn-cancel-restore" type="button">Cancel</button>
+            <button class="btn danger" id="btn-restore" type="button">Restore backup</button>
+          </div>
+        </div>
+
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="old-h">
+        <h2 id="old-h">Bring across your old dashboard</h2>
+        <p class="muted">Choose the backup file you downloaded from the old dashboard. Your transactions, closed months, budgets, pots, shop rules, recurring payments and pay dates are added. Nothing you already have is replaced.</p>
+        <div class="actions">
+          <label class="btn ghost" for="file-old">Choose old backup</label>
+          <input type="file" id="file-old" accept="application/json,.json" hidden>
+        </div>
+
+        <div class="panel" id="old-panel" hidden>
+          <p id="old-info"></p>
+          <div class="actions">
+            <button class="btn ghost" id="btn-cancel-old" type="button">Cancel</button>
+            <button class="btn" id="btn-old-import" type="button">Add to my data</button>
+          </div>
+        </div>
+
+        <p class="status" id="old-status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
   </main>
+
+  <nav class="tabs" aria-label="Main">
+    <button type="button" data-view="home">Home</button>
+    <button type="button" data-view="add">Add</button>
+    <button type="button" data-view="transactions">List</button>
+    <button type="button" data-view="import">Import</button>
+    <button type="button" data-view="data">Data</button>
+  </nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="js/app.js"></script>
 </body>

@@ -1,6 +1,6 @@
 // Network-first service worker: always try the network, so updates show straight away.
 // The cache is only a fallback for when you're offline. Saved money data lives in IndexedDB, not here.
-const CACHE = 'money-hq-shell-v1';
+const CACHE = 'money-hq-shell-v2';
 const SHELL = [
   './',
   'index.html',
@@ -9,6 +9,21 @@ const SHELL = [
   'js/store.js',
   'js/backup.js',
   'js/ui.js',
+  'js/money.js',
+  'js/seed.js',
+  'js/csv.js',
+  'js/classify.js',
+  'js/dedupe.js',
+  'js/importer.js',
+  'js/oldbackup.js',
+  'js/paycycle.js',
+  'js/quick.js',
+  'js/txfilter.js',
+  'js/views/home.js',
+  'js/views/add.js',
+  'js/views/transactions.js',
+  'js/views/import.js',
+  'js/views/data.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',
