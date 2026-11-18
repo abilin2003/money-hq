@@ -1,0 +1,14 @@
+{
+  "name": "money-hq",
+  "private": true,
+  "description": "Money HQ: a static personal finance site. Dev tools only; the site itself has no build step.",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.js 8080",
+    "icons": "node scripts/make-icons.js",
+    "test": "node --test && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

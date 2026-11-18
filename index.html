@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1420">
+  <meta name="description" content="Money HQ: a calm home for your money.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Money HQ">
+  <title>Money HQ</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Money HQ</h1>
+    <span class="tag">Phase 0</span>
+  </header>
+
+  <main class="wrap">
+    <section class="card" aria-labelledby="home-h">
+      <h2 id="home-h">Am I okay?</h2>
+      <p class="lead">Nothing to worry about yet. Once your data is in, this page will tell you where things stand in plain words.</p>
+    </section>
+
+    <section class="card" aria-labelledby="data-h">
+      <h2 id="data-h">Your data</h2>
+      <p class="muted">Saved on this device only. It never goes to GitHub.</p>
+
+      <dl class="facts">
+        <div><dt>Transactions saved</dt><dd id="fact-tx">0</dd></div>
+        <div><dt>Last backup</dt><dd id="fact-backup">Never</dd></div>
+        <div><dt>Data version</dt><dd id="fact-schema">1</dd></div>
+      </dl>
+
+      <div class="actions">
+        <button class="btn" id="btn-download" type="button">Download backup</button>
+        <label class="btn ghost" for="file-restore">Restore backup</label>
+        <input type="file" id="file-restore" accept="application/json,.json" hidden>
+      </div>
+
+      <div class="panel" id="restore-panel" hidden>
+        <p id="restore-info"></p>
+        <div class="actions">
+          <button class="btn ghost" id="btn-cancel-restore" type="button">Cancel</button>
+          <button class="btn danger" id="btn-restore" type="button">Restore backup</button>
+        </div>
+      </div>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
