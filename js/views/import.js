@@ -36,15 +36,15 @@ export function initImport(ctx, root) {
 
   root.append(
     h('section', { class: 'card' },
-      h('h2', null, 'Import bank files'),
+      h('h2', null, '1. Your payer rules'),
+      h('p', { class: 'muted' }, 'Do this first. These private rules say who is salary, a friend paying you back, or you moving your own money, so far fewer lines need your attention. Choose your payer-rules file once; it is saved on this device only.'),
+      rulesInfo,
+      h('label', { class: 'btn ghost', for: 'file-rules' }, 'Choose rules file'), rulesInput),
+    h('section', { class: 'card' },
+      h('h2', null, '2. Import bank files'),
       h('p', { class: 'muted' }, 'Choose all your CSV files at once from Ulster Bank, Revolut and Monzo. I work out which bank each one is from. Files stay on this device.'),
       h('label', { class: 'btn', for: 'file-csv' }, 'Choose CSV files'), fileInput,
       status),
-    h('section', { class: 'card' },
-      h('h2', null, 'Your payer rules'),
-      h('p', { class: 'muted' }, 'Private rules that say who is salary, a friend paying you back, or you moving your own money. Choose your payer-rules file once; it is saved on this device only.'),
-      rulesInfo,
-      h('label', { class: 'btn ghost', for: 'file-rules' }, 'Choose rules file'), rulesInput),
     planBox);
 
   const say = (message, kind = '') => { status.textContent = message; status.className = `status ${kind}`.trim(); };
@@ -115,10 +115,12 @@ export function initImport(ctx, root) {
     planBox.replaceChildren(h('section', { class: 'card' },
       h('h2', null, 'Ready to import'),
       h('ul', { class: 'filelist' }, fileLines),
+      ctx.data.settings.payerRules.length ? null : h('p', { class: 'tip', id: 'rules-tip' },
+        'Tip: you have not loaded your payer rules yet (step 1 above). Loading them first sorts salary, friends and your own moves automatically, and the list below gets much shorter. Choose them, then choose your files again.'),
       h('dl', { class: 'facts' },
         fact('To import', counts.toImport),
         fact('Sorted automatically', counts.auto),
-        fact('Need a quick look', `${counts.check} (${plural(list.length, 'group')})`),
+        fact('Need a quick look', `${plural(list.length, 'group')} (${plural(counts.check, 'line')})`),
         fact('Moves between your accounts (left out of totals)', counts.internal),
         fact('Already saved, skipped', counts.duplicates + (counts.matchedByHand ? ` (${counts.matchedByHand} match entries you typed by hand)` : ''))),
       list.length ? h('p', { class: 'muted' }, 'Anything you leave alone is imported with my best guess, or as "Not sure yet" (left out of totals until you decide). Choosing here teaches me for next time.') : null,

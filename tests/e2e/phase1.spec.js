@@ -53,6 +53,43 @@ test('import: sorts what it can, asks only about the rest, remembers your choice
   expect(errors).toEqual([]);
 });
 
+test('import: shows groups first, and nudges you to load your rules first', async ({ page }) => {
+  await page.goto('/#import');
+  await page.locator('#file-csv').setInputFiles(file('ulster.csv', ulsterCsv));
+  await expect(page.locator('#rules-tip')).toBeVisible();
+  await expect(page.locator('#import-plan')).toContainText('Need a quick look');
+  await expect(page.locator('#import-plan')).toContainText('3 groups (3 lines)');
+  await page.locator('#file-rules').setInputFiles(file('payer-rules.json', payerRules, 'application/json'));
+  await expect(page.locator('#rules-tip')).toHaveCount(0);
+  await expect(page.locator('#import-plan')).toContainText('1 group (1 line)');
+});
+
+test('start fresh: erasing needs two taps, empties the data, and keeps a safety copy', async ({ page }) => {
+  await page.goto('/#data');
+  await page.locator('#file-old').setInputFiles(file('old-backup.json', oldBackup, 'application/json'));
+  await page.locator('#btn-old-import').click();
+  await expect(page.locator('#fact-tx')).toHaveText('3');
+
+  const erase = page.locator('#btn-erase');
+  await erase.click();
+  await expect(erase).toHaveText('Tap again to erase everything');
+  await expect(page.locator('#fact-tx')).toHaveText('3');
+  await erase.click();
+  await expect(page.locator('#erase-status')).toContainText('Erased');
+  await expect(page.locator('#fact-tx')).toHaveText('0');
+
+  await page.reload();
+  await expect(page.locator('#fact-tx')).toHaveText('0');
+  const safety = await page.evaluate(() => new Promise((resolve) => {
+    const open = indexedDB.open('money-hq');
+    open.onsuccess = () => {
+      const get = open.result.transaction('kv').objectStore('kv').get('beforeRestore');
+      get.onsuccess = () => resolve(get.result?.data?.transactions?.length ?? 0);
+    };
+  }));
+  expect(safety).toBe(3);
+});
+
 test('import: a file from an unknown bank is explained, and does not block the good file', async ({ page }) => {
   await page.goto('/#import');
   await page.locator('#file-csv').setInputFiles([file('mystery.csv', 'foo,bar\n1,2'), file('ulster.csv', ulsterCsv)]);

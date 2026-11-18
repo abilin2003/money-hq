@@ -127,5 +127,21 @@ export function initData(ctx) {
     }
   });
 
-  return { render, emptyData };
+  // ---- Start fresh (keeps a safety copy first, and needs two taps) ----
+  const eraseStatus = (message, kind = '') => { $('erase-status').textContent = message; $('erase-status').className = `status ${kind}`.trim(); };
+  armConfirm($('btn-erase'), 'Erase my data', 'Tap again to erase everything', async () => {
+    try {
+      const current = await loadData();
+      if (current) await keepBeforeRestore(current);
+      const fresh = emptyData();
+      await saveData(fresh);
+      ctx.data = fresh;
+      ctx.refresh();
+      eraseStatus('Erased. Your previous data is kept as a safety copy on this device. You can start importing again.', 'ok');
+    } catch (err) {
+      eraseStatus(`Nothing was erased: ${err.message}`, 'bad');
+    }
+  });
+
+  return { render };
 }
