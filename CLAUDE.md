@@ -24,7 +24,10 @@ Reference designs are in `docs/design/` (Midnight, dark theme).
 - Tone in the app: calm, honest and encouraging. Show what's going well too; frame overspending as "here's what to adjust".
 
 ## Commands
-Current app, before Phase 1 (update these once the new structure is in place):
-- Unit tests: `node --test`
-- Browser tests (phone and desktop): `npx playwright test`
-- Local preview: `node scripts/serve.js 8080`, then open http://localhost:8080
+- Dev server: `npm run dev`, then open http://localhost:5173 (needs `.env.local`, see `.env.example`)
+- Unit tests (Vitest): `npm test`
+- Build: `npm run build`
+- Prove signed-out visitors see nothing: `npm run rls-check`
+- Move data from old backups: `npm run migrate -- --dry-run` first, then `npm run migrate` (asks for my password)
+- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0004 have been run.
+- The previous app lives in `legacy/`: `npm run legacy` (http://localhost:8080) and `npm run test:legacy`.

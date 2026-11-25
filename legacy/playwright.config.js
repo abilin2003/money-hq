@@ -9,7 +9,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node scripts/serve.js 8080',
+    command: 'node ../scripts/serve.js 8080',
     url: 'http://localhost:8080',
     reuseExistingServer: true,
   },

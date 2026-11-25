@@ -1,12 +1,12 @@
 // A tiny static file server for previewing the app and for the tests.
 // It never serves data/, tests/, scripts/, reference/ or node_modules/, so private files stay private.
-// Run with: npm start   (then open http://localhost:8080)
+// Run with: npm run legacy   (then open http://localhost:8080)
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'legacy'); // the previous app (Phase 1 moves it here)
 const port = Number(process.argv[2]) || 8080;
 const BLOCKED = /^(node_modules|\.git|data|tests|scripts|reference)(\/|\\|$)/;
 const TYPES = {

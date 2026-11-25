@@ -17,3 +17,10 @@ Thumbs.db
 node_modules/
 test-results/
 playwright-report/
+
+# Secrets and build output: never commit
+.env
+.env.local
+.env.*.local
+dist/
+coverage/

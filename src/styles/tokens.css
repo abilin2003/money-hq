@@ -1,0 +1,32 @@
+/* Midnight design tokens (docs/SPEC.md section 9). Dark only for now. */
+:root {
+  --bg: #0B1016;
+  --sidebar: #0D131A;
+  --surface: #121923;
+  --surface-2: #18212D;
+  --border: #1E2833;
+  --border-strong: #2A3644;
+  --text: #E8ECF2;
+  --text-2: #C3CAD4;
+  --muted: #8E99A8;
+  --faint: #5F6B7A; /* pence after the hero, axis labels only: never body text */
+  --accent: #8B9CFF;
+  --primary-bg: #F2F4F7;
+  --primary-text: #0B1016;
+  --warning: #F7B955;
+  --over: #FF8A80;
+  --good: #5BD6A0;
+
+  --b-essentials: #7AA2FF;
+  --b-groceries: #5BD6A0;
+  --b-personal-upkeep: #B79CFF;
+  --b-life-fund: #F7B955;
+  --b-fun: #F472B6;
+  --b-fuel: #4FC9E0;
+
+  --font: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius-card: 16px;
+  --radius-control: 10px;
+  --gap: 16px;
+  color-scheme: dark;
+}
