@@ -45,7 +45,7 @@ export function overviewPage(ctx, rerender, param) {
   }, 'btn primary');
   const notice = h('section', { class: 'card notice-card' },
     h('p', { style: { margin: 0 } }, `The ${current.name} cycle started on ${dayLabel(current.start)}. When you've finished looking over ${c.name}, close it and the Overview moves on to ${current.name}. `, h('a', { href: '#overview/current', class: 'tap' }, `Peek at ${current.name} so far`)));
-  return overviewView(ctx, c, { finished: true, actions: [closeBtn, imp], notice });
+  return overviewView(ctx, c, { finished: true, actions: [add, closeBtn, imp], notice });
 }
 
 export function transactionsPage(ctx, param, rerender) {

@@ -286,3 +286,6 @@ textarea.input { padding: 10px 12px; min-height: 64px; resize: vertical; }
 
 .linkrow { min-height: 44px; }
 @media (max-width: 759px) { .linkbtn { min-height: 44px; } }
+
+.side-add { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin: -8px 4px 0; }
+.side-add:hover { text-decoration: none; filter: brightness(0.95); }

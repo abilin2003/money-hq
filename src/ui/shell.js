@@ -26,6 +26,7 @@ export function shell({ route, email, onSignOut, inboxCount = 0 }) {
 
   const sidebar = h('aside', { class: 'sidebar' },
     h('div', { class: 'brand' }, logo(), h('span', { class: 'display' }, 'Money HQ')),
+    h('a', { href: '#add', class: 'btn primary side-add', 'aria-current': current('add') }, icon('add', 18, '#0B1016', 2.2), 'Add transaction'),
     h('nav', { class: 'nav', 'aria-label': 'Main' },
       PAGES.filter((p) => !p.minor).map(link),
       h('span', { class: 'nav-sep', role: 'separator' }),
