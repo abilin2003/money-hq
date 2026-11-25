@@ -20,9 +20,9 @@ const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, t
 
 // Everything the app needs, loaded once after sign-in. Names are joined in here rather than in every query.
 export async function loadEverything() {
-  const [settings, accounts, buckets, categories, cycles, budgets, rules, txs, bills, funds] = await Promise.all([
+  const [settings, accounts, buckets, categories, cycles, budgets, rules, txs, bills, funds, people, splits, snapshots, goals] = await Promise.all([
     supabase.from('settings').select('id, reserve_pence, payday_usual_day, paydays, extra').maybeSingle().then((r) => must(r, 'load settings')),
-    supabase.from('accounts').select('id, name, type').order('name').then((r) => must(r, 'load accounts')),
+    supabase.from('accounts').select('id, name, type, institution, is_active').order('name').then((r) => must(r, 'load accounts')),
     supabase.from('buckets').select('id, name, colour, sort_order').order('sort_order').then((r) => must(r, 'load buckets')),
     supabase.from('categories').select('id, name, bucket_id, is_active').order('name').then((r) => must(r, 'load categories')),
     supabase.from('cycles').select('id, start_date, end_date, closed_at').order('start_date').then((r) => must(r, 'load cycles')),
@@ -31,8 +31,12 @@ export async function loadEverything() {
     all(() => supabase.from('transactions').select(TX_COLUMNS).order('date', { ascending: false }).order('id'), 'load transactions'),
     supabase.from('recurring').select(BILL_COLUMNS).order('name').then((r) => must(r, 'load bills')),
     supabase.from('sinking_funds').select(FUND_COLUMNS).order('name').then((r) => must(r, 'load sinking funds')),
+    supabase.from('people').select('id, name').order('name').then((r) => must(r, 'load people')),
+    supabase.from('splits').select(SPLIT_COLUMNS).then((r) => must(r, 'load splits')),
+    supabase.from('balance_snapshots').select(SNAP_COLUMNS).order('date').then((r) => must(r, 'load balances')),
+    supabase.from('goals').select(GOAL_COLUMNS).order('priority').then((r) => must(r, 'load goals')),
   ]);
-  const ref = { settings, accounts, buckets, categories, cycles, budgets, rules, bills, funds };
+  const ref = { settings, accounts, buckets, categories, cycles, budgets, rules, bills, funds, people, splits, snapshots, goals };
   return { ref, all: txs.map((t) => enrich(t, ref)) };
 }
 
@@ -118,4 +122,69 @@ export async function saveCategory(cat) {
   const { id, ...rest } = cat;
   const q = id ? supabase.from('categories').update(rest).eq('id', id) : supabase.from('categories').insert(rest);
   return must(await q.select('id, name, bucket_id, is_active').single(), 'save the category');
+}
+
+// ---------------------------------------------------------------- the rest: transactions, IOUs, wealth, goals, backups
+const SPLIT_COLUMNS = 'id, transaction_id, person_id, amount_pence, settled_by_transaction_id';
+const SNAP_COLUMNS = 'id, account_id, date, balance_pence';
+const GOAL_COLUMNS = 'id, name, target_pence, target_date, account_id, sinking_fund_id, monthly_pence, growth_rate, priority';
+
+// A transaction typed in by hand (quick add). Its fingerprint is unique, so it never collides with a bank line;
+// when the bank file arrives later, the importer matches it loosely (same account and amount, within 3 days).
+export async function addTransaction(t) {
+  const id = crypto.randomUUID();
+  return must(await supabase.from('transactions').insert({ id, status: 'reviewed', source: 'manual', fingerprint: `manual|${id}`, ...t }).select(TX_COLUMNS).single(), 'save the transaction');
+}
+export async function deleteTransaction(id) {
+  must(await supabase.from('transactions').delete().eq('id', id), 'delete the transaction');
+}
+
+export async function addPerson(name) {
+  return must(await supabase.from('people').upsert({ name }, { onConflict: 'user_id,name' }).select('id, name').single(), 'save the person');
+}
+export async function addSplit(split) {
+  return must(await supabase.from('splits').insert(split).select(SPLIT_COLUMNS).single(), 'save the split');
+}
+export async function removeSplit(id) {
+  must(await supabase.from('splits').delete().eq('id', id), 'remove the split');
+}
+export async function settleSplit(id, txId) {
+  return must(await supabase.from('splits').update({ settled_by_transaction_id: txId }).eq('id', id).select(SPLIT_COLUMNS).single(), 'link the repayment');
+}
+
+export async function addSnapshot(accountId, date, balance_pence) {
+  return must(await supabase.from('balance_snapshots').upsert({ account_id: accountId, date, balance_pence }, { onConflict: 'account_id,date' }).select(SNAP_COLUMNS).single(), 'save the balance');
+}
+export async function saveAccount(account) {
+  const { id, ...rest } = account;
+  const q = id ? supabase.from('accounts').update(rest).eq('id', id) : supabase.from('accounts').insert(rest);
+  return must(await q.select('id, name, type, institution, is_active').single(), 'save the account');
+}
+export async function saveGoal(goal) {
+  const { id, ...rest } = goal;
+  const q = id ? supabase.from('goals').update(rest).eq('id', id) : supabase.from('goals').insert(rest);
+  return must(await q.select(GOAL_COLUMNS).single(), 'save the goal');
+}
+export async function deleteGoal(id) {
+  must(await supabase.from('goals').delete().eq('id', id), 'delete the goal');
+}
+
+// Backups: every table, as JSON. Restore adds back anything missing (by id) and never deletes.
+export const BACKUP_TABLES = ['accounts', 'buckets', 'categories', 'merchants', 'people', 'import_batches', 'cycles', 'budgets', 'cycle_summaries', 'transactions', 'splits', 'rules', 'recurring', 'sinking_funds', 'balance_snapshots', 'goals', 'settings'];
+export async function exportAll() {
+  const out = { app: 'money-hq', version: 2, exported: new Date().toISOString(), tables: {} };
+  for (const t of BACKUP_TABLES) out.tables[t] = await all(() => supabase.from(t).select('*').order('id'), `back up ${t}`);
+  return out;
+}
+export async function restoreAll(backup) {
+  if (backup?.app !== 'money-hq' || !backup.tables) throw new Error('That isn’t a Money HQ backup.');
+  const counts = {};
+  for (const t of BACKUP_TABLES) {
+    // transfer pairs and salary links point at other rows, so they're added after everything exists
+    const rows = (backup.tables[t] || []).map(({ user_id, transfer_pair_id, salary_transaction_id, ...r }) => r);
+    for (let i = 0; i < rows.length; i += 500) must(await supabase.from(t).upsert(rows.slice(i, i + 500), { onConflict: 'id', ignoreDuplicates: true }), `restore ${t}`);
+    counts[t] = rows.length;
+  }
+  for (const r of backup.tables.transactions || []) if (r.transfer_pair_id) await supabase.from('transactions').update({ transfer_pair_id: r.transfer_pair_id }).eq('id', r.id);
+  return counts;
 }

@@ -27,7 +27,7 @@ export function periods(all, mode, settings, today) {
 export function historyPage(ctx, rerender) {
   const mode = ctx.historyMode || 'cycle';
   const list = periods(ctx.all, mode, ctx.ref.settings, ctx.today);
-  const sums = list.map((p) => ({ ...p, s: summarise(p.txs) }));
+  const sums = list.map((p) => ({ ...p, s: summarise(p.txs, ctx.splitMap) }));
   const top = Math.max(1, ...sums.map((p) => p.s.netSpent));
   const colourOf = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
 

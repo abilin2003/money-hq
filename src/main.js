@@ -2,6 +2,8 @@
 import './styles/app.css';
 import { supabase, configured, checkReachable } from './lib/supabase.js';
 import { loadEverything, enrich } from './lib/data.js';
+import { splitTotals } from './lib/analytics.js';
+import { dayDiff } from './lib/dates.js';
 import { todayLondon } from './lib/dates.js';
 import { loginScreen, unreachableScreen, notConfiguredScreen } from './auth/screens.js';
 import { shell } from './ui/shell.js';
@@ -11,6 +13,13 @@ import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
 import { planPage } from './views/plan.js';
 import { budgetsPage } from './views/budgets.js';
+import { trendsPage } from './views/trends.js';
+import { peoplePage } from './views/people.js';
+import { addPage } from './views/add.js';
+import { goalsPage } from './views/goals.js';
+import { wealthPage } from './views/wealth.js';
+import { moneydayPage } from './views/moneyday.js';
+import { settingsPage } from './views/settings.js';
 
 const app = document.querySelector('#app');
 const show = (el) => app.replaceChildren(el);
@@ -46,7 +55,11 @@ function makeContext(email, ref, all) {
   const refresh = () => {
     c.transactions = c.all.filter((t) => !t.archived);
     c.inboxCount = c.transactions.filter((t) => t.status === 'needs_review').length;
+    c.splitMap = splitTotals(c.ref.splits || []);
+    const dateOf = Object.fromEntries(c.all.map((t) => [t.id, t.date]));
+    c.oldIous = (c.ref.splits || []).filter((s) => !s.settled_by_transaction_id && dateOf[s.transaction_id] && dayDiff(dateOf[s.transaction_id], c.today) > 30).length;
   };
+  c.refresh = refresh;
   c.replace = (t) => { c.all = c.all.map((x) => (x.id === t.id ? t : x)); refresh(); };
   c.relabel = () => { c.all = c.all.map((t) => enrich(t, c.ref)); refresh(); };
   c.add = (t) => { c.all = [t, ...c.all.filter((x) => x.id !== t.id)].sort((a, b) => b.date.localeCompare(a.date)); refresh(); };
@@ -67,7 +80,14 @@ function render() {
   const route = hashRoute || 'overview'; // an empty address means Overview
   const { root, main } = shell({ route, email: ctx.email, onSignOut: signOut, inboxCount: ctx.inboxCount });
   const page = route === 'overview' ? overviewPage(ctx, render, param)
-    : route === 'transactions' ? transactionsPage(ctx, param)
+    : route === 'transactions' ? transactionsPage(ctx, param, render)
+    : route === 'trends' ? trendsPage(ctx, render)
+    : route === 'people' ? peoplePage(ctx, render)
+    : route === 'add' ? addPage(ctx, render)
+    : route === 'goals' ? goalsPage(ctx, render)
+    : route === 'wealth' ? wealthPage(ctx, render)
+    : route === 'moneyday' ? moneydayPage(ctx, render)
+    : route === 'settings' ? settingsPage(ctx, render)
     : route === 'inbox' ? inboxPage(ctx, render)
     : route === 'import' ? importPage(ctx, render)
     : route === 'history' ? historyPage(ctx, render)

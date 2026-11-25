@@ -2,14 +2,18 @@
 // Rules (spec section 4): transfers are never spending or income; paybacks from friends are never income;
 // lines still waiting in the review inbox aren't counted until you decide.
 
-// txs: [{ amount_pence, kind, status, bucket, category }] -> totals in pence (spending as positive numbers).
-export function summarise(txs) {
-  const out = { spent: 0, refunds: 0, income: 0, invested: 0, saved: 0, paidBack: 0, waiting: 0, count: txs.length, byBucket: {}, byCategory: {} };
+// txs: [{ id, amount_pence, kind, status, bucket, category }] -> totals in pence (spending as positive numbers).
+// splits: { txId: pence } that friends owe you for a payment you made for a group. Only your share is spending
+// (spec rule 7); the rest is an IOU (`owedToYou`).
+export function summarise(txs, splits = {}) {
+  const out = { spent: 0, refunds: 0, income: 0, invested: 0, saved: 0, paidBack: 0, owedToYou: 0, waiting: 0, count: txs.length, byBucket: {}, byCategory: {} };
   for (const t of txs) {
     if (t.status === 'needs_review') { out.waiting += 1; continue; }
     const p = t.amount_pence;
     if (t.kind === 'spend' || t.kind === 'refund') {
-      const cost = -p; // money out is negative; a refund (money in) lowers spending
+      const others = t.kind === 'spend' ? Math.min(splits[t.id] || 0, -p) : 0;
+      out.owedToYou += others;
+      const cost = -p - others; // money out is negative; a refund (money in) lowers spending
       if (t.kind === 'spend') out.spent += cost; else out.refunds += p;
       const b = t.bucket || 'No bucket';
       const c = t.category || 'No category';

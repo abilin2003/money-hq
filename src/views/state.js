@@ -4,6 +4,7 @@ import { addDays } from '../lib/dates.js';
 import { summarise } from '../lib/summary.js';
 import { billsInCycle, safeToSpend, effectiveBudgets } from '../lib/budget.js';
 import { inCycle } from '../ui/parts.js';
+import { historyRows } from './history.js';
 
 export const paydaysOf = (ctx) => ctx.ref.settings?.paydays || [];
 export const usualDay = (ctx) => ctx.ref.settings?.payday_usual_day || 24;
@@ -32,10 +33,11 @@ export function budgetsFor(ctx, c) {
 
 export function cycleState(ctx, c) {
   const txs = ctx.transactions.filter((t) => inCycle(t, c));
-  const s = summarise(txs);
+  const s = summarise(txs, ctx.splitMap);
   const { budgets, inherited, from } = budgetsFor(ctx, c);
   const prev = cycleFor(addDays(c.start, -1), paydaysOf(ctx), usualDay(ctx));
-  const prevS = summarise(ctx.transactions.filter((t) => inCycle(t, prev)));
+  // Last cycle may be in the archived history (before the fresh start), so look there too.
+  const prevS = summarise(historyRows(ctx.all).filter((t) => inCycle(t, prev)), ctx.splitMap);
   const eff = effectiveBudgets(budgets, budgetsFor(ctx, prev).budgets, prevS.byBucket, ctx.ref.settings?.extra?.leftover || {});
   const effTotals = Object.fromEntries(Object.entries(eff).map(([b, e]) => [b, e.total]));
   const bills = billsInCycle(ctx.ref.bills || [], c, txs, ctx.today);

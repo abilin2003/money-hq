@@ -32,13 +32,14 @@ export function billDates(bill, cycle) {
 const matchKey = (bill) => normKey(bill.match || merchantKey(bill.name));
 const paysBill = (t, bill) => t.amount_pence < 0 && ` ${normKey(t.raw_description)} `.includes(` ${matchKey(bill)} `);
 
-// Every bill date in the cycle, with paid = a matching payment within 5 days either side is already there.
+// Every bill date in the cycle, with paid = a matching payment within 10 days either side is already there
+// (banks often charge a few days late: a bill due on the 1st can land on the 9th).
 export function billsInCycle(bills, cycle, txs, today) {
   const used = new Set();
   const out = [];
   for (const bill of bills.filter((b) => b.is_active !== false)) {
     for (const date of billDates(bill, cycle)) {
-      const payment = txs.find((t) => !used.has(t) && paysBill(t, bill) && Math.abs(dayDiff(date, t.date)) <= 5);
+      const payment = txs.find((t) => !used.has(t) && paysBill(t, bill) && Math.abs(dayDiff(date, t.date)) <= 10);
       if (payment) used.add(payment);
       out.push({ name: bill.name, amount_pence: bill.amount_pence, date, paid: Boolean(payment), dueSoon: !payment && date >= today, overdue: !payment && date < today });
     }
