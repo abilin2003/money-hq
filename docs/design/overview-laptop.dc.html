@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Money HQ overview, laptop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..700&amp;family=Bricolage+Grotesque:opsz,wght@12..96,400..700&amp;family=Instrument+Sans:wght@400..700&amp;family=Sora:wght@400..700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B1016}
+a{color:#E8ECF2}a:hover{color:#FFFFFF}
+.md{font-family:system-ui,sans-serif;font-feature-settings:'tnum' 1;color:#E8ECF2;-webkit-font-smoothing:antialiased}
+.card{background:#121923;border:1px solid #1E2833;border-radius:16px;padding:22px 24px;box-sizing:border-box;min-width:0}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.ch h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-0.005em}
+.mu{color:#8E99A8}
+.nav{display:flex;align-items:center;gap:12px;height:38px;padding:0 12px;border-radius:9px;text-decoration:none;color:#8E99A8;font-size:14px;font-weight:500}
+.btn{font:inherit;font-size:14px;font-weight:600;border-radius:10px;padding:0 16px;min-height:40px;cursor:pointer}
+.tr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.6fr) 72px 72px 84px;gap:16px;align-items:center;padding:12px 0;border-top:1px solid #1E2833;font-size:14px}
+.bar{position:relative;height:6px;border-radius:3px;background:#1E2833}
+.tk{position:absolute;left:8.3%;top:-4px;width:2px;height:14px;border-radius:1px;background:#E8ECF2}
+.dot{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:10px;flex:none}
+.r{text-align:right}
+@media (max-width:900px){.side{flex-basis:100% !important;border-right:0 !important;border-bottom:1px solid #1E2833}.tr{grid-template-columns:minmax(0,1fr) 72px 72px}.tr .bar,.tr .hide{display:none}}
+</style>
+</helmet>
+<div class="md" style="display:flex;flex-wrap:wrap;min-height:1300px;background:#0B1016;font-family:{{textFont}}">
+
+<aside class="side" style="flex:0 0 232px;box-sizing:border-box;padding:20px 14px;border-right:1px solid #1E2833;background:#0D131A;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;align-items:center;gap:10px;padding:4px 8px">
+<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#E8ECF2"/><rect x="7" y="15" width="3.5" height="6" rx="1.5" fill="#0B1016"/><rect x="12.25" y="11" width="3.5" height="10" rx="1.5" fill="#0B1016"/><rect x="17.5" y="7" width="3.5" height="14" rx="1.5" fill="#0B1016"/></svg>
+<span style="font-size:15px;font-weight:600;letter-spacing:-0.01em;font-family:{{displayFont}};font-stretch:{{displayStretch}}">Money HQ</span>
+</div>
+<nav aria-label="Main" style="display:flex;flex-direction:column;gap:2px">
+<a href="#" class="nav" aria-current="page" style="background:#18212D;color:#E8ECF2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>Overview</a>
+<a href="#" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg>Transactions</a>
+<a href="#" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Budgets</a>
+<a href="#" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"/></svg>Trends</a>
+<a href="#" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>Goals</a>
+<a href="#" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h16M6 16V10M10 16V7M14 16v-5M18 16V5"/></svg>Wealth</a>
+<a href="#" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Payday plan</a>
+</nav>
+<div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 8px;border-top:1px solid #1E2833">
+<span style="width:30px;height:30px;border-radius:15px;background:#18212D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">A</span>
+<span style="font-size:14px;font-weight:500;flex:1">Abilin</span>
+<a href="#" aria-label="Settings" style="color:#8E99A8;display:flex;min-width:32px;min-height:32px;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></a>
+</div>
+</aside>
+
+<main style="flex:999 1 760px;min-width:0;box-sizing:border-box;padding:28px 36px 48px">
+<div style="max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+
+<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:8px">
+<div><h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-0.02em;font-family:{{displayFont}};font-stretch:{{displayStretch}}">Overview</h1><p class="mu" style="margin:4px 0 0;font-size:14px">Cycle 24 Nov to 17 Dec. Day 2 of 24.</p></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<button class="btn" type="button" style="background:transparent;color:#E8ECF2;border:1px solid #2A3644">Add transaction</button>
+<button class="btn" type="button" style="background:#F2F4F7;color:#0B1016;border:0">Import statements</button>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:16px">
+<section class="card" aria-label="Safe to spend" style="flex:2 1 560px;display:flex;flex-wrap:wrap;gap:24px;align-items:stretch">
+<div style="flex:0 0 210px;display:flex;flex-direction:column">
+<p class="mu" style="margin:0;font-size:13px">Safe to spend</p>
+<div style="margin-top:8px;font-size:64px;line-height:1;font-weight:600;letter-spacing:-0.04em;font-family:{{displayFont}};font-stretch:{{displayStretch}}">£400<span style="font-size:28px;color:#5F6B7A;letter-spacing:-0.02em">.00</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px">
+<span style="font-size:13px;background:#18212D;border-radius:999px;padding:5px 10px">£17.40 a day</span>
+<span style="font-size:13px;background:#18212D;border-radius:999px;padding:5px 10px">23 days left</span>
+</div>
+<p class="mu" style="margin:auto 0 0;padding-top:16px;font-size:13px;line-height:1.5">On pace. Spending is under where the budget line says you'd be today.</p>
+</div>
+<div style="flex:1 1 300px;min-width:0">
+<svg viewBox="0 0 520 186" width="100%" role="img" aria-label="Spending this cycle against the budget pace and last cycle's pace">
+<g stroke="#1E2833" stroke-width="1"><line x1="44" x2="508" y1="150" y2="150"/><line x1="44" x2="508" y1="117.5" y2="117.5"/><line x1="44" x2="508" y1="85" y2="85"/><line x1="44" x2="508" y1="52.5" y2="52.5"/><line x1="44" x2="508" y1="20" y2="20"/></g>
+<g fill="#5F6B7A" font-size="11" text-anchor="end"><text x="36" y="154">£0</text><text x="36" y="121">£200</text><text x="36" y="89">£400</text><text x="36" y="56">£600</text><text x="36" y="24">£800</text></g>
+<line x1="44" y1="150" x2="508" y2="24" stroke="#5F6B7A" stroke-width="1.5" stroke-dasharray="2 4"/>
+<line x1="44" y1="150" x2="508" y2="72.8" stroke="#8E99A8" stroke-width="1.5" stroke-dasharray="6 5"/>
+<line x1="82.7" x2="82.7" y1="14" y2="150" stroke="#2A3644" stroke-width="1"/>
+<line x1="44" y1="150" x2="82.7" y2="150" stroke="#8B9CFF" stroke-width="3" stroke-linecap="round"/>
+<circle cx="82.7" cy="150" r="5" fill="#8B9CFF" stroke="#121923" stroke-width="2"/>
+<g font-size="11"><text x="508" y="16" text-anchor="end" fill="#8E99A8">Last cycle pace, £776</text><text x="508" y="66" text-anchor="end" fill="#C3CAD4">Budget, £475</text><text x="88" y="12" fill="#C3CAD4">Today</text><text x="44" y="172" fill="#5F6B7A">24 Nov</text><text x="508" y="172" text-anchor="end" fill="#5F6B7A">Payday 18 Dec</text></g>
+</svg>
+</div>
+</section>
+
+<section class="card" aria-labelledby="cy" style="flex:1 1 280px;display:flex;flex-direction:column;gap:16px">
+<div>
+<p id="cy" class="mu" style="margin:0;font-size:13px">Next payday</p>
+<p style="margin:6px 0 0;font-size:28px;font-weight:600;letter-spacing:-0.02em;font-family:{{displayFont}};font-stretch:{{displayStretch}}">Fri 18 Dec</p>
+<p class="mu" style="margin:2px 0 0;font-size:13px">in 23 days</p>
+</div>
+<div role="img" aria-label="Day 2 of 24" style="display:flex;gap:3px">
+<sc-for list="{{done}}" as="d" hint-placeholder-count="2"><span style="flex:1;height:28px;border-radius:3px;background:#E8ECF2"></span></sc-for>
+<sc-for list="{{todo}}" as="d" hint-placeholder-count="22"><span style="flex:1;height:28px;border-radius:3px;background:#1E2833"></span></sc-for>
+</div>
+<div style="display:flex;flex-direction:column;font-size:14px">
+<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #1E2833"><span class="mu">In your buckets</span><span>£475.00</span></div>
+<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #1E2833"><span class="mu">Bills before payday</span><span>−£75.00</span></div>
+<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #1E2833;font-weight:600"><span>Safe to spend</span><span>£400.00</span></div>
+</div>
+</section>
+</div>
+
+<section class="card" aria-label="Review inbox" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:16px 20px">
+<span style="width:36px;height:36px;border-radius:10px;background:#18212D;display:flex;align-items:center;justify-content:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C3CAD4" stroke-width="1.8" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg></span>
+<div style="flex:1 1 360px;min-width:0"><p style="margin:0;font-size:14px;font-weight:600">Review inbox is clear</p><p class="mu" style="margin:2px 0 0;font-size:13px;line-height:1.5">Import this week's Revolut, Ulster and Capital One statements and new transactions land here for a quick check.</p></div>
+<span style="font-size:13px;color:#C3CAD4;border:1px solid #2A3644;border-radius:999px;padding:5px 12px">0 to review</span>
+</section>
+
+<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+<section class="card" aria-labelledby="bk" style="flex:2 1 560px">
+<div class="ch"><h2 id="bk">Buckets</h2><a href="#" style="font-size:13px;color:#8E99A8;text-decoration:none">Manage</a></div>
+<div class="tr" style="border-top:0;padding-top:0;font-size:12px;color:#5F6B7A"><span>Bucket</span><span class="hide">This cycle</span><span class="r">Spent</span><span class="r">Left</span><span class="r hide">Last cycle</span></div>
+<div class="tr"><span style="display:flex;align-items:center;min-width:0"><span class="dot" style="background:#7AA2FF"></span><span><span style="font-weight:500">Essentials</span><br><span class="mu" style="font-size:12px">Subscriptions on Ulster</span></span></span><span class="bar"><span class="tk"></span></span><span class="r">£0</span><span class="r">£100</span><span class="r mu hide">£266</span></div>
+<div class="tr"><span style="display:flex;align-items:center;min-width:0"><span class="dot" style="background:#5BD6A0"></span><span><span style="font-weight:500">Groceries</span><br><span class="mu" style="font-size:12px">Food shops</span></span></span><span class="bar"><span class="tk"></span></span><span class="r">£0</span><span class="r">£100</span><span class="r mu hide">£123</span></div>
+<div class="tr"><span style="display:flex;align-items:center;min-width:0"><span class="dot" style="background:#B79CFF"></span><span><span style="font-weight:500">Personal Upkeep</span><br><span class="mu" style="font-size:12px">Haircuts, skincare</span></span></span><span class="bar"><span class="tk"></span></span><span class="r">£0</span><span class="r">£60</span><span class="r mu hide">£6</span></div>
+<div class="tr"><span style="display:flex;align-items:center;min-width:0"><span class="dot" style="background:#F7B955"></span><span><span style="font-weight:500">Life Fund</span><br><span class="mu" style="font-size:12px">Girlfriend, friends, family</span></span></span><span class="bar"><span class="tk"></span></span><span class="r">£0</span><span class="r">£75</span><span class="r mu hide">£107</span></div>
+<div class="tr"><span style="display:flex;align-items:center;min-width:0"><span class="dot" style="background:#F472B6"></span><span><span style="font-weight:500">Fun</span><br><span class="mu" style="font-size:12px">Eating out, padel, nights out</span></span></span><span class="bar"><span class="tk"></span></span><span class="r">£0</span><span class="r">£140</span><span class="r mu hide">£274</span></div>
+<div class="tr"><span style="display:flex;align-items:center;min-width:0"><span class="dot" style="background:#4FC9E0"></span><span><span style="font-weight:500">Fuel</span><br><span class="mu" style="font-size:12px">Capital One card</span></span></span><span class="bar" style="background:transparent;border:1px dashed #2A3644;height:4px"></span><span class="r">£0</span><span class="r"><a href="#" style="font-size:13px;color:#8B9CFF;text-decoration:none">Set</a></span><span class="r mu hide">£163</span></div>
+<div class="tr" style="font-weight:600"><span>Total</span><span class="hide"></span><span class="r">£0</span><span class="r">£475</span><span class="r hide">£776</span></div>
+</section>
+
+<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:16px">
+<section class="card" aria-labelledby="na">
+<div class="ch"><h2 id="na">Needs attention</h2><span style="font-size:12px;font-weight:600;background:#2B2416;color:#F7B955;border-radius:999px;padding:3px 9px">3</span></div>
+<div style="display:flex;gap:12px;padding:12px 0;border-top:1px solid #1E2833"><span style="width:8px;height:8px;border-radius:4px;background:#F7B955;margin-top:6px;flex:none"></span><div><p style="margin:0;font-size:14px;font-weight:500">Essentials budget looks low</p><p class="mu" style="margin:2px 0 6px;font-size:13px;line-height:1.45">£100 budgeted, £266 spent last cycle.</p><a href="#" style="font-size:13px;color:#8B9CFF;text-decoration:none">Adjust budget</a></div></div>
+<div style="display:flex;gap:12px;padding:12px 0;border-top:1px solid #1E2833"><span style="width:8px;height:8px;border-radius:4px;background:#F7B955;margin-top:6px;flex:none"></span><div><p style="margin:0;font-size:14px;font-weight:500">Fuel has no budget</p><p class="mu" style="margin:2px 0 6px;font-size:13px;line-height:1.45">£163 on the Capital One card last cycle.</p><a href="#" style="font-size:13px;color:#8B9CFF;text-decoration:none">Set a budget</a></div></div>
+<div style="display:flex;gap:12px;padding:12px 0 0;border-top:1px solid #1E2833"><span style="width:8px;height:8px;border-radius:4px;background:#FF8A80;margin-top:6px;flex:none"></span><div><p style="margin:0;font-size:14px;font-weight:500">Fun ran £134 over</p><p class="mu" style="margin:2px 0 6px;font-size:13px;line-height:1.45">£274 spent against £140 last cycle.</p><a href="#" style="font-size:13px;color:#8B9CFF;text-decoration:none">See what it went on</a></div></div>
+</section>
+
+<section class="card" aria-labelledby="up">
+<div class="ch"><h2 id="up">Upcoming bills</h2><span class="mu" style="font-size:13px">£75 before payday</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #1E2833"><span style="width:44px;font-size:12px;color:#8B9CFF;font-weight:600">Today</span><span style="flex:1;font-size:14px">Claude.ai</span><span style="font-size:14px">£18</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #1E2833"><span class="mu" style="width:44px;font-size:12px">1 Dec</span><span style="flex:1;font-size:14px">CLUBWISE gym</span><span style="font-size:14px">£30</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0 0;border-top:1px solid #1E2833"><span class="mu" style="width:44px;font-size:12px">9 Dec</span><span style="flex:1;font-size:14px">Apple subscriptions</span><span style="font-size:14px">£27</span></div>
+</section>
+</div>
+</div>
+
+<section class="card" aria-labelledby="lc">
+<div class="ch"><h2 id="lc">Last cycle by bucket</h2><span class="mu" style="font-size:13px">26 Oct to 23 Nov. £776 spent, £475 budgeted</span></div>
+<div style="position:relative;margin-top:22px">
+<div role="img" aria-label="Last cycle spending split by bucket" style="display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px">
+<span style="width:34.3%;background:#7AA2FF"></span><span style="width:15.9%;background:#5BD6A0"></span><span style="width:0.8%;background:#B79CFF"></span><span style="width:13.8%;background:#F7B955"></span><span style="flex:1;background:#F472B6"></span>
+</div>
+<span style="position:absolute;left:61.2%;top:-20px;bottom:-6px;width:2px;background:#E8ECF2"></span>
+<span style="position:absolute;left:61.2%;top:-22px;margin-left:8px;font-size:12px;color:#C3CAD4">Budget £475</span>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:16px;font-size:13px">
+<span style="display:flex;align-items:center"><span class="dot" style="background:#7AA2FF"></span>Essentials <span class="mu" style="margin-left:6px">£266</span></span>
+<span style="display:flex;align-items:center"><span class="dot" style="background:#5BD6A0"></span>Groceries <span class="mu" style="margin-left:6px">£123</span></span>
+<span style="display:flex;align-items:center"><span class="dot" style="background:#B79CFF"></span>Personal Upkeep <span class="mu" style="margin-left:6px">£6</span></span>
+<span style="display:flex;align-items:center"><span class="dot" style="background:#F7B955"></span>Life Fund <span class="mu" style="margin-left:6px">£107</span></span>
+<span style="display:flex;align-items:center"><span class="dot" style="background:#F472B6"></span>Fun <span class="mu" style="margin-left:6px">£274</span></span>
+</div>
+</section>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"typeface":{"editor":"enum","default":"Archivo","options":["Archivo","Bricolage Grotesque","Instrument Sans","Sora"]},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+const faces = { 'Archivo': ["'Archivo'", '125%'], 'Bricolage Grotesque': ["'Bricolage Grotesque'", '100%'], 'Instrument Sans': ["'Instrument Sans'", '100%'], 'Sora': ["'Sora'", '100%'] };
+const f = faces[this.props.typeface] || faces['Archivo'];
+const stack = f[0] + ', system-ui, sans-serif';
+const done = [1, 2];
+const todo = Array.from({ length: 22 }, (_, i) => i);
+return { done, todo, textFont: stack, displayFont: stack, displayStretch: f[1] };
+}
+}
+</script>
+</body>
+</html>

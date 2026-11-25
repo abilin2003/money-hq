@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Money HQ quick add, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..700&amp;family=Bricolage+Grotesque:opsz,wght@12..96,400..700&amp;family=Instrument+Sans:wght@400..700&amp;family=Sora:wght@400..700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#E8ECF2}a:hover{color:#FFFFFF}
+.ma{font-family:system-ui,sans-serif;font-feature-settings:'tnum' 1;color:#E8ECF2;-webkit-font-smoothing:antialiased}
+.lb{display:block;font-size:13px;color:#8E99A8;margin:0 0 8px}
+.in{box-sizing:border-box;width:100%;font:inherit;font-size:15px;color:#E8ECF2;background:#121923;border:1px solid #1E2833;border-radius:12px;padding:0 14px;min-height:46px;outline:none}
+.in::placeholder{color:#5F6B7A}
+.in:focus{border-color:#8B9CFF}
+.seg{display:flex;gap:4px;background:#121923;border:1px solid #1E2833;border-radius:12px;padding:4px}
+.seg button{flex:1;font:inherit;font-size:13px;font-weight:500;border:0;border-radius:9px;min-height:36px;cursor:pointer}
+</style>
+</helmet>
+<div class="ma" style="width:390px;height:844px;box-sizing:border-box;background:#0B1016;display:flex;flex-direction:column;overflow:hidden;font-family:{{textFont}}">
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1E2833">
+<a href="overview-phone.dc.html" style="font-size:15px;color:#8E99A8;text-decoration:none;min-width:64px;min-height:44px;display:flex;align-items:center">Cancel</a>
+<h1 style="margin:0;font-size:16px;font-weight:600;font-family:{{displayFont}};font-stretch:{{displayStretch}}">Add transaction</h1>
+<span style="min-width:64px"></span>
+</div>
+
+<div style="flex:1;overflow:auto;padding:14px 20px 16px;display:flex;flex-direction:column;gap:14px">
+
+<div style="display:flex;align-items:baseline;justify-content:center;gap:4px;padding:8px 0 4px">
+<label for="amt" style="font-size:36px;font-weight:500;color:#5F6B7A">£</label>
+<input id="amt" inputmode="decimal" placeholder="0.00" aria-label="Amount" style="font:inherit;font-family:{{displayFont}};font-stretch:{{displayStretch}};font-size:56px;font-weight:600;letter-spacing:-0.04em;color:#E8ECF2;background:transparent;border:0;outline:none;width:200px;text-align:left">
+</div>
+
+<div class="seg" role="group" aria-label="Type">
+<sc-for list="{{kinds}}" as="k" hint-placeholder-count="3"><button type="button" onClick="{{k.pick}}" aria-pressed="{{k.pressed}}" style="{{k.style}}">{{k.label}}</button></sc-for>
+</div>
+
+<div>
+<label class="lb" for="mer">Where</label>
+<input id="mer" class="in" placeholder="e.g. Lidl, Shell, padel club">
+</div>
+
+<div>
+<p id="bkl" class="lb">Bucket</p>
+<div role="group" aria-labelledby="bkl" style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{buckets}}" as="b" hint-placeholder-count="6"><button type="button" onClick="{{b.pick}}" aria-pressed="{{b.pressed}}" style="{{b.style}}"><span style="{{b.dot}}"></span>{{b.label}}</button></sc-for>
+</div>
+</div>
+
+<div>
+<p id="pwl" class="lb">Paid with</p>
+<div class="seg" role="group" aria-labelledby="pwl">
+<sc-for list="{{accts}}" as="a" hint-placeholder-count="4"><button type="button" onClick="{{a.pick}}" aria-pressed="{{a.pressed}}" style="{{a.style}}">{{a.label}}</button></sc-for>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;background:#121923;border:1px solid #1E2833;border-radius:12px;padding:12px 14px">
+<div style="flex:1"><p style="margin:0;font-size:15px;font-weight:500">Split with friends</p><p style="margin:2px 0 0;font-size:12px;color:#8E99A8;line-height:1.4">Your share counts as spending. The rest becomes an IOU.</p></div>
+<button type="button" role="switch" aria-checked="{{splitAria}}" aria-label="Split with friends" onClick="{{toggleSplit}}" style="{{switchStyle}}"><span style="{{knobStyle}}"></span></button>
+</div>
+
+<sc-if value="{{split}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:10px">
+<div style="flex:1"><label class="lb" for="shr">Your share</label><input id="shr" class="in" inputmode="decimal" placeholder="£0.00"></div>
+<div style="flex:1.4"><label class="lb" for="who">Who owes you</label><input id="who" class="in" placeholder="Friend's name"></div>
+</div>
+</sc-if>
+
+<div>
+<label class="lb" for="nt">Note</label>
+<input id="nt" class="in" placeholder="Optional">
+</div>
+</div>
+
+<div style="padding:12px 20px 28px;border-top:1px solid #1E2833">
+<button type="button" style="width:100%;font:inherit;font-size:15px;font-weight:600;background:#F2F4F7;color:#0B1016;border:0;border-radius:12px;min-height:50px;cursor:pointer">Save transaction</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"typeface":{"editor":"enum","default":"Archivo","options":["Archivo","Bricolage Grotesque","Instrument Sans","Sora"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { kind: 'Spend', bucket: 'Groceries', acct: 'Revolut', split: false };
+}
+renderVals() {
+const faces = { 'Archivo': ["'Archivo'", '125%'], 'Bricolage Grotesque': ["'Bricolage Grotesque'", '100%'], 'Instrument Sans': ["'Instrument Sans'", '100%'], 'Sora': ["'Sora'", '100%'] };
+const f = faces[this.props.typeface] || faces['Archivo'];
+const stack = f[0] + ', system-ui, sans-serif';
+const s = this.state;
+const on = 'background:#F2F4F7;color:#0B1016';
+const off = 'background:transparent;color:#C3CAD4';
+const kinds = ['Spend', 'Money in', 'Transfer'].map((k) => ({
+label: k, pressed: k === s.kind ? 'true' : 'false', style: k === s.kind ? on : off,
+pick: () => this.setState({ kind: k })
+}));
+const accts = ['Revolut', 'Ulster', 'Capital One', 'Cash'].map((a) => ({
+label: a, pressed: a === s.acct ? 'true' : 'false', style: a === s.acct ? on : off,
+pick: () => this.setState({ acct: a })
+}));
+const list = [['Essentials', '#7AA2FF'], ['Groceries', '#5BD6A0'], ['Personal Upkeep', '#B79CFF'], ['Life Fund', '#F7B955'], ['Fun', '#F472B6'], ['Fuel', '#4FC9E0']];
+const buckets = list.map(([label, c]) => {
+const sel = label === s.bucket;
+return {
+label, pressed: sel ? 'true' : 'false',
+dot: 'display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:8px;background:' + c,
+style: 'font:inherit;font-size:14px;font-weight:500;display:flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;cursor:pointer;color:#E8ECF2;background:' + (sel ? '#18212D' : 'transparent') + ';border:1px solid ' + (sel ? c : '#2A3644'),
+pick: () => this.setState({ bucket: label })
+};
+});
+return {
+textFont: stack, displayFont: stack, displayStretch: f[1],
+kinds, accts, buckets, split: s.split, splitAria: s.split ? 'true' : 'false',
+toggleSplit: () => this.setState({ split: !s.split }),
+switchStyle: 'position:relative;width:48px;height:28px;border-radius:14px;border:0;cursor:pointer;flex:none;background:' + (s.split ? '#8B9CFF' : '#2A3644'),
+knobStyle: 'position:absolute;top:3px;width:22px;height:22px;border-radius:11px;background:#FFFFFF;left:' + (s.split ? '23px' : '3px')
+};
+}
+}
+</script>
+</body>
+</html>

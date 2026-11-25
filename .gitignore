@@ -2,11 +2,11 @@
 data/*
 !data/README.md
 *.csv
+*.xlsx
+exports/
 *backup*.json
 
 # Personal notes and reference material: kept on this PC only
-CLAUDE.md
-SPEC.md
 START-HERE.md
 reference/
 .claude/

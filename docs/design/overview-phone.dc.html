@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Money HQ overview, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..700&amp;family=Bricolage+Grotesque:opsz,wght@12..96,400..700&amp;family=Instrument+Sans:wght@400..700&amp;family=Sora:wght@400..700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#E8ECF2}a:hover{color:#FFFFFF}
+.mp{font-family:system-ui,sans-serif;font-feature-settings:'tnum' 1;color:#E8ECF2;-webkit-font-smoothing:antialiased}
+.card{background:#121923;border:1px solid #1E2833;border-radius:16px;box-sizing:border-box}
+.mu{color:#8E99A8}
+.br{padding:9px 0;border-top:1px solid #1E2833}
+.br .t{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-bottom:8px}
+.bar{position:relative;height:5px;border-radius:3px;background:#1E2833}
+.tk{position:absolute;left:8.3%;top:-4px;width:2px;height:13px;border-radius:1px;background:#E8ECF2}
+.dot{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:9px}
+.nv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;text-decoration:none;color:#8E99A8;min-width:56px;min-height:44px}
+</style>
+</helmet>
+<div class="mp" style="width:390px;height:844px;box-sizing:border-box;background:#0B1016;position:relative;overflow:hidden;font-family:{{textFont}}">
+<div style="padding:18px 16px 96px;display:flex;flex-direction:column;gap:12px">
+
+<div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px">
+<div><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.02em;font-family:{{displayFont}};font-stretch:{{displayStretch}}">Overview</h1><p class="mu" style="margin:2px 0 0;font-size:13px">Day 2 of 24, payday Fri 18 Dec</p></div>
+<span style="width:34px;height:34px;border-radius:17px;background:#18212D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">A</span>
+</div>
+
+<section class="card" aria-label="Safe to spend" style="padding:16px 16px 10px">
+<p class="mu" style="margin:0;font-size:13px">Safe to spend</p>
+<div style="margin-top:6px;font-size:52px;line-height:1;font-weight:600;letter-spacing:-0.04em;font-family:{{displayFont}};font-stretch:{{displayStretch}}">£400<span style="font-size:24px;color:#5F6B7A">.00</span></div>
+<div style="display:flex;gap:6px;margin-top:12px">
+<span style="font-size:12px;background:#18212D;border-radius:999px;padding:4px 9px">£17.40 a day</span>
+<span style="font-size:12px;background:#18212D;border-radius:999px;padding:4px 9px">23 days left</span>
+</div>
+<svg viewBox="0 0 330 78" width="100%" role="img" aria-label="On pace: spending under the budget line" style="margin-top:8px;display:block">
+<line x1="4" x2="326" y1="66" y2="66" stroke="#1E2833"/>
+<line x1="4" y1="66" x2="326" y2="10" stroke="#5F6B7A" stroke-width="1.4" stroke-dasharray="2 4"/>
+<line x1="4" y1="66" x2="326" y2="32" stroke="#8E99A8" stroke-width="1.4" stroke-dasharray="6 5"/>
+<line x1="4" y1="66" x2="30.8" y2="66" stroke="#8B9CFF" stroke-width="3" stroke-linecap="round"/>
+<circle cx="30.8" cy="66" r="4.5" fill="#8B9CFF" stroke="#121923" stroke-width="2"/>
+<g font-size="10.5"><text x="326" y="7" text-anchor="end" fill="#8E99A8">Last cycle pace</text><text x="326" y="28" text-anchor="end" fill="#C3CAD4">Budget</text></g>
+</svg>
+</section>
+
+<section class="card" aria-label="Review inbox" style="display:flex;align-items:center;gap:12px;padding:12px 14px">
+<span style="width:32px;height:32px;border-radius:9px;background:#18212D;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C3CAD4" stroke-width="1.8" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg></span>
+<span style="flex:1;font-size:14px;font-weight:500">Review inbox is clear</span>
+<a href="#" style="font-size:13px;color:#8B9CFF;text-decoration:none;min-height:44px;display:flex;align-items:center">Import</a>
+</section>
+
+<section class="card" aria-labelledby="pb" style="padding:14px 16px 6px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><h2 id="pb" style="margin:0;font-size:15px;font-weight:600">Buckets</h2><span class="mu" style="font-size:12px">left this cycle</span></div>
+<div class="br"><div class="t"><span><span class="dot" style="background:#7AA2FF"></span>Essentials</span><span>£100 <span class="mu" style="font-size:12px">of £100</span></span></div><div class="bar"><span class="tk"></span></div></div>
+<div class="br"><div class="t"><span><span class="dot" style="background:#5BD6A0"></span>Groceries</span><span>£100 <span class="mu" style="font-size:12px">of £100</span></span></div><div class="bar"><span class="tk"></span></div></div>
+<div class="br"><div class="t"><span><span class="dot" style="background:#B79CFF"></span>Personal Upkeep</span><span>£60 <span class="mu" style="font-size:12px">of £60</span></span></div><div class="bar"><span class="tk"></span></div></div>
+<div class="br"><div class="t"><span><span class="dot" style="background:#F7B955"></span>Life Fund</span><span>£75 <span class="mu" style="font-size:12px">of £75</span></span></div><div class="bar"><span class="tk"></span></div></div>
+<div class="br"><div class="t"><span><span class="dot" style="background:#F472B6"></span>Fun</span><span>£140 <span class="mu" style="font-size:12px">of £140</span></span></div><div class="bar"><span class="tk"></span></div></div>
+<div class="br"><div class="t"><span><span class="dot" style="background:#4FC9E0"></span>Fuel</span><a href="#" style="font-size:13px;color:#8B9CFF;text-decoration:none">Set a budget</a></div><div class="bar" style="background:transparent;border:1px dashed #2A3644;height:3px"></div></div>
+</section>
+</div>
+
+<nav aria-label="Main" style="position:absolute;left:0;right:0;bottom:0;height:80px;box-sizing:border-box;padding:6px 12px 18px;background:#0D131A;border-top:1px solid #1E2833;display:flex;justify-content:space-between;align-items:center">
+<a href="#" class="nv" aria-current="page" style="color:#E8ECF2;font-weight:500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>Overview</a>
+<a href="#" class="nv"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg>Activity</a>
+<a href="quick-add-phone.dc.html" class="nv" aria-label="Add a transaction" style="min-width:64px"><span style="width:50px;height:50px;border-radius:15px;background:#F2F4F7;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B1016" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span></a>
+<a href="#" class="nv"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Budgets</a>
+<a href="#" class="nv"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></svg>More</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"typeface":{"editor":"enum","default":"Archivo","options":["Archivo","Bricolage Grotesque","Instrument Sans","Sora"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const faces = { 'Archivo': ["'Archivo'", '125%'], 'Bricolage Grotesque': ["'Bricolage Grotesque'", '100%'], 'Instrument Sans': ["'Instrument Sans'", '100%'], 'Sora': ["'Sora'", '100%'] };
+const f = faces[this.props.typeface] || faces['Archivo'];
+const stack = f[0] + ', system-ui, sans-serif';
+return { textFont: stack, displayFont: stack, displayStretch: f[1] };
+}
+}
+</script>
+</body>
+</html>
