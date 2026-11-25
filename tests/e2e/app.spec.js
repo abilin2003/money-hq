@@ -2,6 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { resetDb, file } from './helpers.js';
+import { SCHEMA_VERSION } from '../../js/store.js';
 
 // Obviously fake test backup, made by version 1 of the app (restoring it also tests the migration).
 const fakeBackup = {
@@ -20,7 +21,11 @@ const fakeBackup = {
   },
 };
 
-const VIEWS = ['home', 'add', 'transactions', 'import', 'data'];
+// The six main sections, the screens inside them, and the older Add, List, Import and Data screens.
+const VIEWS = ['hq', 'spending', 'savings', 'wealth', 'planning', 'settings', 'add', 'transactions', 'import', 'data'];
+const SUB_SCREENS = ['spending/breakdown', 'spending/trends', 'spending/behaviour', 'spending/budgets', 'spending/tools', 'wealth/investments', 'wealth/debts', 'planning/cashflow', 'planning/calendar',
+  'planning/recurring', 'planning/whatif', 'planning/insights', 'settings/data', 'settings/rules', 'settings/security', 'settings/look'];
+const go = (page, view) => page.evaluate((v) => { location.hash = v; }, view);
 
 test.beforeEach(async ({ page }) => {
   await resetDb(page);
@@ -32,20 +37,25 @@ test('every screen loads with no console errors and no sideways scrolling', asyn
   page.on('pageerror', (err) => errors.push(err.message));
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Am I okay?' })).toBeVisible();
-  for (const view of VIEWS) {
-    await page.locator(`.tabs [data-view="${view}"]`).click();
-    await expect(page.locator(`#view-${view}`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Money HQ' })).toBeVisible();
+  for (const view of [...VIEWS, ...SUB_SCREENS]) {
+    await go(page, view);
+    await expect(page.locator(`#view-${view.split('/')[0]}`)).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, `${view} on ${testInfo.project.name} should not scroll sideways`).toBeLessThanOrEqual(0);
+  }
+  // The six tabs work by tapping, too.
+  for (const view of ['hq', 'spending', 'savings', 'wealth', 'planning', 'settings']) {
+    await page.locator(`.tabs [data-view="${view}"]`).click();
+    await expect(page.locator(`#view-${view}`)).toBeVisible();
   }
   expect(errors).toEqual([]);
 });
 
 test('everything you can tap is at least 44px tall, on every screen', async ({ page }) => {
-  for (const view of VIEWS) {
+  for (const view of [...VIEWS, ...SUB_SCREENS]) {
     await page.goto(`/#${view}`);
-    await expect(page.locator(`#view-${view}`)).toBeVisible();
+    await expect(page.locator(`#view-${view.split('/')[0]}`)).toBeVisible();
     const tooSmall = await page.evaluate(() => {
       const found = [];
       for (const el of document.querySelectorAll('button, select, label.btn, input:not([type=hidden]):not([type=file]):not([type=checkbox])')) {
@@ -68,7 +78,7 @@ test('download backup gives a .json file that holds the saved data', async ({ pa
   expect(download.suggestedFilename()).toMatch(/^money-hq-backup-\d{4}-\d{2}-\d{2}\.json$/);
   const saved = JSON.parse(await readFile(await download.path(), 'utf8'));
   expect(saved.app).toBe('money-hq');
-  expect(saved.schemaVersion).toBe(2);
+  expect(saved.schemaVersion).toBe(SCHEMA_VERSION);
   await expect(page.locator('#fact-backup')).not.toHaveText('Never');
 });
 
@@ -91,7 +101,7 @@ test('restore asks twice before replacing data, then keeps the data after reload
 
   await page.reload();
   await expect(page.locator('#fact-tx')).toHaveText('2');
-  await expect(page.locator('#fact-schema')).toHaveText('2');
+  await expect(page.locator('#fact-schema')).toHaveText(String(SCHEMA_VERSION)); // an old backup is upgraded on restore
 });
 
 test('a file that is not a Money HQ backup is refused with a clear message', async ({ page }) => {

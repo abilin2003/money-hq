@@ -85,6 +85,8 @@ export function commitImport(plan, choices, settings, { tag = '' } = {}) {
       ...(tag ? { tag } : {}),
       source: 'csv',
       ...(row.ref ? { ref: row.ref } : {}),
+      ...(row.note ? { note: row.note } : {}),
+      ...(row.detail ? { detail: row.detail } : {}),
     });
   }
 

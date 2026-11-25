@@ -78,3 +78,11 @@ test('list totals leave out internal transfers and unsure lines', () => {
   const s = summarise(list);
   assert.deepEqual(s, { count: 8, spent: 32, paidBack: 5, income: 1000, invested: 0, internal: 1, unsure: 1 });
 });
+
+test('a pay cycle is named after the month it ends in, and cycles list newest first', async () => {
+  const { cycleName, cycleList } = await import('../js/paycycle.js');
+  const paydates = ['2026-09-24', '2026-10-26', '2026-11-24'];
+  assert.equal(cycleName(periodFor('2026-11-10', paydates)), 'November'); // 26 Oct to 23 Nov
+  const list = cycleList(paydates, '2026-10-26', '2026-11-24');
+  assert.deepEqual(list.map((p) => p.name), ['December', 'November']);
+});

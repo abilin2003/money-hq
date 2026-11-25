@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-GB">
+<html lang="en-GB" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -11,31 +11,41 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- Fonts: Sora (headlines and numbers) and Manrope (text), pinned versions from jsDelivr. The page still works without them. -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/manrope@5.3.0/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/sora@5.3.0/index.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="demo-banner" id="demo-banner" role="status" hidden>
+    <span><b>Demo mode.</b> Every figure is fake and nothing is saved.</span>
+    <button class="btn small" id="demo-exit" type="button">Exit demo</button>
+  </div>
   <header class="top">
-    <h1>Money HQ</h1>
-    <span class="tag">Phase 1</span>
+    <h1 class="brand"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2ee6b6"/><stop offset="1" stop-color="#7c8cff"/></linearGradient></defs><path d="M16 2.5 28 9.2v13.6L16 29.5 4 22.8V9.2z" fill="none" stroke="url(#lg)" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 20.5v-7l6 4.2 6-4.2v7" fill="none" stroke="url(#lg)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Money <b>HQ</b></span></h1>
+    <div class="topact">
+      <button class="chip small" id="theme-btn" type="button" aria-label="Change between light and dark">Theme</button>
+    </div>
   </header>
 
-  <main class="wrap">
-    <!-- Home -->
-    <div id="view-home" class="view">
-      <section class="card" aria-labelledby="home-h">
-        <h2 id="home-h">Am I okay?</h2>
-        <p class="lead" id="home-msg">Nothing to worry about yet. Bring your data in, and this page will tell you where things stand in plain words.</p>
-        <p class="muted" id="home-coverage"></p>
-        <button class="btn" id="home-go" type="button">Bring my data in</button>
-      </section>
-    </div>
+  <main class="wrap" id="main" tabindex="-1">
+    <!-- The six main sections are built by the scripts -->
+    <div id="view-hq" class="view"></div>
+    <div id="view-spending" class="view" hidden></div>
+    <div id="view-savings" class="view" hidden></div>
+    <div id="view-wealth" class="view" hidden></div>
+    <div id="view-planning" class="view" hidden></div>
+    <div id="view-settings" class="view" hidden></div>
 
     <!-- Add, List and Import are built by the scripts -->
     <div id="view-add" class="view" hidden></div>
     <div id="view-transactions" class="view" hidden></div>
     <div id="view-import" class="view" hidden></div>
 
-    <!-- Data -->
+    <!-- Backup, restore and the old dashboard -->
     <div id="view-data" class="view" hidden>
       <section class="card" aria-labelledby="data-h">
         <h2 id="data-h">Your data</h2>
@@ -44,7 +54,7 @@
         <dl class="facts">
           <div><dt>Transactions saved</dt><dd id="fact-tx">0</dd></div>
           <div><dt>Last backup</dt><dd id="fact-backup">Never</dd></div>
-          <div><dt>Data version</dt><dd id="fact-schema">2</dd></div>
+          <div><dt>Data version</dt><dd id="fact-schema">4</dd></div>
         </dl>
 
         <div class="actions">
@@ -62,6 +72,7 @@
         </div>
 
         <p class="status" id="status" role="status" aria-live="polite"></p>
+        <p class="muted">Want a password on your backup? Use Settings, then Security &amp; backups.</p>
       </section>
 
       <section class="card" aria-labelledby="old-h">
@@ -94,12 +105,15 @@
     </div>
   </main>
 
+  <button class="fab" id="fab-add" type="button" aria-label="Add a transaction">+</button>
+
   <nav class="tabs" aria-label="Main">
-    <button type="button" data-view="home">Home</button>
-    <button type="button" data-view="add">Add</button>
-    <button type="button" data-view="transactions">List</button>
-    <button type="button" data-view="import">Import</button>
-    <button type="button" data-view="data">Data</button>
+    <button type="button" data-view="hq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>HQ</span></button>
+    <button type="button" data-view="spending"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Spending</span></button>
+    <button type="button" data-view="savings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 3v3M21 12h-3"/></svg><span>Savings</span></button>
+    <button type="button" data-view="wealth"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Wealth</span></button>
+    <button type="button" data-view="planning"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Plan</span></button>
+    <button type="button" data-view="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg><span>Settings</span></button>
   </nav>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

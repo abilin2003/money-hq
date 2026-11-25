@@ -30,7 +30,7 @@ test('import: sorts what it can, asks only about the rest, remembers your choice
   await expect(plan).toBeHidden();
 
   // The list shows what was saved, with the right kinds.
-  await page.locator('.tabs [data-view="transactions"]').click();
+  await page.evaluate(() => { location.hash = 'transactions'; });
   await expect(page.locator('#tx-summary')).toContainText('5 transactions');
   await expect(page.locator('#tx-summary')).toContainText('income £1,000.00');
   await expect(page.locator('#tx-summary')).toContainText('2 moves left out');
@@ -41,7 +41,7 @@ test('import: sorts what it can, asks only about the rest, remembers your choice
   await expect(page.locator('.txrow', { hasText: 'Corner Shop' })).toContainText('Groceries');
 
   // Importing the same files again finds everything already saved.
-  await page.locator('.tabs [data-view="import"]').click();
+  await page.evaluate(() => { location.hash = 'import'; });
   await page.locator('#file-csv').setInputFiles([file('ulster.csv', ulsterCsv), file('monzo.csv', monzoCsv)]);
   await expect(page.locator('#btn-import')).toHaveText('Nothing new to import');
   await expect(page.locator('#btn-import')).toBeDisabled();
@@ -159,7 +159,7 @@ test('quick entry: save, favourite tile fills the form, save and add another kee
   await expect(page.locator('#add-status')).toContainText('Enter an amount above £0');
 
   await page.reload();
-  await page.locator('.tabs [data-view="data"]').click();
+  await page.evaluate(() => { location.hash = 'data'; });
   await expect(page.locator('#fact-tx')).toHaveText('2');
 });
 
@@ -169,7 +169,7 @@ test('list: search, filter, edit in place, and delete needs two taps', async ({ 
   await page.locator('#btn-old-import').click();
   await expect(page.locator('#fact-tx')).toHaveText('3');
 
-  await page.locator('.tabs [data-view="transactions"]').click();
+  await page.evaluate(() => { location.hash = 'transactions'; });
   await expect(page.locator('.txrow')).toHaveCount(3);
 
   await page.locator('#tx-q').fill('mart');
@@ -201,6 +201,7 @@ test('list: search, filter, edit in place, and delete needs two taps', async ({ 
   await expect(page.locator('.txrow', { hasText: 'Test Mart' })).toHaveCount(0);
 
   await page.reload();
-  await page.locator('.tabs [data-view="data"]').click();
+  await page.evaluate(() => { location.hash = 'data'; });
   await expect(page.locator('#fact-tx')).toHaveText('2');
 });
+

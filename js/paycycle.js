@@ -21,4 +21,21 @@ export function periodFor(dateIso, paydates = []) {
   return { start, end, next, missing, totalDays, dayNumber, daysLeft: totalDays - dayNumber };
 }
 
-export const inPeriod = (dateIso, period) => dateIso >= period.start && dateIso <= period.end;
+// A cycle is named after the month it ends in: 26 Oct to 23 Nov is the "November" cycle.
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const cycleName = (period) => MONTHS[+period.end.slice(5, 7) - 1];
+
+// Every pay cycle that has started by `today`, newest first, from the first payday on or before `firstDate`.
+export function cycleList(paydates = [], firstDate, today) {
+  const out = [];
+  let d = today;
+  for (let guard = 0; guard < 60; guard++) {
+    const p = periodFor(d, paydates);
+    out.push({ ...p, name: cycleName(p) });
+    if (p.start <= firstDate || p.start <= '2000-01-01') break;
+    d = addDays(p.start, -1);
+  }
+  return out;
+}
+
+export const inPeriod =(dateIso, period) => dateIso >= period.start && dateIso <= period.end;

@@ -1,7 +1,7 @@
 // Decides what each bank line is: spending, income, a transfer, and so on.
 // Order of trust: your payer rules, then the bank's own transfer flags, then learned shop rules, then hints.
 import { normKey } from './money.js';
-import { KINDS, SEED_MERCHANT_RULES, INTERNAL_PATTERNS, BANK_CATEGORY_HINTS } from './seed.js';
+import { KINDS, SEED_MERCHANT_RULES, INTERNAL_PATTERNS, BANK_CATEGORY_HINTS, INVESTED_ACCOUNTS } from './seed.js';
 
 const MONEY_IN_ONLY = ['income', 'payback', 'fund'];
 
@@ -43,6 +43,15 @@ export function findMerchantRule(desc, rules, direction) {
 //   status 'suggested' a good guess that is worth a quick look
 //   status 'review'    no idea yet, needs a decision
 export function classifyRow(row, settings = {}) {
+  // A list you wrote yourself already says what each line is: your category wins over any rule.
+  const chosen = String(row.userCategory || '').trim();
+  if (chosen) {
+    const budgets = (settings.categories || []).map((c) => c.name);
+    if (INVESTED_ACCOUNTS.includes(chosen) && row.direction === 'out') return { kind: 'invested', category: chosen, status: 'auto', reason: 'from your list' };
+    if (budgets.includes(chosen)) return { kind: row.direction === 'out' ? 'spending' : 'payback', category: chosen, status: 'auto', reason: 'from your list' };
+    return { kind: 'unsure', category: '', status: 'review', reason: row.note || `"${chosen}" is not one of your budgets` };
+  }
+
   const payer = matchPayerRule(row, settings.payerRules);
   if (payer) {
     const status = payer.label === 'unsure' ? 'review' : payer.confirm ? 'suggested' : 'auto';

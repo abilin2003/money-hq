@@ -34,8 +34,8 @@ test('migration 1 to 2: old loosely-shaped data gains the new fields and loses n
   };
   const snapshot = JSON.parse(JSON.stringify(v1));
   const data = migrate(v1);
-  assert.equal(data.schemaVersion, 2);
-  assert.deepEqual(data.transactions[0], { id: 'a', date: '2026-01-02', desc: 'Test shop', amount: 1, category: 'Test', tag: 'Trip', direction: 'out', kind: 'spending', account: '', source: 'manual' });
+  assert.equal(data.schemaVersion, SCHEMA_VERSION);
+  assert.deepEqual(data.transactions[0], { id: 'a', date: '2026-01-02', desc: 'Test shop', amount: 1, category: 'Test', tag: 'Trip', direction: 'out', kind: 'spending', account: '', source: 'manual', detail: '', note: '' });
   assert.equal(data.transactions[1].id, 'legacy-1');
   assert.equal(data.transactions[1].amount, 2.5);
   assert.equal(data.transactions[1].category, 'Fun');
@@ -45,6 +45,21 @@ test('migration 1 to 2: old loosely-shaped data gains the new fields and loses n
   assert.deepEqual(data.closedMonths, [{ id: 'm1' }]);
   assert.deepEqual(data.pots, [{ id: 'p1' }]);
   assert.deepEqual(v1, snapshot, 'input must not be modified');
+});
+
+test('migration 2 to 3: transactions gain detail and note, and nothing already there is replaced', () => {
+  const v2 = {
+    ...emptyData(),
+    schemaVersion: 2,
+    transactions: [fakeTx, { ...fakeTx, id: 'test-2', detail: 'Energy drink', note: 'before gym' }],
+  };
+  const snapshot = JSON.parse(JSON.stringify(v2));
+  const data = migrate(v2);
+  assert.equal(data.schemaVersion, SCHEMA_VERSION);
+  assert.deepEqual(data.transactions[0], { ...fakeTx, detail: '', note: '' });
+  assert.equal(data.transactions[1].detail, 'Energy drink', 'an existing value is never overwritten');
+  assert.equal(data.transactions[1].note, 'before gym');
+  assert.deepEqual(v2, snapshot, 'input must not be modified');
 });
 
 test('migrate rejects data from a newer version, with a plain message', () => {
@@ -76,7 +91,7 @@ test('a backup round-trips through JSON without losing anything', () => {
 test('a backup made by version 1 of the app can still be restored', () => {
   const text = JSON.stringify({ app: 'money-hq', schemaVersion: 1, exported: '2026-11-01T09:00:00.000Z', data: { schemaVersion: 1, settings: {}, transactions: [{ id: 't', date: '2026-10-01', desc: 'Test', amount: 1 }], closedMonths: [], pots: [] } });
   const parsed = parseBackup(text);
-  assert.equal(parsed.data.schemaVersion, 2);
+  assert.equal(parsed.data.schemaVersion, SCHEMA_VERSION);
   assert.equal(parsed.data.transactions[0].kind, 'spending');
 });
 
@@ -99,6 +114,37 @@ test('parseBackup points old-dashboard backups to the old-dashboard importer', (
   assert.throws(() => parseBackup(old), /old dashboard/);
 });
 
-test('SCHEMA_VERSION is 2', () => {
-  assert.equal(SCHEMA_VERSION, 2);
+test('migration 3 to 4: new lists and settings appear empty, and nothing already there changes', () => {
+  const v3 = { schemaVersion: 3, settings: { budgets: { Test: 5 }, paydates: ['2026-01-01'] }, transactions: [{ ...fakeTx, detail: 'X', note: 'y' }], closedMonths: [], pots: [] };
+  const snapshot = JSON.parse(JSON.stringify(v3));
+  const data = migrate(v3);
+  assert.equal(data.schemaVersion, SCHEMA_VERSION);
+  for (const key of ['accounts', 'snapshots', 'goals', 'holdings', 'owed', 'dividends', 'audit']) assert.deepEqual(data[key], [], key);
+  assert.deepEqual(data.settings.budgets, { Test: 5 });
+  assert.deepEqual(data.settings.paydates, ['2026-01-01']);
+  assert.equal(data.settings.theme, 'auto');
+  assert.deepEqual(data.settings.essentialBuckets, ['Essentials', 'Groceries']);
+  assert.deepEqual(data.settings.plan, { salary: 0, allocations: [] });
+  assert.equal(data.transactions[0].detail, 'X');
+  assert.deepEqual(v3, snapshot, 'input must not be modified');
+});
+
+test('migrate rejects a damaged new list', () => {
+  assert.throws(() => migrate({ schemaVersion: 4, goals: 'oops' }), /"goals" section is damaged/);
+});
+
+test('migration 4 to 5: an empty history list appears, and nothing already there changes', () => {
+  const v4 = { schemaVersion: 4, settings: { budgets: { Test: 5 } }, transactions: [fakeTx], closedMonths: [], pots: [], goals: [{ id: 'g' }] };
+  const snapshot = JSON.parse(JSON.stringify(v4));
+  const data = migrate(v4);
+  assert.equal(data.schemaVersion, 5);
+  assert.deepEqual(data.history, []);
+  assert.deepEqual(data.goals, [{ id: 'g' }]);
+  assert.deepEqual(data.settings.budgets, { Test: 5 });
+  assert.deepEqual(v4, snapshot, 'input must not be modified');
+  assert.throws(() => migrate({ schemaVersion: 5, history: 'oops' }), /"history" section is damaged/);
+});
+
+test('SCHEMA_VERSION is 5', () => {
+  assert.equal(SCHEMA_VERSION, 5);
 });

@@ -2,6 +2,7 @@
 import { parseDate, r2, makeId } from './money.js';
 import { INVESTED_ACCOUNTS } from './seed.js';
 import { findDuplicates } from './dedupe.js';
+import { periodFor } from './paycycle.js';
 
 const OLD_TRANSFERS = ['Credit Card Repayment', 'Overdraft', 'Cash ISA withdrawal'];
 const OLD_NON_SPENDING = ['Holiday Pot', 'Watch for Dad', 'Saving Challenge', 'Financial', 'Holiday Fund', 'Pots'];
@@ -137,6 +138,59 @@ export function mergeOldBackup(data, converted) {
   for (const p of converted.pots) if (!have.has(potKey(p))) { data.pots.push(p); have.add(potKey(p)); }
 
   return { added: fresh.length, duplicates: dup.filter(Boolean).length };
+}
+
+// ---- History: keep an old dashboard's closed months as headline totals only (no individual transactions) ----
+const SAVED_BUCKETS = ['Buffer', ...OLD_NON_SPENDING];
+
+// Returns one entry per closed pay cycle. The old dashboard named each month by when it was archived, so the label is
+// unreliable: the real cycle is worked out from the dates of the spending inside it and your pay dates.
+export function summariseOldHistory(obj) {
+  if (!obj || typeof obj !== 'object' || typeof obj.finS4 !== 'object' || obj.finS4 === null || !Array.isArray(obj.finHist4)) {
+    throw new Error("That doesn't look like a backup from the old dashboard.");
+  }
+  const s = obj.finS4;
+  const buckets = (Array.isArray(s.cats) ? s.cats : []).map((c) => c.n);
+  const paydates = (Array.isArray(s.paydates) ? s.paydates : []).map((d) => parseDate(d)).filter(Boolean);
+  const plannedIncome = Number(s.income) || 0;
+  const out = [];
+  for (const h of obj.finHist4) {
+    const txs = (Array.isArray(h.transactions) ? h.transactions : [])
+      .map((t) => ({ date: parseDate(t.date), amount: Math.abs(Number(t.amount)) || 0, bucket: String(t.bucket ?? '') }))
+      .filter((t) => t.date);
+    if (!txs.length) continue;
+    const votes = new Map();
+    for (const t of txs) { const p = periodFor(t.date, paydates); votes.set(p.start, (votes.get(p.start) || 0) + 1); }
+    const start = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const period = periodFor(start, paydates);
+    const spent = {};
+    let invested = 0;
+    let saved = 0;
+    let withdrawn = 0;
+    for (const t of txs) {
+      if (buckets.includes(t.bucket)) spent[t.bucket] = r2((spent[t.bucket] || 0) + t.amount);
+      else if (INVESTED_ACCOUNTS.includes(t.bucket) || t.bucket === 'Investment') invested = r2(invested + t.amount);
+      else if (SAVED_BUCKETS.includes(t.bucket)) saved = r2(saved + t.amount);
+      else if (t.bucket === 'Cash ISA withdrawal') withdrawn = r2(withdrawn + t.amount);
+    }
+    out.push({
+      id: `old-${h.id ?? period.start}`, source: 'old-dashboard', label: String(h.label ?? ''), start: period.start, end: period.end,
+      spent, spentTotal: r2(Object.values(spent).reduce((a, v) => a + v, 0)), invested, saved, withdrawn, plannedIncome, txCount: txs.length,
+    });
+  }
+  return out.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+// Adds cycles that are not already in your history. Returns how many were new. Changes the data it is given.
+export function mergeHistory(data, entries) {
+  let added = 0;
+  for (const e of entries) {
+    if (data.history.some((x) => x.id === e.id || (x.source === e.source && x.start === e.start))) continue;
+    data.history.push(e);
+    added++;
+  }
+  data.history.sort((a, b) => a.start.localeCompare(b.start));
+  return added;
 }
 
 // How many entries from a converted backup are already saved? Changes nothing.
