@@ -28,7 +28,7 @@ export function moneydayPage(ctx, rerender) {
   const stale = nw.rows.filter((r) => r.stale).length;
   const openIous = (ctx.ref.splits || []).filter((s) => !s.settled_by_transaction_id).length;
   const lastRows = historyRows(ctx.all).filter((t) => inCycle(t, last));
-  const s = summarise(lastRows, ctx.splitMap);
+  const s = summarise(lastRows, ctx.splitMap, ctx.settled);
   const { budgets } = budgetsFor(ctx, last);
   const reviews = extra.reviews || {};
   const prevReview = Object.keys(reviews).filter((k) => k < last.start).sort().pop();

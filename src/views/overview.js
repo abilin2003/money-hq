@@ -30,7 +30,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const budgetTotal = Object.values(st.effTotals).reduce((a, v) => a + v, 0);
   const spentBudgeted = Object.keys(st.effTotals).reduce((a, b) => a + (s.byBucket[b] || 0), 0);
   const today = finished ? c.totalDays : c.dayNumber;
-  const days = dailySpend(st.txs, c, ctx.splitMap);
+  const days = dailySpend(st.txs, c, ctx.splitMap, ctx.settled);
   const colour = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
 
   // ---- headline
@@ -62,7 +62,8 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
     h('div', { class: 'stats', style: { marginTop: '10px' } },
       stat('Money in', formatPence(s.income)),
       stat('Spent (your share)', formatPence(s.netSpent)),
-      s.paidBack ? stat('Paid back to you', formatPence(s.paidBack)) : null,
+      s.paidBack ? stat('Paid back to you (taken off spending)', formatPence(s.paidBack)) : null,
+      s.fromSavings ? stat('Paid from savings (not counted)', formatPence(s.fromSavings)) : null,
       s.owedToYou ? stat('Owed to you', null, h('a', { href: '#people', class: 'tap' }, formatPence(s.owedToYou))) : null,
       stat('Invested', formatPence(s.invested)),
       stat('Saved', formatPence(s.saved)),
@@ -106,7 +107,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const rows = historyRows(ctx.all);
   const first = rows.map((t) => t.date).sort()[0] || ctx.today;
   const recent = cycleList(ctx.ref.settings?.paydays || [], first, c.end < ctx.today ? c.end : ctx.today, ctx.ref.settings?.payday_usual_day || 24).slice(0, 6).reverse();
-  const sums = recent.map((x) => summarise(rows.filter((t) => inCycle(t, x)), ctx.splitMap));
+  const sums = recent.map((x) => summarise(rows.filter((t) => inCycle(t, x)), ctx.splitMap, ctx.settled));
   const inout = h('section', { class: 'card', 'aria-labelledby': 'io' },
     h('div', { class: 'ch' }, h('h2', { id: 'io' }, 'Money in vs out'), h('a', { href: '#trends', class: 'tap muted small' }, 'Trends')),
     groupedBars({ labels: recent.map((x) => cycleName(x).slice(0, 3)), series: [{ name: 'In', colour: '#5BD6A0', values: sums.map((x) => x.income) }, { name: 'Spent', colour: '#F472B6', values: sums.map((x) => x.netSpent) }, { name: 'Invested', colour: '#8B9CFF', values: sums.map((x) => x.invested) }], onPick: () => { location.hash = 'history'; }, label: 'Money in, spent and invested per pay cycle' }));

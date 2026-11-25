@@ -33,11 +33,11 @@ export function budgetsFor(ctx, c) {
 
 export function cycleState(ctx, c) {
   const txs = ctx.transactions.filter((t) => inCycle(t, c));
-  const s = summarise(txs, ctx.splitMap);
+  const s = summarise(txs, ctx.splitMap, ctx.settled);
   const { budgets, inherited, from } = budgetsFor(ctx, c);
   const prev = cycleFor(addDays(c.start, -1), paydaysOf(ctx), usualDay(ctx));
   // Last cycle may be in the archived history (before the fresh start), so look there too.
-  const prevS = summarise(historyRows(ctx.all).filter((t) => inCycle(t, prev)), ctx.splitMap);
+  const prevS = summarise(historyRows(ctx.all).filter((t) => inCycle(t, prev)), ctx.splitMap, ctx.settled);
   const eff = effectiveBudgets(budgets, budgetsFor(ctx, prev).budgets, prevS.byBucket, ctx.ref.settings?.extra?.leftover || {});
   const effTotals = Object.fromEntries(Object.entries(eff).map(([b, e]) => [b, e.total]));
   const bills = billsInCycle(ctx.ref.bills || [], c, txs, ctx.today);

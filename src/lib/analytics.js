@@ -11,12 +11,14 @@ export function perCycle(rows, cycles, splits = {}) {
 }
 
 // Daily spending in a cycle: [{ date, pence }] for every day, and the running total up to `uptoDay` (1-based).
-export function dailySpend(txs, cycle, splits = {}) {
+export function dailySpend(txs, cycle, splits = {}, settled = new Set()) {
   const days = [];
   for (let d = cycle.start; d <= cycle.end; d = addDays(d, 1)) days.push({ date: d, pence: 0 });
   const idx = Object.fromEntries(days.map((d, i) => [d.date, i]));
   for (const t of txs) {
-    if (t.status === 'needs_review' || !['spend', 'refund'].includes(t.kind)) continue;
+    if (t.status === 'needs_review' || t.from_savings) continue;
+    if (t.kind === 'repayment' && !settled.has(t.id)) { const j = idx[t.cycle_date || t.date]; if (j !== undefined) days[j].pence -= t.amount_pence; continue; }
+    if (!['spend', 'refund'].includes(t.kind)) continue;
     const i = idx[t.cycle_date || t.date];
     if (i === undefined) continue;
     const cost = t.kind === 'spend' ? -t.amount_pence - (splits[t.id] || 0) : -t.amount_pence;

@@ -28,7 +28,7 @@ describe('migrations', () => {
     }
   });
   it('stores money only as whole pence', () => {
-    expect(sql).not.toMatch(/\b(real|double precision|float)\b/i);
+    expect(sql.replace(/--.*$/gm, '')).not.toMatch(/\b(real|double precision|float)\b/i); // comments aren't SQL
     for (const m of sql.matchAll(/(\w+_pence)\s+(\w+)/g)) expect(m[2], m[1]).toBe('bigint');
   });
   it('lets signed-in users use the tables, and never signed-out visitors', () => {

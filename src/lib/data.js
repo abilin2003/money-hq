@@ -16,7 +16,7 @@ async function all(build, what) {
   }
 }
 
-const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, tag, kind, status, archived, source, fingerprint, account_id, category_id, transfer_pair_id';
+const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, tag, kind, status, archived, source, fingerprint, account_id, category_id, transfer_pair_id, from_savings, legacy';
 
 // Everything the app needs, loaded once after sign-in. Names are joined in here rather than in every query.
 export async function loadEverything() {
@@ -44,7 +44,10 @@ export async function loadEverything() {
 export function enrich(t, ref) {
   const account = ref.accounts.find((a) => a.id === t.account_id);
   const category = ref.categories.find((c) => c.id === t.category_id);
-  const bucket = category ? ref.buckets.find((b) => b.id === category.bucket_id) : null;
+  let bucket = category ? ref.buckets.find((b) => b.id === category.bucket_id) : null;
+  // A friend's payback comes off the bucket it was for. Paybacks brought from the old app kept that bucket in
+  // their original record, so use it when the payback has no category of its own.
+  if (!bucket && t.kind === 'repayment' && t.legacy?.bucket) bucket = ref.buckets.find((b) => b.name === t.legacy.bucket) || null;
   return { ...t, accountName: account?.name || 'Unknown account', account: account?.name, category: category?.name || null, bucket: bucket?.name || null, colour: bucket?.colour || null };
 }
 

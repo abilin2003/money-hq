@@ -21,7 +21,7 @@ export function trendsPage(ctx, rerender) {
   const all = cycleList(ctx.ref.settings?.paydays || [], first, ctx.today, ctx.ref.settings?.payday_usual_day || 24).filter((c) => c.end < cur.start);
   const n = Math.min(ctx.trendsCount || 6, all.length);
   const cycles = all.slice(0, n).reverse();
-  const sums = cycles.map((c) => ({ c, s: summarise(rows.filter((t) => inCycle(t, c)), ctx.splitMap), txs: rows.filter((t) => inCycle(t, c)) }));
+  const sums = cycles.map((c) => ({ c, s: summarise(rows.filter((t) => inCycle(t, c)), ctx.splitMap, ctx.settled), txs: rows.filter((t) => inCycle(t, c)) }));
   const labels = cycles.map((c) => `${cycleName(c).slice(0, 3)} ${c.end.slice(2, 4)}`);
 
   const toggle = h('div', { class: 'seg', role: 'group', 'aria-label': 'How many cycles' },

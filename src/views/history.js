@@ -27,7 +27,7 @@ export function periods(all, mode, settings, today) {
 export function historyPage(ctx, rerender) {
   const mode = ctx.historyMode || 'cycle';
   const list = periods(ctx.all, mode, ctx.ref.settings, ctx.today);
-  const sums = list.map((p) => ({ ...p, s: summarise(p.txs, ctx.splitMap) }));
+  const sums = list.map((p) => ({ ...p, s: summarise(p.txs, ctx.splitMap, ctx.settled) }));
   const top = Math.max(1, ...sums.map((p) => p.s.netSpent));
   const colourOf = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
 
@@ -48,7 +48,8 @@ export function historyPage(ctx, rerender) {
         h('div', { class: 'stats', style: { margin: '12px 0' } },
           h('div', null, h('span', { class: 'muted' }, 'Money in'), h('span', null, pounds(p.s.income))),
           h('div', null, h('span', { class: 'muted' }, 'Invested'), h('span', null, pounds(p.s.invested))),
-          h('div', null, h('span', { class: 'muted' }, 'Paid back to you'), h('span', null, pounds(p.s.paidBack))),
+          h('div', null, h('span', { class: 'muted' }, 'Paid back to you (taken off spending)'), h('span', null, pounds(p.s.paidBack))),
+          p.s.fromSavings ? h('div', null, h('span', { class: 'muted' }, 'Paid from savings (not counted)'), h('span', null, pounds(p.s.fromSavings))) : null,
           p.s.waiting ? h('div', null, h('span', { class: 'muted' }, 'Lines never decided (not counted)'), h('span', null, String(p.s.waiting))) : null),
         h('details', { class: 'lines' }, h('summary', null, `Show all ${p.txs.length} lines`), txList([...p.txs].sort((a, b) => b.date.localeCompare(a.date)))));
     } },

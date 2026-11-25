@@ -43,6 +43,10 @@ describe('charts', () => {
     expect(days.map((d) => d.pence)).toEqual([500, 0, 1500, 0, 0]);
     expect(cumulative(days, 3)).toEqual([500, 500, 2000]);
   });
+  it('daily spending takes paybacks off the day they came in, and leaves out buys paid from savings', () => {
+    const days = dailySpend([tx('a', '2026-11-01', -4000), tx('b', '2026-11-02', 1000, { kind: 'repayment' }), tx('c', '2026-11-03', -90000, { from_savings: true })], cycle);
+    expect(days.map((d) => d.pence)).toEqual([4000, -1000, 0, 0, 0]);
+  });
   it('category changes and the bridge between two periods', () => {
     const before = summarise([tx('a', '2026-10-01', -3000), tx('b', '2026-10-02', -1000, { bucket: 'Groceries', category: 'Groceries' })]);
     const now = summarise([tx('c', '2026-11-01', -5000)]);

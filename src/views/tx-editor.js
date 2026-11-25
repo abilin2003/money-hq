@@ -24,17 +24,19 @@ export function txEditor(ctx, t, rerender) {
   const kind = choiceSelect(ctx, t);
   const note = h('input', { class: 'input', value: t.note || '', placeholder: 'Note', 'aria-label': 'Note' });
   const tag = h('input', { class: 'input', value: t.tag || '', placeholder: 'Tag, e.g. Cousins visit', 'aria-label': 'Tag or event' });
+  const savings = h('input', { type: 'checkbox', checked: Boolean(t.from_savings) });
   const save = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
     const choice = kind.value ? decode(kind.value, t.amount_pence) : null;
     save.disabled = true;
     try {
-      const saved = await updateTransaction(t.id, { ...(choice || {}), note: note.value.trim() || null, tag: tag.value.trim() || null, status: choice || t.status === 'reviewed' ? 'reviewed' : t.status });
+      const saved = await updateTransaction(t.id, { ...(choice || {}), note: note.value.trim() || null, tag: tag.value.trim() || null, from_savings: t.amount_pence < 0 && savings.checked, status: choice || t.status === 'reviewed' ? 'reviewed' : t.status });
       ctx.replace(enrich(saved, ctx.ref));
       rerender();
     } catch (err) { save.disabled = false; alertLine(save, err.message); }
   } }, 'Save');
 
   const parts = [h('div', { class: 'edit-grid' }, kind, note, tag, save)];
+  if (t.amount_pence < 0) parts.push(h('label', { class: 'check' }, savings, 'Paid from savings or a pot (shown separately, not counted in this cycle)'));
 
   // ---- split (money out only)
   if (t.amount_pence < 0 && t.kind === 'spend') {

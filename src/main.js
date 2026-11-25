@@ -56,6 +56,7 @@ function makeContext(email, ref, all) {
     c.transactions = c.all.filter((t) => !t.archived);
     c.inboxCount = c.transactions.filter((t) => t.status === 'needs_review').length;
     c.splitMap = splitTotals(c.ref.splits || []);
+    c.settled = new Set((c.ref.splits || []).map((s) => s.settled_by_transaction_id).filter(Boolean));
     const dateOf = Object.fromEntries(c.all.map((t) => [t.id, t.date]));
     c.oldIous = (c.ref.splits || []).filter((s) => !s.settled_by_transaction_id && dateOf[s.transaction_id] && dayDiff(dateOf[s.transaction_id], c.today) > 30).length;
   };
