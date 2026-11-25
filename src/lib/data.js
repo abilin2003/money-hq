@@ -20,8 +20,8 @@ const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, t
 
 // Everything the app needs, loaded once after sign-in. Names are joined in here rather than in every query.
 export async function loadEverything() {
-  const [settings, accounts, buckets, categories, cycles, budgets, rules, txs] = await Promise.all([
-    supabase.from('settings').select('reserve_pence, payday_usual_day, paydays').maybeSingle().then((r) => must(r, 'load settings')),
+  const [settings, accounts, buckets, categories, cycles, budgets, rules, txs, bills, funds] = await Promise.all([
+    supabase.from('settings').select('id, reserve_pence, payday_usual_day, paydays, extra').maybeSingle().then((r) => must(r, 'load settings')),
     supabase.from('accounts').select('id, name, type').order('name').then((r) => must(r, 'load accounts')),
     supabase.from('buckets').select('id, name, colour, sort_order').order('sort_order').then((r) => must(r, 'load buckets')),
     supabase.from('categories').select('id, name, bucket_id, is_active').order('name').then((r) => must(r, 'load categories')),
@@ -29,8 +29,10 @@ export async function loadEverything() {
     supabase.from('budgets').select('cycle_id, bucket_id, amount_pence').then((r) => must(r, 'load budgets')),
     all(() => supabase.from('rules').select('id, match, set, priority, created_from').order('id'), 'load rules'),
     all(() => supabase.from('transactions').select(TX_COLUMNS).order('date', { ascending: false }).order('id'), 'load transactions'),
+    supabase.from('recurring').select(BILL_COLUMNS).order('name').then((r) => must(r, 'load bills')),
+    supabase.from('sinking_funds').select(FUND_COLUMNS).order('name').then((r) => must(r, 'load sinking funds')),
   ]);
-  const ref = { settings, accounts, buckets, categories, cycles, budgets, rules };
+  const ref = { settings, accounts, buckets, categories, cycles, budgets, rules, bills, funds };
   return { ref, all: txs.map((t) => enrich(t, ref)) };
 }
 
@@ -74,4 +76,46 @@ export async function closeCycle(cycle) {
 
 export async function reopenCycle(id) {
   return must(await supabase.from('cycles').update({ closed_at: null }).eq('id', id).select('id, start_date, end_date, closed_at').single(), 'reopen the cycle');
+}
+
+// ---------------------------------------------------------------- Phase 4: budgets, plan, bills, funds
+const BILL_COLUMNS = 'id, name, amount_pence, cadence, next_date, match, account_id, category_id, is_active';
+const FUND_COLUMNS = 'id, name, target_pence, due_date, monthly_pence, balance_pence, balance_date, account_id';
+
+// Makes sure the cycle has a row (so budgets can hang off it) and returns it.
+export async function ensureCycle(cycle) {
+  return must(await supabase.from('cycles').upsert({ start_date: cycle.start, end_date: cycle.end }, { onConflict: 'user_id,start_date' }).select('id, start_date, end_date, closed_at').single(), 'save the cycle');
+}
+
+// budgets: { bucket_id: pence or null }. null (or empty) removes that bucket's budget for the cycle.
+export async function saveBudgets(cycleId, budgets) {
+  const keep = Object.entries(budgets).filter(([, p]) => Number.isInteger(p) && p >= 0).map(([bucket_id, amount_pence]) => ({ cycle_id: cycleId, bucket_id, amount_pence }));
+  const drop = Object.entries(budgets).filter(([, p]) => p === null).map(([id]) => id);
+  if (keep.length) must(await supabase.from('budgets').upsert(keep, { onConflict: 'cycle_id,bucket_id' }), 'save budgets');
+  if (drop.length) must(await supabase.from('budgets').delete().eq('cycle_id', cycleId).in('bucket_id', drop), 'remove budgets');
+  return must(await supabase.from('budgets').select('cycle_id, bucket_id, amount_pence'), 'load budgets');
+}
+
+// Settings: reserve and the `extra` JSON (payday plans, leftover choices). Merges into what's there.
+export async function saveSettings(settings, patch) {
+  const next = { ...patch, extra: { ...(settings?.extra || {}), ...(patch.extra || {}) } };
+  return must(await supabase.from('settings').upsert({ ...(settings?.id ? { id: settings.id } : {}), reserve_pence: settings?.reserve_pence ?? 0, ...next }, { onConflict: 'user_id' }).select('id, reserve_pence, payday_usual_day, paydays, extra').single(), 'save settings');
+}
+
+export async function saveBill(bill) {
+  const { id, ...rest } = bill;
+  const q = id ? supabase.from('recurring').update(rest).eq('id', id) : supabase.from('recurring').insert(rest);
+  return must(await q.select(BILL_COLUMNS).single(), 'save the bill');
+}
+
+export async function saveFund(fund) {
+  const { id, ...rest } = fund;
+  const q = id ? supabase.from('sinking_funds').update(rest).eq('id', id) : supabase.from('sinking_funds').insert(rest);
+  return must(await q.select(FUND_COLUMNS).single(), 'save the fund');
+}
+
+export async function saveCategory(cat) {
+  const { id, ...rest } = cat;
+  const q = id ? supabase.from('categories').update(rest).eq('id', id) : supabase.from('categories').insert(rest);
+  return must(await q.select('id, name, bucket_id, is_active').single(), 'save the category');
 }

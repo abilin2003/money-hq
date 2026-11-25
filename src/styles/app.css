@@ -180,3 +180,35 @@ a:hover { text-decoration: underline; }
 }
 
 .tap { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* ---- Phase 4 ---- */
+.ch { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.ch h2 { margin: 0; display: flex; align-items: center; }
+.pence { font-size: 28px; color: var(--faint); letter-spacing: -0.02em; }
+.days { display: flex; gap: 3px; }
+.days span { flex: 1; height: 24px; border-radius: 3px; background: var(--border); }
+.days span.done { background: var(--text); }
+.strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+.att { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.att:first-of-type { border-top: 0; padding-top: 0; }
+.billrow { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.billrow .today { color: var(--accent); font-weight: 600; font-size: 12px; }
+.stack { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin-top: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 14px; font-size: 13px; }
+.legend > span { display: inline-flex; align-items: center; gap: 4px; }
+.planrow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 130px auto; gap: 10px; align-items: center; padding: 6px 0; }
+.planrow.bucketrow { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 130px; }
+.planrow.fundrow { grid-template-columns: minmax(0, 1fr) 160px; border-top: 1px solid var(--border); padding: 10px 0; }
+.input.money { text-align: right; font-feature-settings: 'tnum' 1; }
+.catrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: 8px; margin-bottom: 8px; }
+.billedit { display: grid; grid-template-columns: minmax(0, 1.2fr) 110px 150px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }
+@media (max-width: 759px) {
+  .pence { font-size: 24px; }
+  .planrow, .planrow.bucketrow { grid-template-columns: minmax(0, 1fr) 120px; }
+  .planrow > :nth-child(2):not(select) { display: none; }
+  .planrow select { grid-column: 1 / -1; }
+  .billedit { grid-template-columns: minmax(0, 1fr) 110px; }
+  .catrow { grid-template-columns: minmax(0, 1fr); }
+}
+
+.planrow .linkbtn, .billedit .check { min-height: 44px; }

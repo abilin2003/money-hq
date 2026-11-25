@@ -1,4 +1,5 @@
 // Moves your data from the previous app's backups into Supabase, then checks nothing was lost.
+// Every script signs out with scope 'local': only its own session ends, never your browser or phone.
 //   Live data:  the fresh-start backup (the November cycle).
 //   Archive:    the full 12-month backup, rows dated before the fresh start only, marked archived.
 // It signs in as you (your password is typed here and never stored), so the database's RLS rules apply.
@@ -146,7 +147,7 @@ if (diffs.length) {
 } else {
   console.log(`\nAll ${keys.length} groups match to the penny: ${stored.length} transactions (${stored.filter((t) => !t.archived).length} live, ${stored.filter((t) => t.archived).length} archived).`);
 }
-await db.auth.signOut();
+await db.auth.signOut({ scope: 'local' });
 
 // ---------------------------------------------------------------- helpers
 function printTotals(title, t) {

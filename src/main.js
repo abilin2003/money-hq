@@ -1,7 +1,7 @@
 // Money HQ starts here: check the set-up, check the database is reachable, then sign in or show the app.
 import './styles/app.css';
 import { supabase, configured, checkReachable } from './lib/supabase.js';
-import { loadEverything } from './lib/data.js';
+import { loadEverything, enrich } from './lib/data.js';
 import { todayLondon } from './lib/dates.js';
 import { loginScreen, unreachableScreen, notConfiguredScreen } from './auth/screens.js';
 import { shell } from './ui/shell.js';
@@ -9,6 +9,8 @@ import { overviewPage, transactionsPage, morePage, placeholderPage } from './vie
 import { inboxPage } from './views/inbox.js';
 import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
+import { planPage } from './views/plan.js';
+import { budgetsPage } from './views/budgets.js';
 
 const app = document.querySelector('#app');
 const show = (el) => app.replaceChildren(el);
@@ -46,6 +48,7 @@ function makeContext(email, ref, all) {
     c.inboxCount = c.transactions.filter((t) => t.status === 'needs_review').length;
   };
   c.replace = (t) => { c.all = c.all.map((x) => (x.id === t.id ? t : x)); refresh(); };
+  c.relabel = () => { c.all = c.all.map((t) => enrich(t, c.ref)); refresh(); };
   c.add = (t) => { c.all = [t, ...c.all.filter((x) => x.id !== t.id)].sort((a, b) => b.date.localeCompare(a.date)); refresh(); };
   refresh();
   return c;
@@ -63,11 +66,13 @@ function render() {
   const [hashRoute, param] = location.hash.replace(/^#/, '').split('/');
   const route = hashRoute || 'overview'; // an empty address means Overview
   const { root, main } = shell({ route, email: ctx.email, onSignOut: signOut, inboxCount: ctx.inboxCount });
-  const page = route === 'overview' ? overviewPage(ctx, render)
+  const page = route === 'overview' ? overviewPage(ctx, render, param)
     : route === 'transactions' ? transactionsPage(ctx, param)
     : route === 'inbox' ? inboxPage(ctx, render)
     : route === 'import' ? importPage(ctx, render)
     : route === 'history' ? historyPage(ctx, render)
+    : route === 'plan' ? planPage(ctx, render)
+    : route === 'budgets' ? budgetsPage(ctx, render)
     : route === 'more' ? morePage(ctx)
     : placeholderPage(route);
   main.append(page);

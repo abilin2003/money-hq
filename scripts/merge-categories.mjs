@@ -1,4 +1,5 @@
 // Applies the 16 agreed categories (src/lib/categories.js) to every transaction moved from the old app.
+// Every script signs out with scope 'local': only its own session ends, never your browser or phone.
 // Each row's new category comes from its original label and bucket (kept in transactions.legacy), so it can
 // be run again safely. Old categories are kept but marked inactive, so nothing is deleted.
 // It signs in as you, so RLS applies. It never uses the secret key.
@@ -59,7 +60,7 @@ for (const c of CATEGORIES) console.log(`  ${c.name.padEnd(24)} ${c.bucket.padEn
 console.log(`  ${'(no category)'.padEnd(41)} ${String((plan.get('') || []).length).padStart(5)} rows (${noCategoryLive.length} live; these show in the review inbox)`);
 console.log(`Already right: ${unchanged}. Rows whose bucket changes (e.g. fuel from Essentials to Fuel): ${bucketMoves}.`);
 console.log(`Old categories to mark inactive: ${oldCats.filter((c) => !bucketOfCategory[c.name]).length} (kept, not deleted)`);
-if (dryRun) { console.log('\nDry run: nothing was written.'); await db.auth.signOut(); process.exit(0); }
+if (dryRun) { console.log('\nDry run: nothing was written.'); await db.auth.signOut({ scope: 'local' }); process.exit(0); }
 
 // 1. The 16 categories, each in its bucket (existing ones with the same name are moved to the right bucket).
 check(await db.from('categories').upsert(CATEGORIES.map((c) => ({ user_id: uid, name: c.name, bucket_id: buckets[c.bucket], is_active: true })), { onConflict: 'user_id,name' }), 'categories');
@@ -88,7 +89,7 @@ const after = await all('transactions', 'id,kind,status,archived,category:catego
 const bad = after.filter((t) => !t.archived && ['spend', 'refund'].includes(t.kind) && t.status !== 'needs_review' && !(t.category && bucketOfCategory[t.category.name]));
 console.log(bad.length ? `CHECK FAILED: ${bad.length} live spending rows have no new category.` : 'Check passed: every live spending row has one of the 16 categories or is waiting in the inbox.');
 process.exitCode = bad.length ? 1 : 0;
-await db.auth.signOut();
+await db.auth.signOut({ scope: 'local' });
 
 function ask(question, hidden = false) {
   return new Promise((resolve) => {

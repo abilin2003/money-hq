@@ -6,6 +6,8 @@ import { summarise, ranked } from '../lib/summary.js';
 import { PAGES } from '../ui/shell.js';
 import { head, shortDay, dayLabel, pounds, inCycle, txList, bar, twoStepButton } from '../ui/parts.js';
 import { closeCycle, reopenCycle } from '../lib/data.js';
+import { budgetsFor } from './state.js';
+import { currentOverview } from './overview-current.js';
 
 export function cyclesFor(ctx) {
   const first = ctx.transactions.map((t) => t.date).sort()[0] || ctx.today;
@@ -22,21 +24,14 @@ export function focusCycle(ctx) {
   return { focus: finished[0] || current, current, finished: Boolean(finished[0]) };
 }
 
-function budgetsFor(ctx, c) {
-  // This cycle's budgets, or the most recent cycle's that has some.
-  const rows = [...ctx.ref.cycles].reverse().filter((x) => x.start_date <= c.start);
-  for (const row of rows) {
-    const list = ctx.ref.budgets.filter((b) => b.cycle_id === row.id);
-    if (list.length) return Object.fromEntries(list.map((b) => [ctx.ref.buckets.find((k) => k.id === b.bucket_id)?.name, b.amount_pence]));
-  }
-  return {};
-}
 
-export function overviewPage(ctx, rerender) {
+export function overviewPage(ctx, rerender, param) {
   const { focus: c, current, finished } = focusCycle(ctx);
+  // #overview/current shows the cycle you're in, even before the finished one is closed.
+  if (param === 'current') return currentOverview(ctx, current, finished ? h('a', { href: '#overview', class: 'btn tap' }, `Back to ${c.name}`) : null);
   const txs = ctx.transactions.filter((t) => inCycle(t, c));
   const s = summarise(txs);
-  const budgets = budgetsFor(ctx, c);
+  const { budgets } = budgetsFor(ctx, c);
   const budgetTotal = Object.values(budgets).reduce((a, v) => a + v, 0);
   const daysIn = finished ? c.totalDays : current.dayNumber;
   const paceShare = finished ? 1 : c.dayNumber / c.totalDays;
@@ -52,6 +47,8 @@ export function overviewPage(ctx, rerender) {
     ctx.ref.cycles = ctx.ref.cycles.map((x) => (x.id === row.id ? row : x));
     rerender();
   } }, `Reopen the ${cycleName({ end: lastClosed.end_date })} cycle`) : null;
+
+  if (!finished) return currentOverview(ctx, current, reopen);
 
   const line = finished
     ? `${c.name} cycle, ${shortDay(c.start)} to ${shortDay(c.end)}. Finished: look it over, then close it to move on.`
@@ -115,7 +112,7 @@ export function overviewPage(ctx, rerender) {
     h('p', { style: { margin: '14px 0 0' } }, h('a', { href: `#transactions/${c.start}`, class: 'tap' }, `See all ${txs.length} transactions`)));
 
   const next = finished ? h('section', { class: 'card notice-card' },
-    h('p', { style: { margin: 0 } }, `The ${current.name} cycle started on ${dayLabel(current.start)}. When you've finished looking over ${c.name}, close it and the Overview moves on to ${current.name}.`)) : null;
+    h('p', { style: { margin: 0 } }, `The ${current.name} cycle started on ${dayLabel(current.start)}. When you've finished looking over ${c.name}, close it and the Overview moves on to ${current.name}. `, h('a', { href: '#overview/current', class: 'tap' }, `Peek at ${current.name} so far`))) : null;
 
   return h('div', { class: 'page' },
     head('Overview', line, closeBtn, reopen),
@@ -144,7 +141,7 @@ export function morePage(ctx) {
       h('button', { class: 'btn', type: 'button', style: { marginTop: '16px', width: '100%' }, onclick: ctx.signOut }, 'Sign out')));
 }
 
-const COMING = { budgets: 4, trends: 7, goals: 6, wealth: 6, plan: 4, settings: 4, add: 5 };
+const COMING = { trends: 7, goals: 6, wealth: 6, settings: 6, add: 5 };
 export function placeholderPage(id) {
   const label = id === 'add' ? 'Add a transaction' : (PAGES.find((p) => p.id === id)?.label || 'Settings');
   return h('div', { class: 'page' }, head(label),
