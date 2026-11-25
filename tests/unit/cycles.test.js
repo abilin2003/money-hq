@@ -47,6 +47,13 @@ describe('cycleFor: payday to the day before the next payday', () => {
     expect(c.next).toBe('2027-01-22'); // 24 Jan 2027 is a Sunday, so the Friday before
     expect(c.end).toBe('2027-01-21');
   });
+  it('keeps predicting forward when today is well past the last known payday', () => {
+    // Known paydays stop at 18 Dec. Predicted: 22 Jan (24th is a Sunday), then 24 Feb.
+    const c = cycleFor('2027-02-10', paydays);
+    expect([c.start, c.end, c.next, c.predicted]).toEqual(['2027-01-22', '2027-02-23', '2027-02-24', true]);
+    expect(c.dayNumber).toBe(20);
+    expect(c.daysLeft).toBeGreaterThan(0);
+  });
   it('a known next payday is not marked as predicted', () => {
     expect(cycleFor('2026-11-10', paydays).predicted).toBe(false);
   });

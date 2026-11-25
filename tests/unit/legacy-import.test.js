@@ -90,6 +90,20 @@ describe('history, cycles and settings', () => {
     expect(s.settings.extra.legacy.settings.quick).toEqual([{ shop: 'Test' }]);
     expect(s.settings.extra.legacy.pots).toEqual([{ pot: 'Holiday' }]);
   });
+  it('keeps every bill whole, including its bank-description match and bucket', () => {
+    const bill = { name: 'Phone', amount: 10, day: 22, freq: 'monthly', category: 'Essentials', account: 'Ulster Bank', match: 'voxi' };
+    const s = convertSettings({ budgets: {}, recurring: [bill] }, [], '2026-11-25');
+    expect(s.settings.extra.legacy.recurring).toEqual([bill]);
+  });
+  it('keeps weekly and quarterly bills as they are, and says when a frequency had to change', () => {
+    const s = convertSettings({ budgets: {}, recurring: [
+      { name: 'A', amount: 5, day: 1, freq: 'quarterly' },
+      { name: 'B', amount: 5, day: 1, freq: 'weekly' },
+      { name: 'C', amount: 5, day: 1, freq: 'fortnightly' },
+    ] }, [], '2026-11-25');
+    expect(s.recurring.map((r) => r.cadence)).toEqual(['quarterly', 'weekly', 'monthly']);
+    expect(s.notes.join(' ')).toMatch(/"C" repeats "fortnightly"/);
+  });
   it('bills get their next date from today', () => {
     const s = convertSettings({ budgets: {}, recurring: [{ name: 'Phone', amount: 10, day: 22, freq: 'monthly', account: 'Ulster Bank' }] }, [], '2026-11-25');
     expect(s.recurring[0]).toMatchObject({ amount_pence: 1000, next_date: '2026-12-22', cadence: 'monthly', account: 'Ulster Bank' });

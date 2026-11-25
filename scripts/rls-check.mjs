@@ -15,18 +15,19 @@ const sql = ['0001_schema.sql'].map((f) => readFileSync(new URL(`../supabase/mig
 const tables = [...sql.matchAll(/create table public\.(\w+)/g)].map((m) => m[1]);
 
 const anon = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+
+// Only a real permission refusal counts as a pass. Any other error (a wrong key, no internet, a missing table,
+// or an insert failing on a required column after the permission checks) means the check didn't really run.
+export const refused = (res) => Boolean(res.error) && (res.error.code === '42501' || /permission denied|row-level security/i.test(res.error.message));
+
 let failures = 0;
 for (const table of tables) {
   const read = await anon.from(table).select('*').limit(1);
-  const readOk = read.error ? !/does not exist|schema cache/i.test(read.error.message) : read.data.length === 0;
   const add = await anon.from(table).insert({});
-  const addOk = Boolean(add.error) && !/does not exist|schema cache/i.test(add.error.message);
-  if (read.error && /does not exist|schema cache/i.test(read.error.message)) {
-    console.log(`?  ${table}: table not found. Have the migrations been run?`);
-    failures++;
-    continue;
-  }
-  console.log(`${readOk && addOk ? 'OK' : 'FAIL'}  ${table}: read ${read.error ? 'refused' : `${read.data.length} rows`}, add ${add.error ? 'refused' : 'ALLOWED'}`);
+  const readOk = refused(read) || (!read.error && read.data.length === 0);
+  const addOk = refused(add);
+  const why = (res) => (res.error ? (refused(res) ? 'refused' : `NOT TESTED (${res.error.message})`) : null);
+  console.log(`${readOk && addOk ? 'OK' : 'FAIL'}  ${table}: read ${why(read) || `${read.data.length} rows`}, add ${why(add) || 'ALLOWED'}`);
   if (!readOk || !addOk) failures++;
 }
 console.log(failures ? `\n${failures} problem(s). Do not put real data in until this passes.` : `\nAll ${tables.length} tables: a signed-out visitor sees nothing and can add nothing.`);

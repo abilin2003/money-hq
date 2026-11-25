@@ -31,6 +31,8 @@ export function cycleFor(dateIso, paydays = [], usualDay = 24) {
   }
   const predicted = !next;
   if (!next) next = predictPayday(start, usualDay);
+  // Past the last known payday: keep predicting forward until the cycle holds the date.
+  while (predicted && next <= dateIso) { start = next; next = predictPayday(start, usualDay); }
   const end = addDays(next, -1);
   const totalDays = dayDiff(start, end) + 1;
   const dayNumber = Math.min(totalDays, Math.max(1, dayDiff(start, dateIso) + 1));

@@ -127,6 +127,8 @@ export function convertCycles(paydates) {
   return days.slice(0, -1).map((start, i) => ({ start_date: start, end_date: addDays(days[i + 1], -1), predicted_next_payday: null }));
 }
 
+const CADENCES = ['weekly', 'monthly', 'quarterly', 'yearly']; // what the recurring table accepts
+
 // Settings, budgets, bills, pots and rules. Returns everything plus `notes` describing each judgement call.
 export function convertSettings(s, pots = [], today) {
   const notes = [];
@@ -136,14 +138,18 @@ export function convertSettings(s, pots = [], today) {
     if (pence % 100 === 1) { notes.push(`${bucket} budget was stored as ${amount} (the float bug); loaded as £${(pence - 1) / 100}.`); pence -= 1; }
     budgets[bucket] = pence;
   }
-  const recurring = (s.recurring || []).map((r) => ({
-    name: r.name,
-    amount_pence: parsePence(r.amount),
-    cadence: r.freq === 'yearly' ? 'yearly' : 'monthly',
-    next_date: nextBillDate(r, today),
-    account: accountFor(r.account) || r.account || null,
-    legacy: r,
-  }));
+  const recurring = (s.recurring || []).map((r) => {
+    const cadence = CADENCES.includes(r.freq) ? r.freq : 'monthly';
+    if (r.freq && r.freq !== cadence) notes.push(`Bill "${r.name}" repeats "${r.freq}", which the bills table can't store yet; loaded as monthly (the original is kept in settings).`);
+    return {
+      name: r.name,
+      amount_pence: parsePence(r.amount),
+      cadence,
+      next_date: nextBillDate(r, today),
+      account: accountFor(r.account) || r.account || null,
+      legacy: r,
+    };
+  });
   const sinkingFunds = (s.potDefs || []).map((p) => ({
     name: p.name,
     target_pence: parsePence(p.target || 0),
@@ -159,7 +165,8 @@ export function convertSettings(s, pots = [], today) {
     reserve_pence: parsePence(buffer || 0),
     payday_usual_day: 24,
     paydays: [...new Set(paydates || [])].sort(),
-    extra: { legacy: { settings: rest, pots, potDefs: s.potDefs || [] } },
+    // recurring is kept whole here: the bills table has no column for each bill's bank-description match or bucket.
+    extra: { legacy: { settings: rest, pots, potDefs: s.potDefs || [], recurring: s.recurring || [] } },
   };
   return { budgets, recurring, sinkingFunds, rules, settings, notes };
 }

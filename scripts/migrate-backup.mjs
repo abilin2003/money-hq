@@ -28,12 +28,23 @@ const load = (f) => {
 const live = load(LIVE_FILE);
 const full = load(ARCHIVE_FILE);
 const liveStart = live.transactions.map((t) => t.date).sort()[0];
-const archiveTx = full.transactions.filter((t) => t.date < liveStart);
-const skippedOverlap = full.transactions.length - archiveTx.length;
+// The whole 12 months goes into the archive, including the bank's own rows for the fresh-start period
+// (paybacks, investing and transfers the fresh-start list doesn't have). Archived rows are never counted,
+// so nothing is counted twice; the overlapping ones are labelled so they're easy to find.
+const OVERLAP = 'overlaps fresh start';
+const archiveTx = full.transactions.map((t) => (t.date >= liveStart ? { ...t, source: `${t.source || 'csv'}, ${OVERLAP}` } : t));
+const overlapCount = archiveTx.filter((t) => t.date >= liveStart).length;
 
-const cats = planCategories([...live.transactions, ...archiveTx]);
+// Categories are planned from the same rows as the first run (live + before the fresh start), so names and
+// buckets already in Supabase don't shift when the overlapping rows are added.
+const cats = planCategories([...live.transactions, ...full.transactions.filter((t) => t.date < liveStart)]);
 const liveRows = convertTransactions(live.transactions, { archived: false, nameFor: cats.nameFor });
-const archiveRows = convertTransactions(archiveTx, { archived: true, nameFor: cats.nameFor });
+// An archived row with the same fingerprint as a live row is the same transaction (same account, date, amount
+// and description), so only the live copy is kept.
+const liveFingerprints = new Set(liveRows.map((r) => r.fingerprint));
+const archiveAll = convertTransactions(archiveTx, { archived: true, nameFor: cats.nameFor });
+const archiveRows = archiveAll.filter((r) => !liveFingerprints.has(r.fingerprint));
+const alreadyLive = archiveAll.length - archiveRows.length;
 const allRows = [...liveRows, ...archiveRows];
 const unmapped = allRows.filter((r) => !r.account);
 if (unmapped.length) throw new Error(`${unmapped.length} rows have an account I don't recognise: ${[...new Set(unmapped.map((r) => r.legacy.account))].join(', ')}`);
@@ -46,7 +57,8 @@ const cycles = convertCycles(conv.settings.paydays);
 const before = totals(allRows);
 
 console.log(`\nLive (fresh start): ${liveRows.length} transactions, ${liveStart} to ${liveRows.map((r) => r.date).sort().pop()}`);
-console.log(`Archive (12 months): ${archiveRows.length} transactions before ${liveStart}; ${skippedOverlap} later rows left out so the November cycle isn't counted twice`);
+console.log(`Archive (12 months): ${archiveRows.length} transactions, including ${overlapCount - alreadyLive} bank rows from ${liveStart} on (stored, labelled "${OVERLAP}", never counted)`);
+console.log(`Skipped: ${alreadyLive} archive rows that are exactly the same as a live row`);
 console.log(`Categories: ${cats.categories.size} | cycles: ${cycles.length} | old cycle summaries: ${history.length} | bills: ${conv.recurring.length} | sinking funds: ${conv.sinkingFunds.length} | rules: ${conv.rules.length}`);
 console.log(`Needs review: ${allRows.filter((r) => r.status === 'needs_review').length} (live ${liveRows.filter((r) => r.status === 'needs_review').length})`);
 for (const n of conv.notes) console.log(`Note: ${n}`);
@@ -103,7 +115,8 @@ const cycleId = Object.fromEntries((await all('cycles', 'id,start_date')).map((c
 const budgetRows = BUDGET_CYCLES.filter((c) => cycleId[c]).flatMap((c) => Object.entries(conv.budgets).filter(([b]) => bucketId[b]).map(([b, pence]) => ({ cycle_id: cycleId[c], bucket_id: bucketId[b], amount_pence: pence })));
 await upsert('budgets', budgetRows, 'cycle_id,bucket_id');
 await upsert('cycle_summaries', history, 'user_id,start_date');
-await upsert('settings', [conv.settings], 'user_id');
+// Settings are updated on every run (not just added), so details added to the conversion later reach Supabase.
+check(await db.from('settings').upsert({ user_id: uid, ...conv.settings }, { onConflict: 'user_id' }), 'settings');
 
 // Bills, sinking funds and rules have no natural key, so they are only added the first time.
 if (await isEmpty('recurring')) await upsert('recurring', conv.recurring.map(({ account, legacy, ...r }) => ({ ...r, account_id: accountId[account] || null })));
