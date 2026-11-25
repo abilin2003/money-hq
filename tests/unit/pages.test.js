@@ -1,6 +1,6 @@
 // Labels on the transactions list.
 import { describe, it, expect } from 'vitest';
-import { categoryLabel } from '../../src/views/pages.js';
+import { categoryLabel } from '../../src/ui/parts.js';
 
 describe('categoryLabel', () => {
   it('drops the bucket name when a split category repeats it', () => {

@@ -28,6 +28,9 @@ const ICONS = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
   more: '<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>',
   add: '<path d="M12 5v14M5 12h14"/>',
+  inbox: '<path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
+  import: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/>',
+  history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/><path d="M4 4v4h4"/>',
 };
 export function icon(name, size = 18, stroke = 'currentColor', width = 1.8) {
   const span = document.createElement('span');

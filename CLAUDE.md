@@ -29,5 +29,6 @@ Reference designs are in `docs/design/` (Midnight, dark theme).
 - Build: `npm run build`
 - Prove signed-out visitors see nothing: `npm run rls-check`
 - Move data from old backups: `npm run migrate -- --dry-run` first, then `npm run migrate` (asks for my password)
-- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0004 have been run.
+- Apply the 16 agreed categories (`src/lib/categories.js`) to stored data: `npm run merge-categories` (asks for my password; safe to re-run)
+- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0005 have been run.
 - The previous app lives in `legacy/`: `npm run legacy` (http://localhost:8080) and `npm run test:legacy`.
