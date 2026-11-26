@@ -8,6 +8,9 @@ import { saveSettings, saveBudgets, ensureCycle, saveFund } from '../lib/data.js
 import { currentCycle, budgetsExact, budgetsFor } from './state.js';
 import { fundStatus, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
+import { payFlow } from '../ui/charts.js';
+
+const KIND_FLOW = { invested: ['Invested', '#5BD6A0'], saved: ['Sinking funds', '#B79CFF'], transfer: ['Card and transfers', '#7AA2FF'], paid: ['One-off payments', '#F472B6'], kept: ['Left in Ulster', '#5F6B7A'] };
 
 export const PLAN_KINDS = [['transfer', 'Transfer (e.g. card repayment)'], ['invested', 'Invested'], ['saved', 'Saved (sinking fund)'], ['paid', 'Paid (one-off)'], ['kept', 'Left in Ulster']];
 const money = (p) => (Number.isInteger(p) ? (p / 100).toFixed(2) : '');
@@ -106,11 +109,22 @@ export function planPage(ctx, rerender) {
         sum('Payday lines', -t.items), sum('Bucket budgets', -t.buckets),
         sum(t.unassigned < 0 ? 'Over-assigned: not explained yet' : t.unassigned === 0 && t.extra ? 'Left to assign (reconciled)' : 'Left to assign', t.unassigned, true)),
       t.unassigned < 0 ? reconcile(ctx, draft, -t.unassigned, touch) : null),
+    flowCard(draft, t.buckets),
     h('section', { class: 'card', 'aria-labelledby': 'sf' },
       h('h2', { id: 'sf' }, 'Sinking funds'),
       h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Type what’s in each fund on money day (Monzo isn’t imported).'),
       funds.length ? funds : h('p', { class: 'muted' }, 'No sinking funds yet.'),
       h('div', { class: 'planrow', style: { marginTop: '10px' } }, newFund, h('span'), addFund)));
+}
+
+// Where your pay goes on payday, drawn from the plan you're editing (moved here from the Overview in Phase 2).
+function flowCard(draft, bucketTotal) {
+  if (!draft.pay_pence) return null;
+  const groups = {};
+  for (const it of draft.items || []) { const [n, col] = KIND_FLOW[it.kind] || ['Other', '#5F6B7A']; groups[n] = groups[n] || { name: n, pence: 0, colour: col }; groups[n].pence += it.amount_pence || 0; }
+  const flows = [{ name: 'Buckets', pence: bucketTotal, colour: '#F7B955' }, ...Object.values(groups)].filter((x) => x.pence > 0).sort((a, b) => b.pence - a.pence);
+  if (!flows.length) return null;
+  return h('section', { class: 'card', 'aria-labelledby': 'pf' }, h('h2', { id: 'pf' }, 'Where your pay goes'), payFlow({ total: draft.pay_pence, flows }));
 }
 
 // More assigned than the pay means extra money came from somewhere. Ask where, and record it as a line,

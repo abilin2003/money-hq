@@ -7,7 +7,9 @@ import { dayDiff } from './lib/dates.js';
 import { todayLondon } from './lib/dates.js';
 import { loginScreen, unreachableScreen, notConfiguredScreen } from './auth/screens.js';
 import { shell } from './ui/shell.js';
-import { overviewPage, transactionsPage, morePage, placeholderPage } from './views/pages.js';
+import { overviewPage, transactionsPage, placeholderPage } from './views/pages.js';
+import { spendingPage } from './views/spending.js';
+import { billsPage } from './views/bills.js';
 import { inboxPage, waitingLines } from './views/inbox.js';
 import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
@@ -78,11 +80,14 @@ async function signOut() {
 function render() {
   if (!ctx) return;
   const [hashRoute, param] = location.hash.replace(/^#/, '').split('/');
-  const route = hashRoute || 'overview'; // an empty address means Overview
+  // An empty address means Overview. #more was the old phone menu; the five sections replace it.
+  const route = !hashRoute || hashRoute === 'more' ? 'overview' : hashRoute;
   const { root, main } = shell({ route, email: ctx.email, onSignOut: signOut, inboxCount: ctx.inboxCount });
   const page = route === 'overview' ? overviewPage(ctx, render, param)
     : route === 'transactions' ? transactionsPage(ctx, param, render)
     : route === 'trends' ? trendsPage(ctx, render)
+    : route === 'spending' ? spendingPage(ctx, param, render)
+    : route === 'bills' ? billsPage(ctx, render)
     : route === 'people' ? peoplePage(ctx, render)
     : route === 'add' ? addPage(ctx, render)
     : route === 'goals' ? goalsPage(ctx, render)
@@ -94,13 +99,14 @@ function render() {
     : route === 'history' ? historyPage(ctx, render)
     : route === 'plan' ? planPage(ctx, render)
     : route === 'budgets' ? budgetsPage(ctx, render)
-    : route === 'more' ? morePage(ctx)
     : placeholderPage(route);
   main.append(page);
   const y = window.scrollY;
   show(root);
   if (location.hash === (render.lastHash ?? location.hash)) window.scrollTo(0, y); // stay in place when the same page redraws
   render.lastHash = location.hash;
+  const sub = main.querySelector('.subnav'); const open = sub?.querySelector('[aria-current]'); // phones: keep the open tab in view
+  if (open && open.offsetLeft + open.offsetWidth > sub.offsetLeft + sub.clientWidth) sub.scrollLeft = open.offsetLeft - sub.offsetLeft - 12;
   document.title = `${main.querySelector('h1')?.textContent || 'Money HQ'} · Money HQ`;
 }
 

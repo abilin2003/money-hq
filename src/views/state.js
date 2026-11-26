@@ -5,6 +5,7 @@ import { summarise } from '../lib/summary.js';
 import { billsInCycle, safeToSpend, effectiveBudgets } from '../lib/budget.js';
 import { inCycle } from '../ui/parts.js';
 import { historyRows } from './history.js';
+import { cashPosition, cardOwed } from '../lib/position.js';
 
 // The paydays you entered, plus real salary dates before the first one (cached until either changes).
 export function paydaysOf(ctx) {
@@ -36,8 +37,9 @@ export function budgetsFor(ctx, c) {
   return { budgets: {}, inherited: false };
 }
 
-export function cycleState(ctx, c) {
-  const txs = ctx.transactions.filter((t) => inCycle(t, c));
+// rows: the lines to count. Live lines by default; Analytics passes your whole history so older cycles work too.
+export function cycleState(ctx, c, rows = ctx.transactions) {
+  const txs = rows.filter((t) => inCycle(t, c));
   const s = summarise(txs, ctx.splitMap, ctx.settled);
   const { budgets, inherited, from } = budgetsFor(ctx, c);
   const prev = cycleFor(addDays(c.start, -1), paydaysOf(ctx), usualDay(ctx));
@@ -48,4 +50,22 @@ export function cycleState(ctx, c) {
   const bills = billsInCycle(ctx.ref.bills || [], c, txs, ctx.today);
   const safe = safeToSpend({ cycle: c, today: ctx.today < c.start ? c.start : ctx.today, budgets: effTotals, spentByBucket: s.byBucket, bills, reserve: ctx.ref.settings?.reserve_pence || 0 });
   return { txs, s, budgets, eff, effTotals, inherited, inheritedFrom: from, prev, prevS, bills, safe };
+}
+
+// The figures Overview and Analytics both show for a cycle, worked out once so they can't disagree.
+// finished: the cycle is over, so there is no cash check (that's about today) and the card estimate is at its end.
+export function cycleFigures(ctx, c, st, finished) {
+  const { s } = st;
+  const budgetTotal = Object.values(st.effTotals).reduce((a, v) => a + v, 0);
+  const spentBudgeted = Object.keys(st.effTotals).reduce((a, b) => a + (s.byBucket[b] || 0), 0);
+  const prevBudgeted = budgetTotal ? Object.keys(st.effTotals).reduce((a, b) => a + (st.prevS.byBucket[b] || 0), 0) : st.prevS.netSpent;
+  const billsDue = st.bills.filter((b) => !b.paid).reduce((a, b) => a + b.amount_pence, 0);
+  const billsPaid = st.bills.filter((b) => b.paid).reduce((a, b) => a + b.amount_pence, 0);
+  const reserve = ctx.ref.settings?.reserve_pence || 0;
+  const cash = finished ? null : cashPosition({ accounts: ctx.ref.accounts, snapshots: ctx.ref.snapshots || [], txs: ctx.transactions, today: ctx.today, billsDue, reserve });
+  const card = ctx.ref.accounts.find((a) => a.type === 'credit_card' && a.is_active !== false);
+  const owed = card ? cardOwed(card, ctx.ref.snapshots || [], ctx.all, finished ? c.end : ctx.today) : null;
+  const planItems = ctx.ref.settings?.extra?.plans?.[c.start]?.items || [];
+  const plannedOf = (kind) => planItems.filter((i) => i.kind === kind).reduce((a, i) => a + (i.amount_pence || 0), 0);
+  return { budgetTotal, spentBudgeted, prevBudgeted, unbudgeted: s.netSpent - spentBudgeted, billsDue, billsPaid, cash, card, owed, plannedOf, today: finished ? c.totalDays : c.dayNumber };
 }

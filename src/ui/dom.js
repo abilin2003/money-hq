@@ -30,6 +30,7 @@ const ICONS = {
   add: '<path d="M12 5v14M5 12h14"/>',
   people: '<circle cx="9" cy="9" r="3.5"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="8" r="2.5"/><path d="M16 13.6c2.7.2 5 2 5 5"/>',
   inbox: '<path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
+  activity: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
   import: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/>',
   history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/><path d="M4 4v4h4"/>',
 };

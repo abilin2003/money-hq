@@ -45,9 +45,12 @@ export function wealthPage(ctx, rerender) {
         series.length >= 2 ? lineChart({ labels: series.map((p) => shortDay(p.date)), series: [{ name: 'Net worth', colour: '#8B9CFF', values: series.map((p) => p.total) }], label: 'Net worth over time' })
           : h('p', { class: 'muted', style: { margin: 0 } }, 'Update your balances on each money day and your net worth line builds up here.')),
       h('section', { class: 'card', 'aria-labelledby': 'al' },
-        h('h2', { id: 'al' }, 'How it’s split'),
+        h('h2', { id: 'al' }, 'Cash, investments and debt'),
         groups.length ? groups.map(([g, v]) => h('div', { class: 'crow' }, h('span', { class: 'cname' }, g), bar(Math.abs(v) / maxAbs, { colour: GROUP_COLOUR[g], over: v < 0, label: formatPence(v) }), h('span', { class: `r ${v < 0 ? 'over' : ''}` }, `${v < 0 ? '−' : ''}${formatPence(Math.abs(v))}`)))
           : h('p', { class: 'muted', style: { margin: 0 } }, 'Nothing yet.'),
+        groups.length ? h('div', { class: 'stats', style: { marginTop: '12px' } },
+          h('div', null, h('span', { class: 'muted' }, 'Assets'), h('span', null, formatPence(groups.filter(([, v]) => v > 0).reduce((a, [, v]) => a + v, 0)))),
+          h('div', null, h('span', { class: 'muted' }, 'Liabilities (what you owe)'), h('span', { class: 'over' }, formatPence(-groups.filter(([, v]) => v < 0).reduce((a, [, v]) => a + v, 0))))) : null,
         nw.groups.Pension ? h('p', { class: 'muted small' }, `${Math.round((nw.groups.Pension / Math.max(1, nw.total)) * 100)}% of your net worth is in your pension, which you can’t touch until retirement.`) : null)),
     h('section', { class: 'card', 'aria-labelledby': 'ac' },
       h('h2', { id: 'ac' }, 'Balances'),

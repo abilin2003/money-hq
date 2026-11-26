@@ -74,6 +74,7 @@ export function inboxPage(ctx, rerender) {
 
   return h('div', { class: 'page' },
     head('Review inbox', waiting.length ? `${waiting.length} line${waiting.length === 1 ? '' : 's'} waiting. They aren't counted in any totals until you approve them.` : 'Nothing to review.'),
+    ctx.oldIous ? h('section', { class: 'card notice-card' }, h('p', { style: { margin: 0 } }, `Also needs attention: ${ctx.oldIous} IOU${ctx.oldIous === 1 ? '' : 's'} older than 30 days. `, h('a', { href: '#people', class: 'tap' }, 'See who owes you'))) : null,
     h('section', { class: 'card', 'aria-label': 'Lines to review' },
       current.length ? current.map(card) : h('p', { class: 'muted', style: { margin: 0 } }, older.length ? 'Nothing new from your latest imports.' : 'The inbox is clear. Import new statements and anything Money HQ isn’t sure about lands here.')),
     older.length ? h('section', { class: 'card', 'aria-label': 'Older lines to review' },

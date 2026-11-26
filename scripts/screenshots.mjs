@@ -10,10 +10,11 @@ import { mkdirSync } from 'node:fs';
 const BASE = process.env.SHOTS_URL || 'http://localhost:5173/';
 const OUT = 'data/screenshots';
 const PAGES = [
-  ['01-overview', 'overview'], ['02-overview-current-cycle', 'overview/current'], ['03-trends', 'trends'], ['04-review-inbox', 'inbox'],
-  ['05-budgets', 'budgets'], ['06-payday-plan', 'plan'], ['07-goals', 'goals'], ['08-wealth', 'wealth'], ['09-money-day', 'moneyday'],
-  ['10-ious', 'people'], ['11-transactions', 'transactions'], ['12-history', 'history'], ['13-import', 'import'], ['14-add-transaction', 'add'],
-  ['15-settings', 'settings'], ['16-more', 'more'],
+  ['01-overview', 'overview'], ['02-overview-current-cycle', 'overview/current'],
+  ['03-analytics-spending', 'spending'], ['04-analytics-trends', 'trends'], ['05-analytics-history', 'history'], ['06-analytics-transactions', 'transactions'],
+  ['07-planning-payday-plan', 'plan'], ['08-planning-budgets', 'budgets'], ['09-planning-goals', 'goals'], ['10-planning-bills', 'bills'], ['11-planning-money-day', 'moneyday'],
+  ['12-wealth', 'wealth'], ['13-activity-inbox', 'inbox'], ['14-activity-ious', 'people'], ['15-activity-import', 'import'],
+  ['16-add-transaction', 'add'], ['17-settings', 'settings'],
 ];
 const VIEWS = [['laptop', { viewport: { width: 1440, height: 900 } }], ['phone', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]];
 

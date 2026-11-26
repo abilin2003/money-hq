@@ -25,7 +25,9 @@ function yAxis(svg, max, x0, x1, y0, y1, ticks = 4) {
 
 // Pace chart: running spend this cycle vs the budget line vs last cycle's pace. Spec: Overview hero.
 // days: total days; spentByDay: cumulative pence per day so far; budget, lastTotal: pence.
-export function paceChart({ days, today, spentByDay, budget, lastTotal, startLabel, endLabel }) {
+// onDay({ day, spent, budgetLine, lastLine }) makes it interactive: point, tap or use the arrow keys to read any day
+// (spent is null for days still to come); onDay(null) when the pointer leaves.
+export function paceChart({ days, today, spentByDay, budget, lastTotal, startLabel, endLabel, onDay = null }) {
   const W = 520; const H = 190; const x0 = 46; const x1 = 508; const y0 = 150; const y1 = 20;
   const max = niceMax(Math.max(budget, lastTotal, spentByDay[spentByDay.length - 1] || 0) * 1.05);
   const X = (d) => x0 + ((x1 - x0) * d) / Math.max(1, days);
@@ -44,6 +46,32 @@ export function paceChart({ days, today, spentByDay, budget, lastTotal, startLab
   svg.append(s('text', { x: Math.min(X(today) + 6, x1 - 40), y: 12, fill: C.text2, 'font-size': 11 }, 'Today'));
   svg.append(s('text', { x: x0, y: H - 14, fill: C.axis, 'font-size': 11 }, startLabel));
   svg.append(s('text', { x: x1, y: H - 14, fill: C.axis, 'font-size': 11, 'text-anchor': 'end' }, endLabel));
+  if (onDay) {
+    const guide = s('line', { y1: y1 - 6, y2: y0, stroke: C.text2, 'stroke-width': 1, opacity: 0, 'pointer-events': 'none' });
+    const dot = s('circle', { r: 4.5, fill: C.text, opacity: 0, 'pointer-events': 'none' });
+    let cur = Math.max(1, today);
+    const zone = s('rect', { x: x0, y: y1 - 6, width: x1 - x0, height: y0 - y1 + 6, fill: 'transparent', tabindex: 0, role: 'slider', 'aria-label': 'Day of the cycle', 'aria-valuemin': 1, 'aria-valuemax': days, class: 'pick-zone' });
+    const show = (d) => {
+      cur = Math.max(1, Math.min(days, d));
+      const spent = cur <= spentByDay.length ? spentByDay[cur - 1] : null;
+      guide.setAttribute('x1', X(cur)); guide.setAttribute('x2', X(cur)); guide.setAttribute('opacity', 1);
+      if (spent !== null) { dot.setAttribute('cx', X(cur)); dot.setAttribute('cy', Y(spent)); dot.setAttribute('opacity', 1); } else dot.setAttribute('opacity', 0);
+      zone.setAttribute('aria-valuenow', cur);
+      onDay({ day: cur, spent, budgetLine: budget ? Math.round((budget * cur) / days) : null, lastLine: lastTotal ? Math.round((lastTotal * cur) / days) : null });
+    };
+    const hide = () => { guide.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); onDay(null); };
+    const at = (e) => { const r = svg.getBoundingClientRect(); return Math.round(((((e.clientX - r.left) / r.width) * W - x0) / (x1 - x0)) * days); };
+    zone.addEventListener('pointermove', (e) => show(at(e)));
+    zone.addEventListener('pointerdown', (e) => show(at(e)));
+    zone.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
+    zone.addEventListener('focus', () => show(cur));
+    zone.addEventListener('blur', hide);
+    zone.addEventListener('keydown', (e) => {
+      const step = { ArrowLeft: -1, ArrowRight: 1, Home: -days, End: days }[e.key];
+      if (step) { e.preventDefault(); show(cur + step); }
+    });
+    svg.append(guide, dot, zone);
+  }
   return svg;
 }
 
