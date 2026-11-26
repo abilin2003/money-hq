@@ -5,18 +5,19 @@ import { PAGES } from '../ui/shell.js';
 import { head, shortDay, dayLabel, inCycle, txRow, twoStepButton } from '../ui/parts.js';
 import { txEditor } from './tx-editor.js';
 import { closeCycle, reopenCycle } from '../lib/data.js';
+import { paydaysOf, usualDay } from './state.js';
 import { overviewView } from './overview.js';
 
 export function cyclesFor(ctx) {
   const first = ctx.transactions.map((t) => t.date).sort()[0] || ctx.today;
-  return cycleList(ctx.ref.settings?.paydays || [], first, ctx.today, ctx.ref.settings?.payday_usual_day || 24);
+  return cycleList(paydaysOf(ctx), first, ctx.today, usualDay(ctx));
 }
 const cycleRow = (ctx, c) => ctx.ref.cycles.find((x) => x.start_date === c.start);
 const isClosed = (ctx, c) => Boolean(cycleRow(ctx, c)?.closed_at);
 
 // Which cycle the Overview shows: the most recent finished cycle you haven't closed yet, otherwise the current one.
 export function focusCycle(ctx) {
-  const current = { ...cycleFor(ctx.today, ctx.ref.settings?.paydays || [], ctx.ref.settings?.payday_usual_day || 24) };
+  const current = { ...cycleFor(ctx.today, paydaysOf(ctx), usualDay(ctx)) };
   current.name = cycleName(current);
   const finished = cyclesFor(ctx).filter((c) => c.end < current.start && !isClosed(ctx, c) && ctx.transactions.some((t) => inCycle(t, c)));
   return { focus: finished[0] || current, current, finished: Boolean(finished[0]) };

@@ -289,3 +289,14 @@ textarea.input { padding: 10px 12px; min-height: 64px; resize: vertical; }
 
 .side-add { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin: -8px 4px 0; }
 .side-add:hover { text-decoration: none; filter: brightness(0.95); }
+
+/* ---- planned / actual / verified / estimated tags ---- */
+.ktag { display: inline-flex; align-items: center; margin-left: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--border-strong); color: var(--text-2); vertical-align: middle; white-space: nowrap; }
+.ktag.k-planned { border-color: #3A4570; color: var(--accent); }
+.ktag.k-actual { border-color: #24493A; color: var(--good); }
+.ktag.k-verified { background: #163828; border-color: #1F5A3E; color: var(--good); }
+.ktag.k-estimated { border-color: #5A4A24; color: var(--warning); }
+.ktag.k-not-verified, .ktag.k-stale { border-color: #5A2E2E; color: var(--over); }
+.cashcheck { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); color: var(--text-2); }
+.cashcheck .ktag { margin: 0 4px 0 0; }
+.cashcheck.warn { color: var(--warning); }

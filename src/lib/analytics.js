@@ -6,17 +6,19 @@ import { summarise, ranked } from './summary.js';
 const inRange = (t, c) => { const d = t.cycle_date || t.date; return d >= c.start && d <= c.end; };
 
 // Per-cycle summaries, oldest first, for the cycles given. splits: { txId: pence others owe }.
-export function perCycle(rows, cycles, splits = {}) {
-  return cycles.map((c) => ({ cycle: c, s: summarise(rows.filter((t) => inRange(t, c)), splits) }));
+export function perCycle(rows, cycles, splits = {}, settled = new Set()) {
+  return cycles.map((c) => ({ cycle: c, s: summarise(rows.filter((t) => inRange(t, c)), splits, settled) }));
 }
 
 // Daily spending in a cycle: [{ date, pence }] for every day, and the running total up to `uptoDay` (1-based).
-export function dailySpend(txs, cycle, splits = {}, settled = new Set()) {
+// onlyBuckets: count just these buckets (the pace chart compares budgeted buckets with their budget line).
+export function dailySpend(txs, cycle, splits = {}, settled = new Set(), onlyBuckets = null) {
   const days = [];
   for (let d = cycle.start; d <= cycle.end; d = addDays(d, 1)) days.push({ date: d, pence: 0 });
   const idx = Object.fromEntries(days.map((d, i) => [d.date, i]));
   for (const t of txs) {
     if (t.status === 'needs_review' || t.from_savings) continue;
+    if (onlyBuckets && !onlyBuckets.has(t.bucket)) continue;
     if (t.kind === 'repayment' && !settled.has(t.id)) { const j = idx[t.cycle_date || t.date]; if (j !== undefined) days[j].pence -= t.amount_pence; continue; }
     if (!['spend', 'refund'].includes(t.kind)) continue;
     const i = idx[t.cycle_date || t.date];
@@ -118,7 +120,7 @@ export function projectGoal({ target, saved, monthly, growthPct = 0, lump = 0 },
   let months = 0;
   while (bal < target && months < 600) {
     if (monthly <= 0 && r <= 0) return { months: null, date: null, series };
-    bal = bal * (1 + r) + monthly;
+    bal = Math.round(bal * (1 + r)) + monthly; // whole pence each month, even with growth
     months += 1;
     if (months <= 120) series.push(Math.round(bal));
   }

@@ -85,10 +85,13 @@ export function effectiveBudgets(budgets, lastBudgets, lastSpent, leftover = {})
 }
 
 // Pay minus everything assigned. Negative means more was assigned than came in.
-export function planTotals(pay, items, budgets) {
+// funding: extra money used alongside the pay (e.g. "Existing Ulster balance"), so an over-assigned plan can be
+// explained instead of hidden. Without it, assigning more than came in shows as a negative unassigned amount.
+export function planTotals(pay, items, budgets, funding = []) {
   const itemTotal = items.reduce((a, i) => a + (i.amount_pence || 0), 0);
   const bucketTotal = Object.values(budgets).reduce((a, v) => a + (v || 0), 0);
-  return { pay, items: itemTotal, buckets: bucketTotal, unassigned: pay - itemTotal - bucketTotal };
+  const extra = funding.reduce((a, f) => a + (f.amount_pence || 0), 0);
+  return { pay, extra, available: pay + extra, items: itemTotal, buckets: bucketTotal, unassigned: pay + extra - itemTotal - bucketTotal };
 }
 
 // What a sinking fund needs each payday to reach its target by its date (null if it has no date).

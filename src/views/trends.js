@@ -8,7 +8,7 @@ import { normKey } from '../lib/text.js';
 import { head, shortDay, pounds, bar, inCycle } from '../ui/parts.js';
 import { stackedBars, groupedBars, lineChart, bridgeChart } from '../ui/charts.js';
 import { historyRows } from './history.js';
-import { currentCycle } from './state.js';
+import { currentCycle, paydaysOf, usualDay } from './state.js';
 
 const LEVEL = { good: 'var(--good)', watch: 'var(--warning)', act: 'var(--over)', info: 'var(--accent)' };
 const NEEDS = 3;
@@ -18,7 +18,7 @@ export function trendsPage(ctx, rerender) {
   const cur = currentCycle(ctx);
   const first = rows.map((t) => t.date).sort()[0] || ctx.today;
   // Complete cycles only (the one you're in isn't finished yet), oldest first, at most 12.
-  const all = cycleList(ctx.ref.settings?.paydays || [], first, ctx.today, ctx.ref.settings?.payday_usual_day || 24).filter((c) => c.end < cur.start);
+  const all = cycleList(paydaysOf(ctx), first, ctx.today, usualDay(ctx)).filter((c) => c.end < cur.start && c.start >= first); // complete cycles only: finished, and fully inside your records
   const n = Math.min(ctx.trendsCount || 6, all.length);
   const cycles = all.slice(0, n).reverse();
   const sums = cycles.map((c) => ({ c, s: summarise(rows.filter((t) => inCycle(t, c)), ctx.splitMap, ctx.settled), txs: rows.filter((t) => inCycle(t, c)) }));

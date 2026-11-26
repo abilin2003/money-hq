@@ -1,12 +1,17 @@
 // One cycle's numbers, worked out once so Overview, Budgets and the Payday plan always agree.
-import { cycleFor, cycleName } from '../lib/cycles.js';
+import { cycleFor, cycleName, detectPaydays } from '../lib/cycles.js';
 import { addDays } from '../lib/dates.js';
 import { summarise } from '../lib/summary.js';
 import { billsInCycle, safeToSpend, effectiveBudgets } from '../lib/budget.js';
 import { inCycle } from '../ui/parts.js';
 import { historyRows } from './history.js';
 
-export const paydaysOf = (ctx) => ctx.ref.settings?.paydays || [];
+// The paydays you entered, plus real salary dates before the first one (cached until either changes).
+export function paydaysOf(ctx) {
+  const key = `${(ctx.ref.settings?.paydays || []).join()}|${ctx.all.length}`;
+  if (ctx._paydaysKey !== key) { ctx._paydays = detectPaydays(ctx.all, ctx.ref.settings?.paydays || []); ctx._paydaysKey = key; }
+  return ctx._paydays;
+}
 export const usualDay = (ctx) => ctx.ref.settings?.payday_usual_day || 24;
 export const currentCycle = (ctx) => { const c = cycleFor(ctx.today, paydaysOf(ctx), usualDay(ctx)); return { ...c, name: cycleName(c) }; };
 export const cycleRowOf = (ctx, c) => ctx.ref.cycles.find((x) => x.start_date === c.start);

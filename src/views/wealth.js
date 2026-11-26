@@ -7,6 +7,8 @@ import { netWorth, netWorthSeries } from '../lib/analytics.js';
 import { head, shortDay, bar, alertLine } from '../ui/parts.js';
 import { lineChart } from '../ui/charts.js';
 import { addSnapshot } from '../lib/data.js';
+import { balanceNow, cardOwed } from '../lib/position.js';
+import { kindTag } from './overview.js';
 
 const TYPE = { current: 'Current account', savings: 'Savings', credit_card: 'Credit card (owed)', isa: 'ISA', investment: 'Investments', pension: 'Pension', cash: 'Cash' };
 const GROUP_COLOUR = { 'Cash and savings': '#7AA2FF', 'ISAs and investments': '#5BD6A0', Pension: '#B79CFF', Debt: '#FF8A80' };
@@ -24,14 +26,19 @@ export function wealthPage(ctx, rerender) {
       if (p === null) { alertLine(save, 'Type the balance, e.g. 1250.00.'); return; }
       try { const snap = await addSnapshot(a.id, ctx.today, Math.abs(p)); ctx.ref.snapshots = [...ctx.ref.snapshots.filter((s) => s.id !== snap.id), snap].sort((x, y) => x.date.localeCompare(y.date)); rerender(); } catch (err) { alertLine(save, err.message); }
     } }, 'Update');
+    // Verified = the balance you typed in. For accounts Money HQ imports, it also estimates today's balance from
+    // the transactions since; the card estimate works from purchases since the last repayment it can see.
+    const now = a.type === 'credit_card' ? cardOwed(a, ctx.ref.snapshots, ctx.all, ctx.today) : balanceNow(a, ctx.ref.snapshots, ctx.transactions, ctx.today);
+    const status = a.last ? (now.status === 'verified' ? 'verified' : a.stale ? 'stale' : 'verified') : 'not verified';
+    const estimate = now.status === 'estimated' && now.pence !== null && (!a.last || now.pence !== Math.abs(a.last.balance_pence)) ? h('span', { class: 'muted small' }, kindTag('estimated'), ` about ${formatPence(Math.abs(now.pence))} ${a.type === 'credit_card' ? 'owed' : 'now'}${now.since && a.last ? `, after ${now.since} line${now.since === 1 ? '' : 's'} since` : a.type === 'credit_card' && now.since ? ` (purchases since ${shortDay(now.since)})` : ''}`) : null;
     return h('div', { class: 'acctrow' },
-      h('span', null, h('span', { style: { fontWeight: 500 } }, a.name), h('br'), h('span', { class: `small ${a.stale ? 'warn' : 'muted'}` }, `${TYPE[a.type] || a.type}${a.last ? ` · updated ${shortDay(a.last.date)}${a.stale ? ` (${dayDiff(a.last.date, ctx.today)} days ago)` : ''}` : ' · no balance yet'}`)),
+      h('span', null, h('span', { style: { fontWeight: 500 } }, a.name, kindTag(status)), estimate ? [h('br'), estimate] : null, h('br'), h('span', { class: `small ${a.stale ? 'warn' : 'muted'}` }, `${TYPE[a.type] || a.type}${a.last ? ` · updated ${shortDay(a.last.date)}${a.stale ? ` (${dayDiff(a.last.date, ctx.today)} days ago)` : ''}` : ' · no balance yet'}`)),
       h('span', { class: `r ${a.value < 0 ? 'over' : ''}` }, a.value === null ? '–' : `${a.value < 0 ? '−' : ''}${formatPence(Math.abs(a.value))}`),
       h('div', { class: 'edit-grid' }, input, save));
   };
 
   return h('div', { class: 'page' },
-    head('Wealth', nw.known ? `Net worth ${formatPence(nw.total)}, from the balances you’ve entered.` : 'Type in your balances to see your net worth.'),
+    head('Wealth', nw.known ? `Net worth ${formatPence(nw.total)}, from the balances you’ve typed in (verified). Estimates below are worked out from transactions and aren’t added in.` : 'Type in your balances to see your net worth. Until then nothing here is verified.'),
     h('div', { class: 'grid-top' },
       h('section', { class: 'card', 'aria-labelledby': 'nw' },
         h('div', { class: 'ch' }, h('h2', { id: 'nw' }, 'Net worth'), h('span', { class: 'display', style: { fontSize: '28px', fontWeight: 600 } }, nw.known ? formatPence(nw.total) : '–')),

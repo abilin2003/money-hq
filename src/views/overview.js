@@ -12,8 +12,9 @@ import { summarise } from '../lib/summary.js';
 import { dailySpend, cumulative, categoryChanges, insights } from '../lib/analytics.js';
 import { head, shortDay, dayLabel, pounds, bar, inCycle } from '../ui/parts.js';
 import { paceChart, groupedBars, calendarChart, payFlow } from '../ui/charts.js';
-import { cycleState } from './state.js';
+import { cycleState, paydaysOf, usualDay } from './state.js';
 import { historyRows } from './history.js';
+import { cashPosition, cardOwed } from '../lib/position.js';
 
 const KIND_FLOW = { invested: ['Invested', '#5BD6A0'], saved: ['Sinking funds', '#B79CFF'], transfer: ['Card and transfers', '#7AA2FF'], paid: ['One-off payments', '#F472B6'], kept: ['Left in Ulster', '#5F6B7A'] };
 const LEVEL = { good: 'var(--good)', watch: 'var(--warning)', act: 'var(--over)', info: 'var(--accent)' };
@@ -22,7 +23,22 @@ const heroAmount = (pence) => {
   const [whole, frac] = formatPence(pence).split('.');
   return h('div', { class: 'big display' }, whole, h('span', { class: 'pence' }, `.${frac}`));
 };
-const stat = (label, value, extra) => h('div', null, h('span', { class: 'muted' }, label), extra || h('span', null, value));
+const stat = (label, value, extra, tag) => h('div', null, h('span', { class: 'muted' }, label, tag ? kindTag(tag) : null), extra || h('span', null, value));
+// planned = from your budgets or payday plan; actual = from imported transactions; verified = a balance you typed
+// in recently; estimated = a typed-in balance moved on by later transactions, or worked out from transactions.
+export const kindTag = (kind) => h('span', { class: `ktag k-${kind.replace(/\s+/g, '-')}` }, kind);
+
+// Safe to spend is worked out from your budgets. The cash check compares it with the money actually in your
+// current accounts, once you've typed their balances in (Wealth): it never assumes a balance.
+function cashCheck(cash, safe) {
+  if (cash.status === 'unknown') {
+    return h('p', { class: 'cashcheck small' }, kindTag('not verified'), ` Not checked against your accounts yet: add today’s ${cash.missing.join(' and ')} balance${cash.missing.length === 1 ? '' : 's'}. `, h('a', { href: '#wealth', class: 'tap' }, 'Add balances'));
+  }
+  const short = cash.available < safe.total;
+  return h('p', { class: `cashcheck small ${short ? 'warn' : ''}` }, kindTag(cash.status),
+    ` Cash check: ${formatPence(cash.total)} in your current accounts, ${formatPence(Math.max(0, cash.available))} after bills still due. `,
+    short ? `That’s ${formatPence(safe.total - Math.max(0, cash.available))} less than your budgets say, so go by the lower figure.` : 'Your accounts cover it.');
+}
 
 export function overviewView(ctx, c, { finished = false, actions = [], notice = null } = {}) {
   const st = cycleState(ctx, c);
@@ -30,29 +46,42 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const budgetTotal = Object.values(st.effTotals).reduce((a, v) => a + v, 0);
   const spentBudgeted = Object.keys(st.effTotals).reduce((a, b) => a + (s.byBucket[b] || 0), 0);
   const today = finished ? c.totalDays : c.dayNumber;
+  const budgetSet = new Set(Object.keys(st.effTotals));
   const days = dailySpend(st.txs, c, ctx.splitMap, ctx.settled);
+  // The pace chart compares like with like: spending in budgeted buckets against the budget line.
+  const budgetDays = budgetTotal ? dailySpend(st.txs, c, ctx.splitMap, ctx.settled, budgetSet) : days;
+  const prevBudgeted = budgetTotal ? Object.keys(st.effTotals).reduce((a, b) => a + (st.prevS.byBucket[b] || 0), 0) : st.prevS.netSpent;
+  const unbudgeted = s.netSpent - spentBudgeted;
+  const billsDue = st.bills.filter((b) => !b.paid).reduce((a, b) => a + b.amount_pence, 0);
+  const billsPaid = st.bills.filter((b) => b.paid).reduce((a, b) => a + b.amount_pence, 0);
+  const reserve = ctx.ref.settings?.reserve_pence || 0;
+  const cash = finished ? null : cashPosition({ accounts: ctx.ref.accounts, snapshots: ctx.ref.snapshots || [], txs: ctx.transactions, today: ctx.today, billsDue, reserve });
+  const card = ctx.ref.accounts.find((a) => a.type === 'credit_card' && a.is_active !== false);
+  const owed = card ? cardOwed(card, ctx.ref.snapshots || [], ctx.all, finished ? c.end : ctx.today) : null;
+  const planItems = ctx.ref.settings?.extra?.plans?.[c.start]?.items || [];
+  const plannedOf = (kind) => planItems.filter((i) => i.kind === kind).reduce((a, i) => a + (i.amount_pence || 0), 0);
   const colour = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
 
   // ---- headline
   const p = budgetTotal ? pace(budgetTotal, spentBudgeted, { ...c, dayNumber: today }) : null;
   let line;
   if (!s.count) line = 'No spending yet this cycle.';
-  else if (finished) line = budgetTotal ? (s.netSpent <= budgetTotal ? `${pounds(budgetTotal - s.netSpent)} under your budgets.` : `${pounds(s.netSpent - budgetTotal)} over your budgets. The buckets below show where.`) : 'No budgets were set for this cycle.';
+  else if (finished) line = budgetTotal ? `${spentBudgeted <= budgetTotal ? `${pounds(budgetTotal - spentBudgeted)} under` : `${pounds(spentBudgeted - budgetTotal)} over`} your budgets in the budgeted buckets.${unbudgeted > 0 ? ` Plus ${pounds(unbudgeted)} in buckets with no budget (like Fuel).` : ''}` : 'No budgets were set for this cycle.';
   else if (!budgetTotal) line = 'No budgets set for this cycle yet.';
   else line = p.onPace ? `On pace: ${pounds(p.expected - spentBudgeted)} under where the budget line says you'd be today.` : `Ahead of pace: ${pounds(spentBudgeted - p.expected)} more than the budget line says by today.`;
   const hero = h('section', { class: 'card hero-chart', 'aria-label': finished ? 'How the cycle went' : 'Safe to spend' },
     h('div', { class: 'hero-main' },
-      h('p', { class: 'muted small' }, finished ? 'Spent this cycle' : 'Safe to spend'),
+      h('p', { class: 'muted small' }, finished ? 'Spent this cycle' : 'Safe to spend', kindTag(finished ? 'actual' : 'planned')),
       heroAmount(finished ? s.netSpent : safe.total),
       h('div', { class: 'chips' },
         finished ? h('span', { class: 'chip' }, `${pounds(budgetTotal)} budgeted`) : h('span', { class: 'chip' }, `${formatPence(safe.perDay)} a day`),
         finished ? h('span', { class: 'chip' }, `${pounds(s.netSpent / c.totalDays)} a day`) : h('span', { class: 'chip' }, `${safe.daysLeft} day${safe.daysLeft === 1 ? '' : 's'} left`)),
-      h('p', { class: 'muted small', style: { marginTop: '14px' } }, !finished && safe.short ? `You're ${pounds(safe.short)} past what's safe this cycle. ${line}` : line)),
-    h('div', { class: 'hero-plot' }, paceChart({ days: c.totalDays, today, spentByDay: cumulative(days, today), budget: budgetTotal, lastTotal: st.prevS.netSpent, startLabel: shortDay(c.start), endLabel: finished ? shortDay(c.end) : `Payday ${shortDay(c.next)}` })));
+      h('p', { class: 'muted small', style: { marginTop: '14px' } }, !finished && safe.short ? `You're ${pounds(safe.short)} past what's safe this cycle. ${line}` : line),
+      !finished ? h('p', { class: 'muted small', style: { margin: '6px 0 0' } }, 'Worked out from your budgets: what’s left in them, minus bills still due.') : null,
+      !finished ? cashCheck(cash, safe) : null),
+    h('div', { class: 'hero-plot' }, paceChart({ days: c.totalDays, today, spentByDay: cumulative(budgetDays, today), budget: budgetTotal, lastTotal: prevBudgeted, startLabel: shortDay(c.start), endLabel: finished ? shortDay(c.end) : `Payday ${shortDay(c.next)}` })));
 
   // ---- breakdown (top right)
-  const billsDue = st.bills.filter((b) => !b.paid).reduce((a, b) => a + b.amount_pence, 0);
-  const billsPaid = st.bills.filter((b) => b.paid).reduce((a, b) => a + b.amount_pence, 0);
   const breakdown = h('section', { class: 'card', 'aria-labelledby': 'bd' },
     h('h2', { id: 'bd' }, 'Breakdown'),
     !finished ? h('div', { class: 'payday' },
@@ -60,16 +89,21 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
       h('span', { class: 'muted small' }, `in ${c.daysLeft + 1} days${c.predicted ? ' (predicted)' : ''}`)) : null,
     !finished ? h('div', { class: 'days', role: 'img', 'aria-label': `Day ${c.dayNumber} of ${c.totalDays}` }, Array.from({ length: c.totalDays }, (_, i) => h('span', { class: i < c.dayNumber ? 'done' : '' }))) : null,
     h('div', { class: 'stats', style: { marginTop: '10px' } },
-      stat('Money in', formatPence(s.income)),
-      stat('Spent (your share)', formatPence(s.netSpent)),
+      stat('Money in', formatPence(s.income), null, 'actual'),
+      stat('Spent (your share)', formatPence(s.netSpent), null, 'actual'),
+      unbudgeted > 0 ? stat('…of which in buckets with no budget', formatPence(unbudgeted)) : null,
       s.paidBack ? stat('Paid back to you (taken off spending)', formatPence(s.paidBack)) : null,
       s.fromSavings ? stat('Paid from savings (not counted)', formatPence(s.fromSavings)) : null,
       s.owedToYou ? stat('Owed to you', null, h('a', { href: '#people', class: 'tap' }, formatPence(s.owedToYou))) : null,
-      stat('Invested', formatPence(s.invested)),
-      stat('Saved', formatPence(s.saved)),
+      stat('Invested', formatPence(s.invested), null, 'actual'),
+      plannedOf('invested') ? stat('Invested in your payday plan', formatPence(plannedOf('invested')), null, 'planned') : null,
+      stat('Saved', formatPence(s.saved), null, 'actual'),
+      plannedOf('saved') ? stat('Sinking funds in your payday plan', formatPence(plannedOf('saved')), null, 'planned') : null,
+      owed && owed.status !== 'unknown' ? stat(`${card.name} to repay`, formatPence(owed.pence), null, owed.status) : null,
       stat('Bills', `${formatPence(billsPaid)} paid${billsDue ? `, ${formatPence(billsDue)} ${finished ? 'not seen' : 'due'}` : ''}`),
-      budgetTotal ? stat(finished ? 'Budgets' : 'Left in buckets', finished ? formatPence(budgetTotal) : formatPence(budgetTotal - spentBudgeted)) : null,
-      !finished ? h('div', { style: { fontWeight: 600 } }, h('span', null, 'Safe to spend'), h('span', null, formatPence(safe.total))) : null,
+      budgetTotal ? stat(finished ? 'Budgets' : 'Left in budgeted buckets', finished ? formatPence(budgetTotal) : formatPence(budgetTotal - spentBudgeted), null, 'planned') : null,
+      !finished ? h('div', { style: { fontWeight: 600 } }, h('span', null, 'Safe to spend', kindTag('planned')), h('span', null, formatPence(safe.total))) : null,
+      !finished ? stat('Cash in your current accounts', cash.total === null ? 'Not entered' : formatPence(cash.total), cash.total === null ? h('a', { href: '#wealth', class: 'tap' }, 'Add balances') : null, cash.status === 'unknown' ? 'not verified' : cash.status) : null,
       s.waiting ? stat('Waiting for your decision', null, h('a', { href: '#inbox', class: 'tap' }, `${s.waiting} to review`)) : null));
 
   // ---- buckets
@@ -90,7 +124,8 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
     h('div', { class: 'ch' }, h('h2', { id: 'bk' }, 'Buckets'), h('a', { href: '#budgets', class: 'tap muted small' }, 'Manage')),
     h('div', { class: 'brow bhead muted' }, h('span', null, 'Bucket'), h('span', null, finished ? 'Spent of budget' : 'This cycle'), h('span', { class: 'r' }, 'Spent'), h('span', { class: 'r' }, finished ? 'Result' : 'Left'), h('span', { class: 'r' }, 'Last cycle')),
     bucketRows,
-    h('div', { class: 'brow btotal' }, h('span', null, 'Total'), h('span'), h('span', { class: 'r' }, pounds(s.netSpent)), h('span', { class: `r ${budgetTotal && spentBudgeted > budgetTotal ? 'over' : ''}` }, budgetTotal ? (spentBudgeted > budgetTotal ? `${pounds(spentBudgeted - budgetTotal)} over` : `${pounds(budgetTotal - spentBudgeted)} left`) : '–'), h('span', { class: 'r muted' }, pounds(st.prevS.netSpent))),
+    budgetTotal ? h('div', { class: 'brow btotal' }, h('span', null, 'Budgeted buckets'), h('span', { class: 'muted small' }, `of ${pounds(budgetTotal)}`), h('span', { class: 'r' }, pounds(spentBudgeted)), h('span', { class: `r ${spentBudgeted > budgetTotal ? 'over' : ''}` }, spentBudgeted > budgetTotal ? `${pounds(spentBudgeted - budgetTotal)} over` : `${pounds(budgetTotal - spentBudgeted)} left`), h('span', { class: 'r muted' }, pounds(prevBudgeted))) : null,
+    h('div', { class: 'brow btotal' }, h('span', null, 'All spending'), h('span', { class: 'muted small' }, unbudgeted > 0 ? `incl. ${pounds(unbudgeted)} with no budget` : ''), h('span', { class: 'r' }, pounds(s.netSpent)), h('span'), h('span', { class: 'r muted' }, pounds(st.prevS.netSpent))),
     !finished ? h('p', { class: 'muted small', style: { margin: '10px 0 0' } }, 'The white tick is where your spending would be today if you spent evenly.') : null);
 
   // ---- where it went, with change since last cycle
@@ -106,7 +141,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   // ---- money in vs out, last 6 cycles (live + history)
   const rows = historyRows(ctx.all);
   const first = rows.map((t) => t.date).sort()[0] || ctx.today;
-  const recent = cycleList(ctx.ref.settings?.paydays || [], first, c.end < ctx.today ? c.end : ctx.today, ctx.ref.settings?.payday_usual_day || 24).slice(0, 6).reverse();
+  const recent = cycleList(paydaysOf(ctx), first, c.end < ctx.today ? c.end : ctx.today, usualDay(ctx)).slice(0, 6).reverse();
   const sums = recent.map((x) => summarise(rows.filter((t) => inCycle(t, x)), ctx.splitMap, ctx.settled));
   const inout = h('section', { class: 'card', 'aria-labelledby': 'io' },
     h('div', { class: 'ch' }, h('h2', { id: 'io' }, 'Money in vs out'), h('a', { href: '#trends', class: 'tap muted small' }, 'Trends')),

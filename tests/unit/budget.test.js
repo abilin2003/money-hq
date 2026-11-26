@@ -70,7 +70,7 @@ describe('leftovers on payday', () => {
 describe('payday plan', () => {
   it('pay minus everything assigned is what is left to assign, and can be negative', () => {
     const t = planTotals(200000, [{ amount_pence: 50000 }, { amount_pence: 30000 }], { Fun: 11500, Groceries: 9000 });
-    expect(t).toEqual({ pay: 200000, items: 80000, buckets: 20500, unassigned: 200000 - 80000 - 20500 });
+    expect(t).toMatchObject({ pay: 200000, items: 80000, buckets: 20500, unassigned: 200000 - 80000 - 20500 });
     expect(planTotals(1000, [{ amount_pence: 1724 }], {}).unassigned).toBe(-724);
   });
   it('a sinking fund needs (target − saved) spread over the cycles left before its date', () => {

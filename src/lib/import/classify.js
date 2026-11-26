@@ -11,7 +11,8 @@ import { mapCategory, guessDetail, BUCKET_DEFAULT, bucketOfCategory } from '../c
 
 const OLD_KIND = { spending: 'spend', income: 'income', invested: 'invested', payback: 'repayment', internal: 'transfer', fund: 'saved' };
 const MONEY_IN_ONLY = ['income', 'payback', 'fund'];
-export const INTERNAL_PATTERNS = /\b(pocket withdrawal|withdrawing savings|depositing savings|to pocket|from pocket|pot transfer|exchanged to|exchanged from)\b/i;
+export const CARD_REPAYMENT = /\b(capital one|credit card (re)?payment|card repayment|barclaycard|american express|amex)\b/i;
+export const INTERNAL_PATTERNS =/\b(pocket withdrawal|withdrawing savings|depositing savings|to pocket|from pocket|pot transfer|exchanged to|exchanged from)\b/i;
 const SEED_MERCHANT_RULES = { trading: { kind: 'invested', category: 'Cash ISA (Trading 212)' }, investengine: { kind: 'invested', category: 'S&S ISA (InvestEngine)' } };
 const BANK_HINTS = { groceries: 'Groceries', 'eating out': 'Eating out & takeaway', eating_out: 'Eating out & takeaway', entertainment: 'Going out', transport: 'Transport & car', bills: 'Bills & subscriptions', 'personal care': 'Personal care', personal_care: 'Personal care', family: 'Friends & family', gifts: 'Gifts', shopping: 'Clothes & shopping' };
 
@@ -87,6 +88,9 @@ export function classify(row, rules) {
   // 4. Moves between your own accounts.
   if (row.internalHint) return sure('transfer', null, 'the bank marks this as a move between your accounts');
   if (INTERNAL_PATTERNS.test(row.raw_description)) return sure('transfer', null, 'looks like a move between your own accounts');
+  // Paying off a credit card from a bank account is a transfer: the card purchases were already counted as
+  // spending when you made them, so counting the repayment too would double it.
+  if (dir === 'out' && row.account !== 'Capital One' && CARD_REPAYMENT.test(row.raw_description)) return sure('transfer', null, 'a credit card repayment (the purchases were counted when you made them)');
 
   // 5. Shop rules (longest key wins; "in:" keys only apply to money coming in).
   let best = null;

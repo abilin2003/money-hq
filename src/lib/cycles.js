@@ -48,6 +48,18 @@ function predictPrevious(iso, usualDay) {
   return d;
 }
 
+// Paydays to use for cycle boundaries: the ones you entered, plus your real salary dates from before the first
+// one you entered (so older cycles start on the day you were actually paid, not an estimated 24th).
+// A salary is income of £1,000 or more; one within 20 days of a date already in the list is the same payday.
+export function detectPaydays(txs, entered = []) {
+  const known = [...new Set(entered)].sort();
+  const first = known[0] || '9999-12-31';
+  const salaries = txs.filter((t) => t.kind === 'income' && t.status !== 'needs_review' && t.amount_pence >= 100000 && t.date < first).map((t) => t.date).sort();
+  const out = [...known];
+  for (const d of salaries) if (!out.some((k) => Math.abs(dayDiff(k, d)) < 20)) out.push(d);
+  return out.sort();
+}
+
 // A cycle is named after the month it ends in: 26 Oct to 23 Nov is the "November" cycle.
 export const cycleName = (cycle) => MONTHS[+cycle.end.slice(5, 7) - 1];
 

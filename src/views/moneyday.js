@@ -7,13 +7,13 @@ import { summarise, ranked } from '../lib/summary.js';
 import { netWorth } from '../lib/analytics.js';
 import { head, shortDay, pounds, inCycle, alertLine } from '../ui/parts.js';
 import { saveSettings, addSnapshot } from '../lib/data.js';
-import { currentCycle, budgetsFor } from './state.js';
+import { currentCycle, budgetsFor, paydaysOf, usualDay } from './state.js';
 import { historyRows } from './history.js';
 
 
 export function moneydayPage(ctx, rerender) {
   const cur = currentCycle(ctx);
-  const last = cycleFor(addDaysIso(cur.start, -1), ctx.ref.settings?.paydays || [], ctx.ref.settings?.payday_usual_day || 24);
+  const last = cycleFor(addDaysIso(cur.start, -1), paydaysOf(ctx), usualDay(ctx));
   last.name = cycleName(last);
   const extra = ctx.ref.settings?.extra || {};
   const ticks = new Set(extra.moneyday?.[cur.start] || []);

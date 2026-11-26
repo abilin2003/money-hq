@@ -3,6 +3,7 @@
 import { h } from '../ui/dom.js';
 import { cycleList, cycleName } from '../lib/cycles.js';
 import { summarise, ranked, monthName } from '../lib/summary.js';
+import { paydaysOf } from './state.js';
 import { head, shortDay, pounds, inCycle, txList, bar } from '../ui/parts.js';
 
 // The bank's own copy of the fresh-start period is stored, but the live lines are the ones counted,
@@ -10,7 +11,7 @@ import { head, shortDay, pounds, inCycle, txList, bar } from '../ui/parts.js';
 const OVERLAP = 'overlaps fresh start';
 export const historyRows = (all) => all.filter((t) => !(t.archived && String(t.source || '').includes(OVERLAP)));
 
-export function periods(all, mode, settings, today) {
+export function periods(all, mode, settings, today, paydays = settings?.paydays || []) {
   const rows = historyRows(all);
   if (!rows.length) return [];
   if (mode === 'month') {
@@ -18,15 +19,15 @@ export function periods(all, mode, settings, today) {
     return months.map((m) => ({ key: m, label: monthName(m), sub: '', txs: rows.filter((t) => t.date.slice(0, 7) === m) }));
   }
   const first = rows.map((t) => t.date).sort()[0];
-  return cycleList(settings?.paydays || [], first, today, settings?.payday_usual_day || 24)
+  return cycleList(paydays, first, today, settings?.payday_usual_day || 24)
     // Cycles that don't start on a payday you entered are estimates (the 24th, or the Friday before).
-    .map((c) => ({ key: c.start, label: `${cycleName(c)} ${c.end.slice(0, 4)} cycle`, sub: `${shortDay(c.start)} to ${shortDay(c.end)}${c.predicted || !(settings?.paydays || []).includes(c.start) ? ' (payday estimated)' : ''}`, txs: rows.filter((t) => inCycle(t, c)) }))
+    .map((c) => ({ key: c.start, label: `${cycleName(c)} ${c.end.slice(0, 4)} cycle`, sub: `${shortDay(c.start)} to ${shortDay(c.end)}${c.start < first ? ` (partial: your records start ${shortDay(first)})` : c.predicted || !paydays.includes(c.start) ? ' (payday estimated)' : ''}`, txs: rows.filter((t) => inCycle(t, c)) }))
     .filter((p) => p.txs.length);
 }
 
 export function historyPage(ctx, rerender) {
   const mode = ctx.historyMode || 'cycle';
-  const list = periods(ctx.all, mode, ctx.ref.settings, ctx.today);
+  const list = periods(ctx.all, mode, ctx.ref.settings, ctx.today, paydaysOf(ctx));
   const sums = list.map((p) => ({ ...p, s: summarise(p.txs, ctx.splitMap, ctx.settled) }));
   const top = Math.max(1, ...sums.map((p) => p.s.netSpent));
   const colourOf = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
