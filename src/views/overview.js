@@ -31,15 +31,18 @@ const money = (pence, cls = '') => {
 };
 // planned = from your budgets or payday plan; actual = from imported transactions; verified = a balance you typed
 // in recently; estimated = a typed-in balance moved on by later transactions, or worked out from transactions.
-export const kindTag = (kind) => h('span', { class: `ktag k-${kind.replace(/\s+/g, '-')}` }, kind);
+const TAG_HELP = { planned: 'From your budgets or payday plan, not your bank balances', actual: 'From your imported transactions', verified: 'A balance you typed in recently', estimated: 'Worked out from transactions since your last typed-in balance', 'not verified': 'No balance to check against yet', stale: 'The balance you typed in is over 35 days old' };
+export const kindTag = (kind) => h('span', { class: `ktag k-${kind.replace(/\s+/g, '-')}`, title: TAG_HELP[kind] || null }, kind);
 
 // Safe to spend is worked out from your budgets. The cash check compares it with the money actually in your
 // current accounts, once you've typed their balances in (Wealth): it never assumes a balance.
+// The allowance is planned; safe-to-spend cash is the lower of it and what your current accounts really hold after
+// bills, and only exists once you've typed those balances in.
 function cashLine(cash, safe) {
-  if (cash.status === 'unknown') return h('p', { class: 'pos-check' }, kindTag('not verified'), ' From your budgets; not yet checked against your bank balances.');
-  const short = cash.available < safe.total;
-  return h('p', { class: `pos-check ${short ? 'warn' : ''}` }, kindTag(cash.status),
-    short ? ` Your accounts hold ${formatPence(Math.max(0, cash.available))} after bills: go by that.` : ` Your current accounts cover it (${formatPence(cash.total)}).`);
+  if (cash.status === 'unknown') return h('p', { class: 'pos-check' }, kindTag('not verified'), ' From your budgets. Safe-to-spend cash appears once your current-account balances are entered.');
+  const safeCash = Math.max(0, Math.min(safe.total, cash.available));
+  return h('p', { class: `pos-check ${cash.available < safe.total ? 'warn' : ''}` }, kindTag(cash.status), ` Safe-to-spend cash: ${formatPence(safeCash)}`,
+    cash.available < safe.total ? ` (your accounts hold ${formatPence(Math.max(0, cash.available))} after bills, less than the allowance)` : ` (your accounts hold ${formatPence(cash.total)})`);
 }
 
 const metric = (label, tag, value, ...rest) => h('div', { class: 'metric' }, h('p', { class: 'm-label' }, label, tag ? kindTag(tag) : null), h('div', { class: 'm-value' }, value), ...rest);
@@ -84,7 +87,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
       h('div', { class: 'pos-figure display' }, budgetTotal ? [pounds(Math.abs(budgetTotal - spentBudgeted)), h('span', { class: `pos-unit ${spentBudgeted > budgetTotal ? 'over' : 'good'}` }, spentBudgeted <= budgetTotal ? ' under budget' : ' over budget')] : pounds(s.totalSpent)),
       h('p', { class: 'pos-sub' }, budgetTotal ? `${pounds(spentBudgeted)} spent of ${pounds(budgetTotal)} budgeted · ${pounds(s.netSpent / c.totalDays)} a day` : `${pounds(s.netSpent / c.totalDays)} a day`))
     : h('div', { class: 'pos-primary' },
-      h('p', { class: 'm-label' }, 'Safe to spend', kindTag('planned')),
+      h('p', { class: 'm-label' }, 'Spending allowance left', kindTag('planned')),
       h('div', { class: 'pos-figure display' }, money(safe.total)),
       h('p', { class: 'pos-sub' }, `${formatPence(safe.perDay)} a day for ${safe.daysLeft} day${safe.daysLeft === 1 ? '' : 's'}`, safe.short ? h('span', { class: 'over' }, ` · ${pounds(safe.short)} past safe`) : null),
       cashLine(f.cash, safe));
@@ -98,7 +101,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const plannedAway = f.plannedOf('saved') + f.plannedOf('invested');
   const savedMetric = metric('Saved and invested', 'actual', h('span', { class: 'fig' }, signed(putAway)),
     plannedAway ? bar(Math.max(0, putAway) / plannedAway, { colour: 'var(--good)', label: `${pounds(putAway)} of ${pounds(plannedAway)} planned` }) : null,
-    h('p', { class: 'm-sub' }, `Invested ${signed(s.invested)} · saved ${signed(s.saved)}${plannedAway ? ` · ${pounds(plannedAway)} planned` : ''}`));
+    h('p', { class: 'm-sub' }, `Cash savings ${signed(s.saved)} · investments ${signed(s.invested)}${plannedAway ? ` · ${pounds(plannedAway)} planned` : ''}`));
   const worthMetric = metric('Net worth', nw.known ? 'verified' : null, nw.known ? h('span', { class: 'fig' }, signed(nw.total)) : h('span', { class: 'fig muted-fig' }, 'Not verified'),
     h('p', { class: 'm-sub' }, nw.known ? 'From your typed-in balances. ' : 'Appears once balances are entered. ', h('a', { href: '#wealth' }, 'Wealth')));
   const position = h('section', { class: 'ov-position', 'aria-label': 'Financial position' }, primary, h('div', { class: 'pos-metrics' }, spentMetric, savedMetric, worthMetric));

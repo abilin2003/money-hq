@@ -11,14 +11,34 @@ import { paysBill } from './budget.js';
 
 export const merchantOf = (t) => merchantKey(t.raw_description) || normKey(t.raw_description) || '(no description)';
 export const NO_BUCKET_PAYBACK = 'Paid back (no bucket)';
+
+// Merchants. A bank statement's description names the shop; a description you typed yourself ("Gift for newborn",
+// "Work breakfast") says what it was for, not where. So a typed line only counts as a shop when its name matches a
+// shop seen in your bank lines (e.g. "Spotify"); otherwise it's grouped as an unknown merchant. Descriptions are
+// always kept and shown as they are; only the shop rankings use this.
+export const UNKNOWN_MERCHANT = 'unknown merchant';
+// From a bank statement: lines imported from a bank file, and the bank exports brought over from the old app
+// (stored as archived "csv" lines). Your own lists and anything added by hand are typed.
+export const fromBank = (t) => /^(import:|bank-statement)/.test(String(t.source || '')) || (String(t.source || '').startsWith('csv') && Boolean(t.archived));
+export function merchantResolver(rows) {
+  // Each shop's name as your bank statements most often spell it.
+  const names = new Map();
+  for (const t of rows.filter(fromBank)) { const k = merchantOf(t); const n = cleanName(t.raw_description); const m = names.get(k) || new Map(); m.set(n, (m.get(n) || 0) + 1); names.set(k, m); }
+  const resolve = (t) => { const k = merchantOf(t); return fromBank(t) || names.has(k) ? k : UNKNOWN_MERCHANT; };
+  resolve.nameOf = (k) => { const m = names.get(k); return m ? [...m].sort((x, y) => y[1] - x[1] || x[0].length - y[0].length)[0][0] : null; };
+  return resolve;
+}
 // A shop's name to show: the way its bank lines most often spell it (the key above is only for grouping).
 export function shopName(lines) {
+  if (lines[0]?.merchant === UNKNOWN_MERCHANT) return 'Unknown merchant';
+  if (lines[0]?.shop) return lines[0].shop; // the bank's spelling, not a description you typed
   const n = new Map();
   for (const l of lines) { const k = cleanName(l.t.raw_description) || l.merchant; n.set(k, (n.get(k) || 0) + 1); }
   return [...n].sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0]?.[0] || '';
 }
 
-export function spendLines(txs, splits = {}, settled = new Set()) {
+// merchants: optional merchantResolver(); without it the description's first word(s) are the merchant.
+export function spendLines(txs, splits = {}, settled = new Set(), merchants = null) {
   const out = [];
   for (const t of txs) {
     if (t.status === 'needs_review') continue;
@@ -29,7 +49,7 @@ export function spendLines(txs, splits = {}, settled = new Set()) {
     else if (t.kind === 'repayment' && !settled.has(t.id)) { kind = 'payback'; cost = -p; }
     else continue;
     out.push({ id: t.id, t, kind, cost, date: t.date, fromSavings: kind === 'spend' && Boolean(t.from_savings),
-      bucket: t.bucket || (kind === 'payback' ? NO_BUCKET_PAYBACK : 'No bucket'), category: t.category || (kind === 'payback' ? 'Paid back to you' : 'No category'), merchant: merchantOf(t) });
+      bucket: t.bucket || (kind === 'payback' ? NO_BUCKET_PAYBACK : 'No bucket'), category: t.category || (kind === 'payback' ? 'Paid back to you' : 'No category'), merchant: merchants ? merchants(t) : merchantOf(t), shop: merchants?.nameOf ? merchants.nameOf(merchants(t)) : null });
   }
   return out;
 }

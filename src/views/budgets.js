@@ -22,7 +22,7 @@ export function budgetsPage(ctx, param) {
   const list = budgetOverview({ eff: st.eff, spent: st.s.byBucket, prevBudgets, cycle: c, finished });
   const colour = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
   const sel = c.start === cur.start ? { kind: 'current' } : { kind: 'cycle', start: c.start };
-  const tot = list.reduce((a, r) => ({ total: a.total + r.total, actual: a.actual + r.actual, expected: a.expected + r.expected, projected: a.projected + r.projected, carried: a.carried + r.carried, allocated: a.allocated + r.allocated }), { total: 0, actual: 0, expected: 0, projected: 0, carried: 0, allocated: 0 });
+  const tot = list.reduce((a, r) => ({ total: a.total + r.total, actual: a.actual + r.actual, expected: a.expected + r.expected, projected: r.projected === null || a.projected === null ? null : a.projected + r.projected, carried: a.carried + r.carried, allocated: a.allocated + r.allocated }), { total: 0, actual: 0, expected: 0, projected: 0, carried: 0, allocated: 0 });
   const unbudgeted = ctx.ref.buckets.filter((b) => !st.eff[b.name] && st.s.byBucket[b.name]);
 
   const picker = h('select', { class: 'input', 'aria-label': 'Pay cycle', style: { width: 'auto' }, onchange: (e) => { location.hash = `budgets/${e.target.value}`; } },
@@ -40,7 +40,7 @@ export function budgetsPage(ctx, param) {
       h('div', null, h('span', { class: 'muted' }, 'Rolled over'), h('span', null, r.carried ? `+${pounds(r.carried)}` : '–')),
       h('div', null, h('span', { class: 'muted' }, finished ? 'Result' : 'Pace today'),
         h('span', { class: (finished ? r.remaining < 0 : r.ahead > 0) ? 'over' : 'good' }, finished ? (r.remaining < 0 ? 'Over' : 'Under') : r.ahead > 0 ? `${pounds(r.ahead)} over` : `${pounds(-r.ahead)} under`)),
-      h('div', null, h('span', { class: 'muted' }, finished ? 'Spent' : 'Projected'), h('span', { class: r.projected > r.total ? 'over' : '' }, pounds(r.projected)))),
+      h('div', null, h('span', { class: 'muted' }, finished ? 'Spent' : 'Projected (estimate)'), h('span', { class: r.projected !== null && r.projected > r.total ? 'over' : r.projected === null ? 'muted' : '' }, r.projected === null ? 'Too early' : pounds(r.projected)))),
     r.reduced ? h('p', { class: 'bc-note small' }, `Cut on purpose from ${pounds(r.reduced.from)} to ${pounds(r.reduced.to)} this cycle.`) : null,
     r.warnings.map((w) => h('p', { class: `bc-warn small ${w.level}` }, w.level === 'over' ? `Over budget by ${pounds(r.actual - r.total)}.` : `At this rate you’ll spend ${pounds(r.projected)}, ${pounds(r.projected - r.total)} over.`)));
 
@@ -53,7 +53,7 @@ export function budgetsPage(ctx, param) {
       tile('Spent', pounds(tot.actual), 'budgeted buckets, from pay'),
       tile(tot.total - tot.actual < 0 ? 'Over budget' : 'Left', pounds(Math.abs(tot.total - tot.actual)), tot.total - tot.actual < 0 ? 'across budgeted buckets' : null, tot.total - tot.actual < 0 ? 'over' : ''),
       tile(finished ? 'Result' : 'Pace today', finished ? (tot.actual > tot.total ? 'Over' : 'Under') : `${pounds(Math.abs(tot.actual - tot.expected))} ${tot.actual > tot.expected ? 'over' : 'under'}`, finished ? null : `even spending: ${pounds(tot.expected)}`, paceOver ? 'over' : 'good'),
-      tile(finished ? 'Spent' : 'Projected', pounds(tot.projected), finished ? null : `at this rate, of ${pounds(tot.total)}`, tot.projected > tot.total ? 'over' : ''),
+      tile(finished ? 'Spent' : 'Projected (estimate)', tot.projected === null ? 'Too early' : pounds(tot.projected), finished ? null : tot.projected === null ? 'needs 4 days of spending' : `at this rate, of ${pounds(tot.total)}`, tot.projected !== null && tot.projected > tot.total ? 'over' : ''),
       tile('Warnings', String(list.filter((r) => r.warnings.length).length), `${list.filter((r) => r.reduced).length} cut on purpose`))
       : h('section', { class: 'card' }, h('p', { class: 'muted', style: { margin: 0 } }, 'No budgets for this cycle yet. ', h('a', { href: '#plan', class: 'tap' }, 'Set them on the Payday plan'))),
     h('div', { class: 'grid2' }, list.map(card)),

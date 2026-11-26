@@ -10,17 +10,19 @@ import { normKey } from './text.js';
 // pace and projection can raise a warning about it.
 // eff: { bucket: { budget, carried, total } }; spent: { bucket: pence }; prevBudgets: { bucket: pence };
 // cycle: { dayNumber, totalDays }; finished: the cycle is over.
+// Projections need a few days to go on: before day 4 of a cycle there's no projection or pace warning.
+export const MIN_DAYS_TO_PROJECT = 4;
 export function budgetOverview({ eff, spent, prevBudgets = {}, cycle, finished = false }) {
   const day = finished ? cycle.totalDays : cycle.dayNumber;
   return Object.entries(eff).map(([bucket, e]) => {
     const actual = spent[bucket] || 0;
     const expected = Math.round((e.total * day) / cycle.totalDays);
-    const projected = finished ? actual : day ? Math.round((actual / day) * cycle.totalDays) : 0;
+    const projected = finished ? actual : day >= MIN_DAYS_TO_PROJECT ? Math.round((actual / day) * cycle.totalDays) : null;
     const prev = prevBudgets[bucket];
     const reduced = Number.isInteger(prev) && e.budget < prev ? { from: prev, to: e.budget } : null;
     const warnings = [];
     if (actual > e.total) warnings.push({ level: 'over', text: `Over by ${Math.round((actual - e.total) / 100)}` });
-    else if (!finished && projected > e.total && actual > expected) warnings.push({ level: 'pace', text: 'On course to go over' });
+    else if (!finished && projected !== null && projected > e.total && actual > expected) warnings.push({ level: 'pace', text: 'On course to go over' });
     return { bucket, allocated: e.budget, carried: e.carried, total: e.total, actual, remaining: e.total - actual, expected, projected, ahead: actual - expected, reduced, warnings };
   });
 }

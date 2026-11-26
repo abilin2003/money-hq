@@ -66,9 +66,9 @@ export function trendsPage(ctx, rerender) {
     groupedBars({ labels, series: [{ name: 'In', colour: '#5BD6A0', values: sums.map((x) => x.s.income) }, { name: 'Spent', colour: '#F472B6', values: sums.map((x) => x.s.totalSpent) }, { name: 'Invested and saved', colour: '#8B9CFF', values: sums.map((x) => x.s.invested + x.s.saved) }] }));
   const rate = sums.map((x) => (x.s.income > 0 ? Math.round(((x.s.invested + x.s.saved) / x.s.income) * 100) : null));
   const rateCard = h('section', { class: 'card', 'aria-labelledby': 't5' },
-    h('h2', { id: 't5' }, 'Savings rate per cycle'),
+    h('h2', { id: 't5' }, 'Saving + investing rate per cycle'),
     h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Invested and saved, as a share of the money that came in.'),
-    lineChart({ labels, series: [{ name: 'Savings rate', colour: '#5BD6A0', values: rate }], percent: true, label: 'Savings rate per cycle' }));
+    lineChart({ labels, series: [{ name: 'Saved or invested', colour: '#5BD6A0', values: rate }], percent: true, label: 'Share of income saved or invested per cycle' }));
 
   // 5. Income by source (salary vs everything else)
   const salaryish = (t) => t.kind === 'income' && (t.amount_pence >= 150000 || /salary|ltd|limited|payroll|wage/i.test(normKey(t.raw_description)));

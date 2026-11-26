@@ -30,7 +30,7 @@ export function spendingPage(ctx, param, rerender) {
   const all = total(lines);
   const pay = total(fromPay(lines));
   const prev = previousPeriod(p, info);
-  const prevLines = prev ? spendLines(info.rows.filter(inRange(prev.from, prev.to)), ctx.splitMap, ctx.settled) : [];
+  const prevLines = prev ? spendLines(info.rows.filter(inRange(prev.from, prev.to)), ctx.splitMap, ctx.settled, info.merchants) : [];
   const fl = flows(txs);
 
   // ---- summary tiles (each opens what's behind it)
@@ -42,7 +42,7 @@ export function spendingPage(ctx, param, rerender) {
     tile('From savings', pounds(all - pay), 'big buys', go({ savings: true })),
     tile('Money in', pounds(fl.income), null, go({ kind: 'income' })),
     tile('Saved and invested', signed(fl.saved + fl.invested), 'after withdrawals', go({ kind: 'putaway' })),
-    tile('Left over', signed(left), 'in − spent − put away', null));
+    tile('Left after spending and saving', signed(left), 'income − spending − saving; not your bank balance', null));
 
   // ---- spending by category: buckets, each opening into its categories
   const buckets = group(lines, (l) => l.bucket);
@@ -114,7 +114,7 @@ export function spendingPage(ctx, param, rerender) {
 
   // ---- by pay cycle and by month (context around a single period), each bar opens that period
   const span = p.cycles.length > 1 ? [...p.cycles].reverse() : cycleList(info.paydays, info.firstDate, p.to < info.today ? p.to : info.today, info.usualDay).slice(0, 6).reverse();
-  const spanLines = spendLines(info.rows.filter(inRange(span[0].start, span[span.length - 1].end)), ctx.splitMap, ctx.settled);
+  const spanLines = spendLines(info.rows.filter(inRange(span[0].start, span[span.length - 1].end)), ctx.splitMap, ctx.settled, info.merchants);
   const seriesFor = (keys, keyOf) => bucketNames.map((b) => ({ name: b, colour: colour[b], values: keys.map((k) => total(spanLines.filter((l) => l.bucket === b && keyOf(l) === k))) }));
   const cycKey = (l) => span.find((c) => l.date >= c.start && l.date <= c.end)?.start;
   const cycleCard = h('section', { class: 'card', 'aria-labelledby': 'xy' },
@@ -123,7 +123,7 @@ export function spendingPage(ctx, param, rerender) {
       onPick: (i) => { location.hash = stateHref(ROUTE, i === span.length - 1 && span[i].end >= info.today ? { kind: 'current' } : { kind: 'cycle', start: span[i].start }); } }));
   const months = [];
   for (let ym = (p.to < info.today ? p.to : info.today).slice(0, 7); months.length < Math.max(6, Math.ceil(p.days / 30) + 1) && ym >= info.firstDate.slice(0, 7); ym = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 2, 1)).toISOString().slice(0, 7)) months.unshift(ym);
-  const monthLines = spendLines(info.rows.filter(inRange(`${months[0]}-01`, `${months[months.length - 1]}-31`)), ctx.splitMap, ctx.settled);
+  const monthLines = spendLines(info.rows.filter(inRange(`${months[0]}-01`, `${months[months.length - 1]}-31`)), ctx.splitMap, ctx.settled, info.merchants);
   const monthCard = h('section', { class: 'card', 'aria-labelledby': 'xn' },
     h('div', { class: 'ch' }, h('h2', { id: 'xn' }, 'Monthly spending'), h('span', { class: 'muted small' }, 'calendar months · tap to open')),
     stackedBars({ labels: months.map((ym) => monthName(ym).slice(0, 3)), series: bucketNames.map((b) => ({ name: b, colour: colour[b], values: months.map((ym) => total(monthLines.filter((l) => l.bucket === b && l.date.slice(0, 7) === ym))) })), label: 'Spending per calendar month by bucket',

@@ -9,7 +9,7 @@
 //     payments" shows the lines behind the number. `how` says how it was worked out.
 //   - Savings figures are only "what the numbers would be if…" (back to your usual, half as many small buys),
 //     never advice.
-import { total, applyFilter, group, weekdayOf, shopName } from './explore.js';
+import { total, applyFilter, group, weekdayOf, shopName, UNKNOWN_MERCHANT } from './explore.js';
 import { addDays } from './dates.js';
 
 const gbp = (p) => `£${Math.round(Math.abs(p) / 100).toLocaleString('en-GB')}`;
@@ -121,7 +121,7 @@ export function buildInsights({ lines, from, to, days, base = [], history = [], 
   // 3. Unusual transactions (against your own history at that shop)
   const unusual = [];
   for (const l of pays(lines)) {
-    if (l.cost < 3000) continue;
+    if (l.cost < 3000 || l.merchant === UNKNOWN_MERCHANT) continue;
     const prior = pays(history.filter((x) => x.merchant === l.merchant));
     const m = median(prior.map((x) => x.cost));
     if (prior.length >= 3 && l.cost >= m * 2.5) unusual.push({ l, text: `${gbp2(l.cost)} at ${shopName([l])} on ${l.date.slice(8, 10)}/${l.date.slice(5, 7)} is ${(l.cost / m).toFixed(1)}× your usual ${gbp2(m)} there (${prior.length} earlier payments).` });
@@ -151,7 +151,7 @@ export function buildInsights({ lines, from, to, days, base = [], history = [], 
   }
 
   // 5. Frequently visited shops
-  const freq = group(pays(lines), (l) => l.merchant).filter((g) => g.count >= 5).sort((a, b) => b.count - a.count || b.pence - a.pence).slice(0, 2);
+  const freq = group(pays(lines), (l) => l.merchant).filter((g) => g.count >= 5 && g.key !== UNKNOWN_MERCHANT).sort((a, b) => b.count - a.count || b.pence - a.pence).slice(0, 2);
   for (const g of freq) {
     const uN = usualCount((ls) => ls.filter((l) => l.merchant === g.key));
     add({ id: `often-${g.key}`, level: 'info', title: `${shopName(g.lines)}: ${g.count} visits`,

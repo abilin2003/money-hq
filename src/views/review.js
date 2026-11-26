@@ -56,11 +56,11 @@ export function reportInputs(ctx, c) {
     sel, st, prevC, earlier,
     input: { cycle: { start: c.start, end: c.end, name: yearName(c), totalDays: c.totalDays }, txs,
       prev: hasPrev ? { txs: info.rows.filter((t) => inCycle(t, prevC)), name: yearName(prevC) } : null,
-      usual: earlier.map((x) => spendLines(info.rows.filter(inRange(x.start, x.end)), ctx.splitMap, ctx.settled)),
+      usual: earlier.map((x) => spendLines(info.rows.filter(inRange(x.start, x.end)), ctx.splitMap, ctx.settled, info.merchants)),
       splits: ctx.splitMap, settled: ctx.settled, eff: st.eff, fctx: data.fctx, insights: insightsFor(ctx, p, info, data),
       goals: (ctx.ref.goals || []).map((g) => { const saved = savedFor(ctx, g); const gp = goalProgress({ target: g.target_pence, saved, date: g.target_date, monthly: g.monthly_pence, history: historyFor(ctx, g), today: ctx.today }); return { name: g.name, saved, target: g.target_pence, pct: gp.pct, status: gp.status }; }),
       netWorth: a && b ? { from: a.date, to: b.date, start: a.total, end: b.total } : null,
-      plan: planProgress(ctx, c), previousImprovements: savedReport(prevRow)?.review?.improvements || [], smallLimit: ctx.smallLimit || 1000 },
+      merchants: info.merchants, plan: planProgress(ctx, c), previousImprovements: savedReport(prevRow)?.review?.improvements || [], smallLimit: ctx.smallLimit || 1000 },
   };
 }
 
@@ -81,8 +81,8 @@ export function renderReport(ctx, r, sel) {
       tile('Spending', pounds(s.spent), s.fromSavings ? `incl. ${pounds(s.fromSavings)} from savings` : 'all from pay'),
       tile('Saved', signed(s.saved), 'after withdrawals'),
       tile('Invested', signed(s.invested), 'after withdrawals'),
-      tile('Net cash flow', signed(s.net), 'in − spent − put away', s.net < 0 ? 'over' : 'good'),
-      tile('Savings rate', s.savingsRate === null ? '–' : `${s.savingsRate}%`, s.prev?.savingsRate != null ? `${s.prev.savingsRate}% the cycle before` : null),
+      tile('Left after spending and saving', signed(s.net), 'income − spending − saving and investing; not the change in your bank balance', s.net < 0 ? 'over' : 'good'),
+      tile('Saving + investing rate', s.savingsRate === null ? '–' : `${s.savingsRate}%`, s.prev?.savingsRate != null ? `${s.prev.savingsRate}% the cycle before` : null),
       tile('Spending vs budget', s.budget.total ? `${pounds(s.budget.spent)} / ${pounds(s.budget.total)}` : 'No budgets', s.budget.total ? (s.budget.spent > s.budget.total ? `${pounds(s.budget.spent - s.budget.total)} over` : `${pounds(s.budget.total - s.budget.spent)} under`) : null, s.budget.spent > s.budget.total && s.budget.total ? 'over' : ''),
       tile('Against last cycle', s.prev ? diffTxt(s.spent - s.prev.spent) : '–', s.prev ? `spent ${pounds(s.prev.spent)} in ${s.prev.name}` : 'no earlier cycle', s.prev && s.spent > s.prev.spent ? 'over' : 'good')),
     h('div', { class: 'grid-even' },

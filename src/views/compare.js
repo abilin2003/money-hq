@@ -42,8 +42,8 @@ export function comparePage(ctx, param, rerender) {
     return h('div', { class: 'page' }, head('Compare', 'Pick two periods to compare.'), h('section', { class: 'card cmp-pickers' }, picker('A', B), picker('B', B)));
   }
 
-  const la = spendLines(info.rows.filter(inRange(A.from, A.to)), ctx.splitMap, ctx.settled);
-  const lb = spendLines(info.rows.filter(inRange(B.from, B.to)), ctx.splitMap, ctx.settled);
+  const la = spendLines(info.rows.filter(inRange(A.from, A.to)), ctx.splitMap, ctx.settled, info.merchants);
+  const lb = spendLines(info.rows.filter(inRange(B.from, B.to)), ctx.splitMap, ctx.settled, info.merchants);
   const ta = total(la); const tb = total(lb);
   const byBucket = compare(la, lb, (l) => l.bucket);
   const byCat = compare(la, lb, (l) => l.category);

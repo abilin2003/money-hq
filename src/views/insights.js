@@ -24,9 +24,9 @@ export function insightsFor(ctx, p, info, data = periodData(ctx, p, info)) {
     prev = previousPeriod(prev, info);
     if (!prev || prev.to < info.firstDate) break;
     if (prev.from < info.firstDate) break; // only whole periods inside your records
-    base.push({ lines: spendLines(info.rows.filter(inRange(prev.from, prev.to)), ctx.splitMap, ctx.settled), days: prev.days, label: prev.label.replace(/ cycle$/, '').replace(/ \d{4}/, '') });
+    base.push({ lines: spendLines(info.rows.filter(inRange(prev.from, prev.to)), ctx.splitMap, ctx.settled, info.merchants), days: prev.days, label: prev.label.replace(/ cycle$/, '').replace(/ \d{4}/, '') });
   }
-  const history = spendLines(info.rows.filter(inRange(addDays(p.from, -200), addDays(p.from, -1))), ctx.splitMap, ctx.settled);
+  const history = spendLines(info.rows.filter(inRange(addDays(p.from, -200), addDays(p.from, -1))), ctx.splitMap, ctx.settled, info.merchants);
   let budgets = [];
   if (p.cycle || p.kind === 'last') {
     const all = cycleList(info.paydays, info.firstDate, info.today, info.usualDay);

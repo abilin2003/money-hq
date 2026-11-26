@@ -5,7 +5,7 @@
 //
 // The narrative follows the same rules as insights: every sentence is built from a figure in the report, nothing
 // is guessed, and suggestions are things you can measure next cycle ("keep Eating out under £100"), never advice.
-import { spendLines, total, fromPay, group, applyFilter, compare, frequency, shopName, weekdayOf, byDay } from './explore.js';
+import { spendLines, total, fromPay, group, applyFilter, compare, frequency, shopName, weekdayOf, byDay, UNKNOWN_MERCHANT } from './explore.js';
 import { decompose, CONVENIENCE } from './insights.js';
 import { summarise } from './summary.js';
 
@@ -51,11 +51,11 @@ export function suggestBudgets(budgets, history) {
 //   cycle first), fctx, insights, goals: [{ name, saved, target, pct, status }], netWorth: { from, to, start, end }
 //   | null, plan: { lines } | null, previousImprovements: [{ text, metric }], smallLimit }
 export function buildReport(input) {
-  const { cycle, txs, prev = null, usual = [], splits = {}, settled = new Set(), eff = {}, budgetHistory = [], fctx = {}, insights = [], goals = [], netWorth = null, plan = null, previousImprovements = [], smallLimit = 1000 } = input;
+  const { cycle, txs, prev = null, usual = [], splits = {}, settled = new Set(), eff = {}, budgetHistory = [], fctx = {}, insights = [], goals = [], netWorth = null, plan = null, previousImprovements = [], smallLimit = 1000, merchants = null } = input;
   const s = summarise(txs, splits, settled);
-  const lines = spendLines(txs, splits, settled);
+  const lines = spendLines(txs, splits, settled, merchants);
   const ps = prev ? summarise(prev.txs, splits, settled) : null;
-  const plines = prev ? spendLines(prev.txs, splits, settled) : [];
+  const plines = prev ? spendLines(prev.txs, splits, settled, merchants) : [];
   const all = total(lines);
   const putAway = s.saved + s.invested;
   const rate = pct(putAway, s.income);
@@ -99,7 +99,7 @@ export function buildReport(input) {
 
   // ---- 4. habits
   const small = applyFilter(lines, { small: smallLimit });
-  const freqShops = group(pays(lines), (l) => l.merchant).filter((g) => g.count >= 3).sort((a, b) => b.count - a.count).slice(0, 5).map((g) => ({ key: g.key, name: shopName(g.lines), count: g.count, pence: g.pence }));
+  const freqShops = group(pays(lines), (l) => l.merchant).filter((g) => g.count >= 3 && g.key !== UNKNOWN_MERCHANT).sort((a, b) => b.count - a.count).slice(0, 5).map((g) => ({ key: g.key, name: shopName(g.lines), count: g.count, pence: g.pence }));
   const conv = (ls) => total(ls.filter((l) => CONVENIENCE.test(l.category)));
   const topDays = byDay(lines, cycle.start, cycle.end).filter((d) => d.pence > 0).sort((a, b) => b.pence - a.pence).slice(0, 5).map((d) => ({ date: d.key, weekday: weekdayOf(d.key), pence: d.pence, count: d.count, top: shopName(d.lines.filter((l) => l.kind === 'spend').sort((a, b) => b.cost - a.cost).slice(0, 1)) }));
   const spendOnly = (ls) => ls.filter((l) => l.kind !== 'payback'); // money paid back to you isn't a habit

@@ -9,6 +9,11 @@ describe('budget overview', () => {
   it('allocated, rollover, actual, remaining, pace and projection', () => {
     expect(fun).toMatchObject({ allocated: 10000, carried: 2000, total: 12000, actual: 9000, remaining: 3000, expected: 4000, projected: 27000 });
   });
+  it('no projection or pace warning before there are 4 days to go on', () => {
+    const early = budgetOverview({ eff, spent: { Fun: 9000, Groceries: 5000, Life: 1000 }, cycle: { dayNumber: 2, totalDays: 30 } });
+    expect(early.map((r) => r.projected)).toEqual([null, null, null]);
+    expect(early.find((r) => r.bucket === 'Fun').warnings).toEqual([]);
+  });
   it('a cut budget is labelled as deliberate, and warned about only on pace', () => {
     expect(fun.reduced).toEqual({ from: 15000, to: 10000 });
     expect(fun.warnings.map((w) => w.level)).toEqual(['pace']);

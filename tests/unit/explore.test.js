@@ -2,7 +2,7 @@
 // periods resolve to the right dates. All data here is made up.
 import { describe, it, expect } from 'vitest';
 import { summarise } from '../../src/lib/summary.js';
-import { spendLines, total, fromPay, group, byDay, applyFilter, compare, frequency, flows, weekStart, isRecurring, NO_BUCKET_PAYBACK } from '../../src/lib/explore.js';
+import { spendLines, total, fromPay, group, byDay, applyFilter, compare, frequency, flows, weekStart, isRecurring, NO_BUCKET_PAYBACK, merchantResolver, UNKNOWN_MERCHANT, shopName, fromBank } from '../../src/lib/explore.js';
 import { resolvePeriod, stepPeriod, previousPeriod, encodePeriod, decodePeriod } from '../../src/lib/period.js';
 
 const t = (id, date, amount_pence, kind = 'spend', more = {}) => ({ id, date, amount_pence, kind, status: 'reviewed', bucket: 'Fun', category: 'Going out', raw_description: 'Test Shop', ...more });
@@ -95,5 +95,28 @@ describe('periods', () => {
     for (const sel of [{ kind: 'current' }, { kind: 'cycle', start: '2026-10-26' }, { kind: 'last', n: 6 }, { kind: 'month', ym: '2026-11' }, { kind: 'range', from: '2026-11-01', to: '2026-11-10' }]) expect(decodePeriod(encodePeriod(sel))).toEqual(sel);
     expect(decodePeriod('2026-10-26')).toEqual({ kind: 'cycle', start: '2026-10-26' });
     expect(decodePeriod('nonsense')).toEqual({ kind: 'current' });
+  });
+});
+
+describe('merchants are told apart from descriptions', () => {
+  const bank = (id, desc) => t(id, '2026-09-01', -500, 'spend', { raw_description: desc, source: 'csv', archived: true });
+  const typed = (id, desc) => t(id, '2026-11-02', -500, 'spend', { raw_description: desc, source: 'csv', archived: false });
+  const rows = [bank('b1', 'SPOTIFY P1234'), bank('b2', 'Tesco Stores 4321'), typed('t1', 'Gift for newborn'), typed('t2', 'Spotify'), typed('t3', 'Work breakfast'),
+    t('i1', '2026-11-03', -900, 'spend', { raw_description: 'CAFE NERO', source: 'import:revolut' }), t('m1', '2026-11-04', -300, 'spend', { raw_description: 'Coffee with Sam', source: 'manual' })];
+  const lines = spendLines(rows, {}, new Set(), merchantResolver(rows));
+  const m = Object.fromEntries(lines.map((l) => [l.id, l.merchant]));
+  it('bank lines keep their merchant; typed lines only count as a shop seen in your bank lines', () => {
+    expect([fromBank(rows[0]), fromBank(rows[2]), fromBank(rows[5]), fromBank(rows[6])]).toEqual([true, false, true, false]);
+    expect(m.b1).toBe('spotify');
+    expect(m.t2).toBe('spotify'); // typed, but a real shop from the bank lines
+    expect([m.t1, m.t3, m.m1]).toEqual([UNKNOWN_MERCHANT, UNKNOWN_MERCHANT, UNKNOWN_MERCHANT]);
+    expect(m.i1).toBe('cafe');
+  });
+  it('descriptions are kept, the unknown group has a clear name, and shop totals still add up', () => {
+    expect(lines.find((l) => l.id === 't1').t.raw_description).toBe('Gift for newborn');
+    const groups = group(lines, (l) => l.merchant);
+    expect(shopName(groups.find((g) => g.key === UNKNOWN_MERCHANT).lines)).toBe('Unknown merchant');
+    expect(groups.reduce((a, g) => a + g.pence, 0)).toBe(total(lines));
+    expect(shopName(groups.find((g) => g.key === 'spotify').lines)).toBe('Spotify P1234'); // the bank's name for it
   });
 });

@@ -6,7 +6,7 @@ import { formatPence } from '../lib/money.js';
 import { cycleList, cycleName } from '../lib/cycles.js';
 import { monthName } from '../lib/summary.js';
 import { resolvePeriod, stepPeriod, encodePeriod, decodePeriod } from '../lib/period.js';
-import { spendLines, inRange, total, group, applyFilter, weekdayOf, shopName } from '../lib/explore.js';
+import { spendLines, inRange, total, group, applyFilter, weekdayOf, shopName, merchantResolver } from '../lib/explore.js';
 import { detectRecurring } from '../lib/budget.js';
 import { shortDay, dayLabel, pounds, bar, txRow } from '../ui/parts.js';
 import { panel } from '../ui/panel.js';
@@ -40,13 +40,14 @@ export function stateHref(route, sel, f = {}, tx = null, extra = {}) {
 // Everything the period maths needs, worked out once per page.
 export function periodInfo(ctx) {
   const rows = historyRows(ctx.all);
-  return { rows, paydays: paydaysOf(ctx), today: ctx.today, usualDay: usualDay(ctx), firstDate: rows.reduce((m, t) => (t.date < m ? t.date : m), ctx.today) };
+  if (ctx._merch?.all !== ctx.all) ctx._merch = { all: ctx.all, fn: merchantResolver(rows) }; // worked out once per version of your data
+  return { rows, merchants: ctx._merch.fn, paydays: paydaysOf(ctx), today: ctx.today, usualDay: usualDay(ctx), firstDate: rows.reduce((m, t) => (t.date < m ? t.date : m), ctx.today) };
 }
 
 // The lines for a period, with what the filters and the recurring / essential splits need.
 export function periodData(ctx, p, info) {
   const txs = info.rows.filter(inRange(p.from, p.to));
-  const lines = spendLines(txs, ctx.splitMap, ctx.settled);
+  const lines = spendLines(txs, ctx.splitMap, ctx.settled, info.merchants);
   ctx._recurring = ctx._recurring || new Set(detectRecurring(info.rows, ctx.ref.bills || []).map((r) => r.key));
   const fctx = { bills: ctx.ref.bills || [], recurringKeys: ctx._recurring, essential: new Set(ctx.ref.settings?.extra?.essential_buckets || DEFAULT_ESSENTIAL) };
   return { txs, lines, fctx };

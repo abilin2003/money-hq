@@ -32,12 +32,12 @@ export function wealthPage(ctx, rerender) {
   // ---- summary tiles
   const tile = (label, value, sub, cls = '') => h('div', { class: 'card tile' }, h('span', { class: 'muted small' }, label), h('span', { class: `tile-v display ${cls}` }, value), h('span', { class: 'muted small' }, sub));
   const tiles = h('div', { class: 'tiles' },
-    tile('Net worth', nw.known ? signed(nw.total) : '–', nw.known ? when(lastOf(Object.keys(TYPE))) : 'type in your balances'),
-    tile('Assets', formatPence(latest.assets), 'everything you own'),
-    tile('Liabilities', formatPence(latest.liabilities), when(lastOf(['credit_card'])), latest.liabilities ? 'over' : ''),
-    tile('Cash and savings', formatPence(latest.cash), when(lastOf(['current', 'savings', 'cash']))),
-    tile('ISAs and investments', formatPence(latest.investments), when(lastOf(['isa', 'investment']))),
-    tile('Pension', formatPence(latest.pension), when(lastOf(['pension']))));
+    tile('Net worth', nw.known ? signed(nw.total) : 'Not verified', nw.known ? when(lastOf(Object.keys(TYPE))) : 'needs your balances', nw.known ? '' : 'unset'),
+    tile('Assets', nw.known ? formatPence(latest.assets) : 'Not entered', 'everything you own', nw.known ? '' : 'unset'),
+    tile('Liabilities', lastOf(['credit_card']) ? formatPence(latest.liabilities) : 'Not entered', when(lastOf(['credit_card'])), lastOf(['credit_card']) ? (latest.liabilities ? 'over' : '') : 'unset'),
+    tile('Cash and savings', lastOf(['current', 'savings', 'cash']) ? formatPence(latest.cash) : 'Not entered', when(lastOf(['current', 'savings', 'cash'])), lastOf(['current', 'savings', 'cash']) ? '' : 'unset'),
+    tile('ISAs and investments', lastOf(['isa', 'investment']) ? formatPence(latest.investments) : 'Not entered', when(lastOf(['isa', 'investment'])), lastOf(['isa', 'investment']) ? '' : 'unset'),
+    tile('Pension', lastOf(['pension']) ? formatPence(latest.pension) : 'Not entered', when(lastOf(['pension'])), lastOf(['pension']) ? '' : 'unset'));
 
   // ---- net worth, assets and liabilities over time
   const labels = series.map((p) => shortDay(p.date));
@@ -124,8 +124,9 @@ export function wealthPage(ctx, rerender) {
     head('Wealth', nw.known ? `Net worth ${signed(nw.total)}, from the balances you’ve typed in (verified). Estimates are worked out from transactions and aren’t added in.` : 'Type in your balances to see your net worth. Until then nothing here is verified.',
       h('a', { href: '#update', class: 'btn primary tap', onclick: (e) => { e.preventDefault(); document.querySelector('#update')?.scrollIntoView({ behavior: 'smooth' }); } }, 'Update balances')),
     tiles,
-    h('div', { class: 'grid-even' }, worthCard, splitCard),
-    h('div', { class: 'grid-even' }, gainsCard, histCard),
+    // Nothing typed in yet: one short note instead of empty charts (the gains card still shows what you've put in).
+    series.length ? h('div', { class: 'grid-even' }, worthCard, splitCard) : h('section', { class: 'card empty-card compact-empty' }, h('p', { style: { margin: 0 } }, h('strong', null, 'Net worth, cash vs investments and balance history'), ' fill in from the first time you enter your balances below. Nothing is estimated until then.')),
+    series.length ? h('div', { class: 'grid-even' }, gainsCard, histCard) : gainsCard,
     bulk,
     h('section', { class: 'card', 'aria-labelledby': 'ac' }, h('h2', { id: 'ac' }, 'Balances'), nw.rows.map(row),
       h('p', { class: 'muted small', style: { margin: '12px 0 0' } }, `Only account balances are added up. ${funds.length ? `Your sinking funds (${formatPence(fundTotal)} across ${funds.length}) are pots inside your savings account, so they’re already in its balance and aren’t added again. ` : 'Sinking funds are pots inside your savings account, so they’re never added again. '}Transfers between your own accounts don’t change your net worth.`)));

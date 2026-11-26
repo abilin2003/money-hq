@@ -29,7 +29,7 @@ export function reportsPage(ctx, param, rerender) {
     h('h2', { id: 'rl' }, 'Your pay-cycle reports'),
     items.length ? items.map((x) => h('a', { href: `#review/${x.c.start}`, class: 'rrow linkrow' },
       h('span', null, h('strong', null, `${x.name} cycle`), h('br'), h('span', { class: 'muted small' }, `${shortDay(x.c.start)} to ${shortDay(x.c.end)}`)),
-      h('span', { class: 'small' }, x.r ? [`Spent ${pounds(x.r.summary.spent)}`, h('br'), h('span', { class: 'muted' }, `${x.r.summary.savingsRate ?? '–'}% saved · ${x.r.summary.budget.total ? (x.r.summary.budget.spent > x.r.summary.budget.total ? 'over budget' : 'within budget') : 'no budget'}`)] : h('span', { class: 'muted' }, 'No saved report')),
+      h('span', { class: 'small' }, x.r ? [`Spent ${pounds(x.r.summary.spent)}`, h('br'), h('span', { class: 'muted' }, `${x.r.summary.savingsRate ?? '–'}% saved or invested · ${x.r.summary.budget.total ? (x.r.summary.budget.spent > x.r.summary.budget.total ? 'over budget' : 'within budget') : 'no budget'}`)] : h('span', { class: 'muted' }, 'No saved report')),
       h('span', { class: 'r' }, x.closed ? h('span', { class: 'ktag k-verified' }, 'Closed') : due?.cycle.start === x.c.start ? h('span', { class: 'ktag k-planned' }, 'Ready to review') : h('span', { class: 'ktag' }, 'Not reviewed'), x.stale ? h('span', { class: 'ktag k-estimated' }, 'May need refreshing') : null)))
       : h('p', { class: 'muted', style: { margin: 0 } }, 'No finished pay cycles yet.'));
 
@@ -37,7 +37,7 @@ export function reportsPage(ctx, param, rerender) {
   const series = [...saved].reverse();
   const trends = series.length >= 2 ? h('section', { class: 'card', 'aria-labelledby': 'rt' }, h('h2', { id: 'rt' }, 'Across your reports'),
     groupedBars({ labels: series.map((x) => cycleName(x.c).slice(0, 3)), series: [{ name: 'Income', colour: '#5BD6A0', values: series.map((x) => x.r.summary.income) }, { name: 'Spent', colour: '#F472B6', values: series.map((x) => x.r.summary.spent) }, { name: 'Put away', colour: '#8B9CFF', values: series.map((x) => x.r.summary.saved + x.r.summary.invested) }], onPick: (i) => { location.hash = `review/${series[i].c.start}`; }, label: 'Income, spending and money put away per reviewed cycle' }),
-    lineChart({ labels: series.map((x) => cycleName(x.c).slice(0, 3)), series: [{ name: 'Savings rate', colour: '#5BD6A0', values: series.map((x) => x.r.summary.savingsRate) }], percent: true, label: 'Savings rate per reviewed cycle' }))
+    lineChart({ labels: series.map((x) => cycleName(x.c).slice(0, 3)), series: [{ name: 'Saved or invested', colour: '#5BD6A0', values: series.map((x) => x.r.summary.savingsRate) }], percent: true, label: 'Share of income saved or invested per reviewed cycle' }))
     : h('section', { class: 'card' }, h('h2', null, 'Across your reports'), h('p', { class: 'muted', style: { margin: 0 } }, saved.length ? 'Close one more cycle with a review and trends across your reports appear here.' : 'Trends appear once you’ve reviewed and closed two cycles.'));
 
   // ---- compare two reports
@@ -58,7 +58,7 @@ export function reportsPage(ctx, param, rerender) {
       h('div', { class: 'rtable' },
         h('div', { class: 'rtr muted small' }, h('span'), h('span', { class: 'r' }, A.name), h('span', { class: 'r' }, B.name), h('span', { class: 'r' }, 'Change')),
         line('Income', ra.income, rb.income), line('Spending', ra.spent, rb.spent, pounds, true), line('Saved', ra.saved, rb.saved), line('Invested', ra.invested, rb.invested),
-        line('Net cash flow', ra.net, rb.net), line('Savings rate %', ra.savingsRate, rb.savingsRate, (v) => `${v}%`),
+        line('Left after spending and saving', ra.net, rb.net), line('Saving + investing rate', ra.savingsRate, rb.savingsRate, (v) => `${v}%`),
         line('Over budget by', Math.max(0, ra.budget.spent - ra.budget.total), Math.max(0, rb.budget.spent - rb.budget.total), pounds, true),
         line('Payments', A.r.spending.payments, B.r.spending.payments, String, true), line('Small payments', A.r.habits.small.pence, B.r.habits.small.pence, pounds, true),
         line('Takeaway and convenience', A.r.habits.convenience.now, B.r.habits.convenience.now, pounds, true),
