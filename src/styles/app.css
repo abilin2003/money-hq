@@ -38,28 +38,81 @@ a:hover { text-decoration: underline; }
 .card h2 { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
 .chip { display: inline-flex; align-items: center; font-size: 13px; background: var(--surface-2); border-radius: 999px; padding: 5px 10px; }
 
-/* ---- shell: sidebar on laptop, bottom tab bar under 760px ---- */
-.shell { display: flex; min-height: 100vh; }
-.sidebar {
-  flex: 0 0 232px; padding: 20px 14px; background: var(--sidebar); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; gap: 24px; position: sticky; top: 0; height: 100vh;
+/* ---- shell: icon rail on laptops (opens into a floating menu, or pinned as a sidebar), a menu button on smaller
+   laptops and tablets, and a bottom tab bar on phones ---- */
+.shell { display: flex; min-height: 100vh; --rail: 64px; --menu: 248px; }
+.sidebar { flex: 0 0 var(--rail); position: sticky; top: 0; height: 100vh; z-index: 30; }
+.side-panel {
+  position: absolute; top: 0; left: 0; bottom: 0; width: var(--rail); overflow: hidden;
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 10px 14px;
+  background: var(--sidebar); border-right: 1px solid var(--border);
+  transition: width 0.18s ease, box-shadow 0.18s ease;
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; font-size: 15px; font-weight: 600; }
+.side-top { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 6px; }
+.navtoggle, .navpin, .navfab { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; border-radius: 10px; border: 0; background: transparent; color: var(--text-2); cursor: pointer; }
+.navtoggle:hover, .navpin:hover { background: var(--surface-2); color: var(--text); }
+.navpin { width: 36px; height: 36px; margin-left: auto; color: var(--muted); }
+.navpin[aria-pressed='true'] { color: var(--accent); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.side-top .brand { padding: 0; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
-.nav a {
-  display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: 9px;
-  color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none;
+.navlink, .side-add { position: relative; display: flex; align-items: center; gap: 14px; height: 44px; padding: 0 12px; border-radius: 10px; color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.navlink:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
+.navlink[aria-current='page'] { color: var(--text); background: var(--surface-2); }
+.navlink[aria-current='page']::before { content: ''; position: absolute; left: -10px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+.navlink > span:first-child, .side-add > span:first-child { flex: none; width: 20px; justify-content: center; }
+.navlink .badge { margin-left: auto; }
+.side-add { color: var(--primary-text); background: var(--primary-bg); margin: 2px 0 10px; font-weight: 600; }
+.side-add:hover { text-decoration: none; filter: brightness(0.94); }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
+.me { display: flex; align-items: center; gap: 10px; padding: 4px 6px 0; min-width: 0; }
+.me .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-2); }
+/* In the rail, names hide (they show as tooltips); the menu panel and the pinned sidebar show them. */
+.side-panel .lbl { opacity: 0; pointer-events: none; transition: opacity 0.12s ease; }
+.shell:not(.nav-open):not(.nav-pinned) .navlink .badge { position: absolute; top: 4px; right: 2px; margin: 0; font-size: 10px; padding: 0 5px; }
+.shell:not(.nav-open):not(.nav-pinned) .navpin { display: none; }
+.shell:not(.nav-open):not(.nav-pinned) .me { display: none; }
+.shell:not(.nav-open):not(.nav-pinned) .side-panel [data-tip]:hover::after,
+.shell:not(.nav-open):not(.nav-pinned) .side-panel [data-tip]:focus-visible::after {
+  content: attr(data-tip); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); z-index: 40;
+  padding: 5px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); font-size: 13px; font-weight: 500; white-space: nowrap; pointer-events: none;
 }
-.nav a:hover { color: var(--text); }
-.nav a[aria-current='page'] { background: var(--surface-2); color: var(--text); }
-.me { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px 8px 0; border-top: 1px solid var(--border); }
+.shell:not(.nav-open):not(.nav-pinned) .side-panel { overflow: visible; }
+.shell.nav-open .side-panel { width: var(--menu); box-shadow: 12px 0 32px rgba(0, 0, 0, 0.35); }
+.shell.nav-open .side-panel .lbl { opacity: 1; pointer-events: auto; }
+.side-scrim { display: none; }
+.shell.nav-open .side-scrim { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(5, 8, 12, 0.35); }
+.navfab { display: none; }
+@media (min-width: 1024px) {
+  /* Pinned: an ordinary sidebar that takes its own space, no shadow or dimming. */
+  .shell.nav-pinned .sidebar { flex-basis: var(--menu); }
+  .shell.nav-pinned .side-panel { width: var(--menu); box-shadow: none; }
+  .shell.nav-pinned .side-panel .lbl { opacity: 1; pointer-events: auto; }
+  .shell.nav-pinned .side-scrim { display: none; }
+}
+@media (min-width: 760px) and (max-width: 1023px) {
+  /* Smaller laptops and tablets: no rail, just a menu button; the menu floats over the page. */
+  .sidebar { flex-basis: 0; }
+  .side-panel { width: var(--menu); transform: translateX(-100%); transition: transform 0.18s ease; }
+  .shell.nav-open .side-panel { transform: none; }
+  .side-panel .lbl { opacity: 1; pointer-events: auto; }
+  .navpin { display: none; }
+  .shell { flex-direction: column; }
+  .side-panel { position: fixed; }
+  .shell .topbar { display: flex; position: sticky; top: 0; z-index: 6; align-items: center; justify-content: space-between; padding: 8px 16px 8px 8px; background: var(--sidebar); border-bottom: 1px solid var(--border); }
+  .topbar .brand { padding: 0; gap: 8px; }
+  .topbar-act { display: flex; align-items: center; gap: 6px; }
+  .topadd { width: 40px; height: 40px; border-radius: 12px; background: var(--primary-bg); display: flex; align-items: center; justify-content: center; }
+  .topbar .iconlink { min-width: 44px; min-height: 44px; }
+  .navfab { display: inline-flex; }
+}
 .avatar { width: 30px; height: 30px; border-radius: 15px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex: none; }
 .me .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-2); }
 .linkbtn { font: inherit; font-size: 13px; color: var(--muted); background: none; border: 0; cursor: pointer; min-height: 32px; padding: 0 4px; }
 .linkbtn:hover { color: var(--text); }
 
 .main { flex: 1 1 auto; min-width: 0; padding: 28px 36px 48px; }
-.page { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap); }
+.page { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap); }
 .page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 8px; }
 .page-head h1 { margin: 0; font-size: 24px; font-weight: 600; }
 .page-head p { margin: 4px 0 0; font-size: 14px; }
@@ -230,8 +283,6 @@ a:hover { text-decoration: underline; }
 .crow { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 64px 56px; }
 .linkrow { color: inherit; text-decoration: none; border-radius: 8px; }
 .linkrow:hover { background: var(--surface-2); text-decoration: none; }
-.nav-sep { display: block; height: 1px; background: var(--border); margin: 8px 12px; }
-.nav a.minor { font-size: 13px; }
 .iconlink { color: var(--muted); display: flex; min-width: 32px; min-height: 32px; align-items: center; justify-content: center; }
 .tablink { position: relative; }
 .tabbadge { position: absolute; top: 2px; right: 8px; font-size: 10px; font-weight: 700; background: var(--warning); color: #0B1016; border-radius: 999px; padding: 0 5px; }
@@ -287,8 +338,6 @@ textarea.input { padding: 10px 12px; min-height: 64px; resize: vertical; }
 .linkrow { min-height: 44px; }
 @media (max-width: 759px) { .linkbtn { min-height: 44px; } }
 
-.side-add { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin: -8px 4px 0; }
-.side-add:hover { text-decoration: none; filter: brightness(0.95); }
 
 /* ---- planned / actual / verified / estimated tags ---- */
 .ktag { display: inline-flex; align-items: center; margin-left: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--border-strong); color: var(--text-2); vertical-align: middle; white-space: nowrap; }
@@ -303,7 +352,7 @@ textarea.input { padding: 10px 12px; min-height: 64px; resize: vertical; }
 
 /* ---- Phase 2 (upgrade): five sections, section tabs, the new Overview ---- */
 .topbar { display: none; }
-.subnav { max-width: 1180px; margin: 0 auto 18px; display: flex; gap: 4px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.subnav { max-width: 1320px; margin: 0 auto 18px; display: flex; gap: 4px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .subnav::-webkit-scrollbar { display: none; }
 .subnav a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .subnav a:hover { color: var(--text); text-decoration: none; }
@@ -576,7 +625,7 @@ select.input { max-width: 100%; }
 @media print {
   :root { --bg: #fff; --surface: #fff; --surface-2: #F3F5F8; --border: #D9DEE5; --border-strong: #C3CAD4; --text: #111; --text-2: #333; --muted: #555; --faint: #777; color-scheme: light; }
   body { background: #fff !important; }
-  .sidebar, .topbar, .tabbar, .subnav, .no-print, .panel-wrap, .skip { display: none !important; }
+  .sidebar, .side-scrim, .navfab, .topbar, .tabbar, .subnav, .no-print, .panel-wrap, .skip { display: none !important; }
   .main { padding: 0 !important; }
   .card { break-inside: avoid; box-shadow: none; }
   .rsec { break-inside: auto; }
@@ -613,3 +662,7 @@ select.input { max-width: 100%; }
 /* In a detail panel, shop and category names wrap rather than being cut short. */
 .panel .cmp-row { grid-template-columns: minmax(0, 1fr) 58px 58px 66px; }
 .panel .cname { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+
+/* The section's name beside its tabs (the rail shows icons only), on laptops. */
+.subnav-sec { align-self: center; flex: none; padding: 0 14px 0 2px; margin-right: 6px; border-right: 1px solid var(--border); color: var(--text-2); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+@media (max-width: 759px) { .subnav-sec { display: none; } .navfab { display: none !important; } }

@@ -32,6 +32,9 @@ const ICONS = {
   inbox: '<path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
   activity: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
   import: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  pin: '<path d="M9 3h6l-1 6 3.5 3.5h-11L10 9z"/><path d="M12 12.5V21"/>',
   history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/><path d="M4 4v4h4"/>',
 };
 export function icon(name, size = 18, stroke = 'currentColor', width = 1.8) {
