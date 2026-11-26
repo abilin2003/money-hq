@@ -2,9 +2,9 @@
 import { h } from '../ui/dom.js';
 import { cycleFor, cycleList, cycleName } from '../lib/cycles.js';
 import { pageLabel } from '../ui/sections.js';
-import { head, shortDay, dayLabel, inCycle, txRow, twoStepButton } from '../ui/parts.js';
+import { head, shortDay, dayLabel, inCycle, txRow } from '../ui/parts.js';
 import { txEditor } from './tx-editor.js';
-import { closeCycle, reopenCycle } from '../lib/data.js';
+import { reopenCycle } from '../lib/data.js';
 import { paydaysOf, usualDay } from './state.js';
 import { overviewView } from './overview.js';
 import { readState, periodInfo, periodBar } from './explorer.js';
@@ -39,15 +39,14 @@ export function overviewPage(ctx, rerender, param) {
       ctx.ref.cycles = ctx.ref.cycles.map((x) => (x.id === row.id ? row : x));
       rerender();
     } }, `Reopen ${cycleName({ end: lastClosed.end_date })}`) : null;
-    return overviewView(ctx, current, { actions: [add, imp, back, reopen] });
+    // On the cycle's last day (the day before payday) the review is ready.
+    const lastDay = ctx.today >= current.end ? h('section', { class: 'card strip review-strip' }, h('span', null, h('strong', null, `Your ${current.name} cycle ends today`), h('br'), h('span', { class: 'muted small' }, 'Its end-of-cycle report is ready. Nothing closes until you confirm.')), h('a', { href: `#review/${current.start}`, class: 'btn primary tap' }, 'Review & Close Pay Cycle')) : null;
+    return overviewView(ctx, current, { actions: [add, imp, back, reopen], notice: lastDay });
   }
-  const closeBtn = twoStepButton(`Close the ${c.name} cycle`, `Tap again to close ${c.name}`, async () => {
-    const row = await closeCycle(c);
-    ctx.ref.cycles = [...ctx.ref.cycles.filter((x) => x.start_date !== row.start_date), row].sort((x, y) => x.start_date.localeCompare(y.start_date));
-    rerender();
-  }, 'btn primary');
+  // Closing happens on the review page, after you've looked over the report: nothing closes on its own.
+  const closeBtn = h('a', { href: `#review/${c.start}`, class: 'btn primary tap' }, 'Review & Close Pay Cycle');
   const notice = h('section', { class: 'card notice-card' },
-    h('p', { style: { margin: 0 } }, `The ${current.name} cycle started on ${dayLabel(current.start)}. When you've finished looking over ${c.name}, close it and the Overview moves on to ${current.name}. `, h('a', { href: '#overview/current', class: 'tap' }, `Peek at ${current.name} so far`)));
+    h('p', { style: { margin: 0 } }, `The ${current.name} cycle started on ${dayLabel(current.start)}. Review and close ${c.name} when you’re ready (its report is saved, nothing is moved), and the Overview moves on to ${current.name}. `, h('a', { href: '#overview/current', class: 'tap' }, `Peek at ${current.name} so far`)));
   return overviewView(ctx, c, { finished: true, actions: [add, closeBtn, imp], notice });
 }
 

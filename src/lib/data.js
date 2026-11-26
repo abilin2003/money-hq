@@ -25,7 +25,7 @@ export async function loadEverything() {
     supabase.from('accounts').select('id, name, type, institution, is_active').order('name').then((r) => must(r, 'load accounts')),
     supabase.from('buckets').select('id, name, colour, sort_order').order('sort_order').then((r) => must(r, 'load buckets')),
     supabase.from('categories').select('id, name, bucket_id, is_active').order('name').then((r) => must(r, 'load categories')),
-    supabase.from('cycles').select('id, start_date, end_date, closed_at').order('start_date').then((r) => must(r, 'load cycles')),
+    supabase.from('cycles').select(CYCLE_COLUMNS).order('start_date').then((r) => must(r, 'load cycles')),
     supabase.from('budgets').select('cycle_id, bucket_id, amount_pence').then((r) => must(r, 'load budgets')),
     all(() => supabase.from('rules').select('id, match, set, priority, created_from').order('id'), 'load rules'),
     all(() => supabase.from('transactions').select(TX_COLUMNS).order('date', { ascending: false }).order('id'), 'load transactions'),
@@ -77,12 +77,24 @@ export async function addLearnedRule(key, direction, set) {
   return must(await supabase.from('rules').insert({ match: { description_contains: key, direction }, set, priority: 100, created_from: 'learned' }).select('id, match, set, priority, created_from').single(), 'save the rule');
 }
 
+const CYCLE_COLUMNS = 'id, start_date, end_date, closed_at, report';
+
+// Closing after a review: the report (figures, breakdowns, narrative and your notes) is kept on the cycle's row.
+// Nothing else changes: transactions are never moved or edited by closing.
+export async function closeCycleWithReport(cycle, report) {
+  return must(await supabase.from('cycles').upsert({ start_date: cycle.start, end_date: cycle.end, closed_at: new Date().toISOString(), report }, { onConflict: 'user_id,start_date' }).select(CYCLE_COLUMNS).single(), 'close the cycle');
+}
+// Saving a refreshed version next to the original (the original is never overwritten).
+export async function saveCycleReport(id, report) {
+  return must(await supabase.from('cycles').update({ report }).eq('id', id).select(CYCLE_COLUMNS).single(), 'save the report');
+}
+
 export async function closeCycle(cycle) {
-  return must(await supabase.from('cycles').upsert({ start_date: cycle.start, end_date: cycle.end, closed_at: new Date().toISOString() }, { onConflict: 'user_id,start_date' }).select('id, start_date, end_date, closed_at').single(), 'close the cycle');
+  return must(await supabase.from('cycles').upsert({ start_date: cycle.start, end_date: cycle.end, closed_at: new Date().toISOString() }, { onConflict: 'user_id,start_date' }).select(CYCLE_COLUMNS).single(), 'close the cycle');
 }
 
 export async function reopenCycle(id) {
-  return must(await supabase.from('cycles').update({ closed_at: null }).eq('id', id).select('id, start_date, end_date, closed_at').single(), 'reopen the cycle');
+  return must(await supabase.from('cycles').update({ closed_at: null }).eq('id', id).select(CYCLE_COLUMNS).single(), 'reopen the cycle');
 }
 
 // ---------------------------------------------------------------- Phase 4: budgets, plan, bills, funds
@@ -91,7 +103,7 @@ const FUND_COLUMNS = 'id, name, target_pence, due_date, monthly_pence, balance_p
 
 // Makes sure the cycle has a row (so budgets can hang off it) and returns it.
 export async function ensureCycle(cycle) {
-  return must(await supabase.from('cycles').upsert({ start_date: cycle.start, end_date: cycle.end }, { onConflict: 'user_id,start_date' }).select('id, start_date, end_date, closed_at').single(), 'save the cycle');
+  return must(await supabase.from('cycles').upsert({ start_date: cycle.start, end_date: cycle.end }, { onConflict: 'user_id,start_date' }).select(CYCLE_COLUMNS).single(), 'save the cycle');
 }
 
 // budgets: { bucket_id: pence or null }. null (or empty) removes that bucket's budget for the cycle.

@@ -3,12 +3,12 @@
 // A page can have extra addresses that open inside it (Manage → Bills), listed third.
 export const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: 'overview', pages: [['overview', 'Overview']] },
-  { id: 'analytics', label: 'Analytics', icon: 'trends', pages: [['spending', 'Spending'], ['insights', 'Insights'], ['compare', 'Compare'], ['trends', 'Trends'], ['history', 'History'], ['transactions', 'Transactions']] },
+  { id: 'analytics', label: 'Analytics', icon: 'trends', pages: [['spending', 'Spending'], ['insights', 'Insights'], ['compare', 'Compare'], ['reports', 'Reports', ['review']], ['trends', 'Trends'], ['history', 'History'], ['transactions', 'Transactions']] },
   { id: 'planning', label: 'Planning', icon: 'plan', pages: [['plan', 'Payday plan'], ['moneyday', 'Money day'], ['budgets', 'Budgets'], ['goals', 'Goals'], ['manage', 'Manage', ['bills']]] },
   { id: 'wealth', label: 'Wealth', icon: 'wealth', pages: [['wealth', 'Wealth']] },
   { id: 'activity', label: 'Activity', icon: 'activity', pages: [['inbox', 'Review inbox'], ['people', 'IOUs'], ['import', 'Import']] },
 ];
-export const OUTSIDE = [['add', 'Add a transaction'], ['settings', 'Settings'], ['bills', 'Bills']];
+export const OUTSIDE = [['add', 'Add a transaction'], ['settings', 'Settings'], ['bills', 'Bills'], ['review', 'Cycle review']];
 export const isPage = ([id, , aliases = []], route) => id === route || aliases.includes(route);
 
 export const sectionOf = (route) => SECTIONS.find((s) => s.pages.some((p) => isPage(p, route))) || null;

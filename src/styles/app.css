@@ -533,3 +533,54 @@ body:has(.panel-wrap) { overflow: hidden; }
 }
 .edit-grid > * { min-width: 0; }
 select.input { max-width: 100%; }
+
+/* ---- Phase 6 (upgrade): end-of-cycle review report and reports archive ---- */
+.review-strip, .warn-strip { border-left: 3px solid var(--warning); }
+.review-strip { border-left-color: var(--accent); }
+.report .rsec h2 { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+.rnum { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; background: var(--surface-2); color: var(--accent); font-size: 13px; font-weight: 700; }
+.rtiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.rtile { display: flex; flex-direction: column; gap: 3px; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.rtile-v { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rminis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.rminis > div { display: flex; flex-direction: column; gap: 2px; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.rminis strong { font-size: 17px; }
+.rbucket > summary { list-style: none; cursor: pointer; }
+.rbucket > summary::-webkit-details-marker { display: none; }
+.crow.sub { padding-left: 18px; min-height: 34px; }
+.rtable { margin: 6px 0 12px; }
+.rtr { display: grid; grid-template-columns: minmax(0, 1.4fr) 100px 90px 100px; gap: 10px; align-items: center; min-height: 36px; border-top: 1px solid var(--border); font-size: 14px; }
+.rtr.btotal { font-weight: 600; }
+.rlist { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; font-size: 14px; color: var(--text-2); }
+.rnote { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; }
+.rnote h3 { margin: 0 0 4px; font-size: 14px; }
+.rnote.good { border-left: 3px solid var(--good); }
+.rnote.warn { border-left: 3px solid var(--warning); }
+.rreason { margin: 8px 0; }
+.rgoal { margin: 8px 0; }
+.rquote { margin: 8px 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 8px; font-style: italic; }
+.rcheck { align-items: flex-start; margin: 6px 0; line-height: 1.4; }
+.rclose { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.rrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 6px; border-top: 1px solid var(--border); }
+.rrow .ktag { margin: 2px 0 2px 6px; }
+.rrefl { padding: 8px 0; border-top: 1px solid var(--border); }
+@media (max-width: 1100px) { .rtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 759px) {
+  .rtr { grid-template-columns: minmax(0, 1fr) 70px 70px 76px; font-size: 13px; gap: 6px; }
+  .rrow { grid-template-columns: minmax(0, 1fr) auto; }
+  .rrow > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .rtile-v { font-size: 18px; }
+}
+
+/* Export as PDF: the browser's print, with a light page and only the report. */
+@media print {
+  :root { --bg: #fff; --surface: #fff; --surface-2: #F3F5F8; --border: #D9DEE5; --border-strong: #C3CAD4; --text: #111; --text-2: #333; --muted: #555; --faint: #777; color-scheme: light; }
+  body { background: #fff !important; }
+  .sidebar, .topbar, .tabbar, .subnav, .no-print, .panel-wrap, .skip { display: none !important; }
+  .main { padding: 0 !important; }
+  .card { break-inside: avoid; box-shadow: none; }
+  .rsec { break-inside: auto; }
+  details.rbucket { display: block; }
+  a { color: inherit; text-decoration: none; }
+  svg.chart text { fill: #333 !important; }
+}

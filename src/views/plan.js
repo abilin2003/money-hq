@@ -5,7 +5,9 @@ import { formatPence, parsePence } from '../lib/money.js';
 import { planTotals, fundNeedPerCycle } from '../lib/budget.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
 import { saveSettings, saveBudgets, ensureCycle, saveFund } from '../lib/data.js';
-import { currentCycle, budgetsExact, budgetsFor } from './state.js';
+import { currentCycle, budgetsExact, budgetsFor, paydaysOf, usualDay } from './state.js';
+import { cycleFor, cycleName } from '../lib/cycles.js';
+import { isIsoDate } from '../lib/dates.js';
 import { fundStatus, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
 import { payFlow } from '../ui/charts.js';
@@ -27,8 +29,11 @@ export function planFor(extra, start) {
   return { pay_pence: null, items: [], funding: [], copied: false };
 }
 
-export function planPage(ctx, rerender) {
-  const c = currentCycle(ctx);
+export function planPage(ctx, rerender, param) {
+  // #plan/<date>: the next payday's plan, opened from an end-of-cycle review before payday comes.
+  const now = currentCycle(ctx);
+  const ahead = param && isIsoDate(param) && param > now.start ? cycleFor(param, paydaysOf(ctx), usualDay(ctx)) : null;
+  const c = ahead ? { ...ahead, name: cycleName(ahead) } : now;
   const draft = ctx.planDraft?.start === c.start ? ctx.planDraft : (ctx.planDraft = { start: c.start, ...planFor(ctx.ref.settings?.extra, c.start), budgets: { ...(Object.keys(budgetsExact(ctx, c)).length ? budgetsExact(ctx, c) : budgetsFor(ctx, c).budgets) }, dirty: false });
   const touch = () => { draft.dirty = true; rerender(); };
   const amountInput = (value, onSet, label) => h('input', { class: 'input money', inputmode: 'decimal', 'aria-label': label, value: money(value), placeholder: '0.00',

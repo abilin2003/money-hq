@@ -15,7 +15,7 @@ describe('navigation', () => {
     expect(new Set(tabs).size).toBe(tabs.length);
   });
   it('puts pages in the sections the plan asks for', () => {
-    expect(['spending', 'insights', 'compare', 'trends', 'history', 'transactions'].map((r) => sectionOf(r).id)).toEqual(Array(6).fill('analytics'));
+    expect(['spending', 'insights', 'compare', 'reports', 'review', 'trends', 'history', 'transactions'].map((r) => sectionOf(r).id)).toEqual(Array(8).fill('analytics'));
     expect(['plan', 'moneyday', 'budgets', 'goals', 'manage', 'bills'].map((r) => sectionOf(r).id)).toEqual(Array(6).fill('planning'));
     expect(['inbox', 'people', 'import'].map((r) => sectionOf(r).id)).toEqual(Array(3).fill('activity'));
     expect(sectionOf('settings')).toBe(null);

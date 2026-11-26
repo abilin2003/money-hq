@@ -12,6 +12,8 @@ import { spendingPage } from './views/spending.js';
 import { billsPage } from './views/bills.js';
 import { comparePage } from './views/compare.js';
 import { insightsPage } from './views/insights.js';
+import { reviewPage } from './views/review.js';
+import { reportsPage } from './views/reports.js';
 import { inboxPage, waitingLines } from './views/inbox.js';
 import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
@@ -93,6 +95,8 @@ function render() {
     : route === 'bills' ? billsPage(ctx, render)
     : route === 'compare' ? comparePage(ctx, param, render)
     : route === 'insights' ? insightsPage(ctx, param)
+    : route === 'review' ? reviewPage(ctx, param, render)
+    : route === 'reports' ? reportsPage(ctx, param, render)
     : route === 'people' ? peoplePage(ctx, render)
     : route === 'add' ? addPage(ctx, render)
     : route === 'goals' ? goalsPage(ctx, render)
@@ -102,7 +106,7 @@ function render() {
     : route === 'inbox' ? inboxPage(ctx, render)
     : route === 'import' ? importPage(ctx, render)
     : route === 'history' ? historyPage(ctx, render)
-    : route === 'plan' ? planPage(ctx, render)
+    : route === 'plan' ? planPage(ctx, render, param)
     : route === 'budgets' ? budgetsPage(ctx, param)
     : route === 'manage' ? managePage(ctx, render)
     : placeholderPage(route);

@@ -27,7 +27,7 @@ function yAxis(svg, max, x0, x1, y0, y1, ticks = 4) {
 // days: total days; spentByDay: cumulative pence per day so far; budget, lastTotal: pence.
 // onDay({ day, spent, budgetLine, lastLine }) makes it interactive: point, tap or use the arrow keys to read any day
 // (spent is null for days still to come); onDay(null) when the pointer leaves.
-export function paceChart({ days, today, spentByDay, budget, lastTotal, startLabel, endLabel, onDay = null }) {
+export function paceChart({ days, today, spentByDay, budget, lastTotal, startLabel, endLabel, onDay = null, todayLabel = 'Today' }) {
   const W = 520; const H = 190; const x0 = 46; const x1 = 508; const y0 = 150; const y1 = 20;
   const max = niceMax(Math.max(budget, lastTotal, spentByDay[spentByDay.length - 1] || 0) * 1.05);
   const X = (d) => x0 + ((x1 - x0) * d) / Math.max(1, days);
@@ -43,7 +43,7 @@ export function paceChart({ days, today, spentByDay, budget, lastTotal, startLab
   svg.append(s('circle', { cx: last[0], cy: last[1], r: 5, fill: C.accent, stroke: C.surface, 'stroke-width': 2 }));
   if (lastTotal) svg.append(s('text', { x: x1, y: Y(lastTotal) - 6, fill: C.muted, 'font-size': 11, 'text-anchor': 'end' }, `Last cycle, ${gbp(lastTotal)}`));
   if (budget) svg.append(s('text', { x: x1, y: Y(budget) + (Math.abs(Y(budget) - Y(lastTotal)) < 14 ? 16 : -6), fill: C.text2, 'font-size': 11, 'text-anchor': 'end' }, `Budget, ${gbp(budget)}`));
-  svg.append(s('text', { x: Math.min(X(today) + 6, x1 - 40), y: 12, fill: C.text2, 'font-size': 11 }, 'Today'));
+  if (todayLabel) svg.append(s('text', { x: Math.min(X(today) + 6, x1 - 40), y: 12, fill: C.text2, 'font-size': 11 }, todayLabel));
   svg.append(s('text', { x: x0, y: H - 14, fill: C.axis, 'font-size': 11 }, startLabel));
   svg.append(s('text', { x: x1, y: H - 14, fill: C.axis, 'font-size': 11, 'text-anchor': 'end' }, endLabel));
   if (onDay) {
