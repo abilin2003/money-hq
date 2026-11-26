@@ -93,6 +93,23 @@ describe('Monzo is savings', () => {
   });
 });
 
+describe('big buys paid from savings still count as spending', () => {
+  // A £1,000 repair paid from savings, a relative covering £400 of it (linked), and £100 of everyday spending.
+  const rows = [
+    t('car', '2026-06-05', -100000, 'spend', { from_savings: true, bucket: 'Essentials', category: 'Car' }),
+    t('dad', '2026-06-05', 40000, 'repayment', { bucket: 'Essentials' }),
+    t('food', '2026-06-06', -10000),
+  ];
+  const s = summarise(rows, { car: 40000 }, new Set(['dad']));
+  it('the total includes your share of the repair, and says how much came from savings', () => {
+    expect([s.netSpent, s.fromSavings, s.totalSpent]).toEqual([10000, 60000, 70000]);
+  });
+  it('a linked payback comes off the repair, not your everyday spending', () => {
+    expect(summarise(rows, {}, new Set()).netSpent).toBe(10000 - 40000); // unlinked: the old, misleading result
+    expect(s.netSpent).toBe(10000);
+  });
+});
+
 describe('whole pence', () => {
   it('goal projections with growth stay in whole pence every month', () => {
     expect(projectGoal({ target: 1000000, saved: 0, monthly: 20000, growthPct: 7 }, '2026-11-25').series.every(Number.isInteger)).toBe(true);

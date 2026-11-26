@@ -33,3 +33,9 @@ See the private audit report for the proposed data changes and their effect.
   (imported ISA withdrawals are classified the same way), so savings-rate figures are realistic.
 - **Monzo is savings**: own-account transfers on the Monzo statement count as Saved (money in) or taken out of
   savings (money out), net. Moves between Monzo pots and the other side of each transfer stay transfers.
+- **Total spent includes big buys paid from savings.** Every period shows the total, split into "spent from your
+  pay" (what budgets compare) and "paid from savings (your share)", with those buys listed by date. A payback
+  linked to a savings-paid buy comes off that buy, not your everyday spending.
+
+## Next (Phase 2 candidates)
+- When money arrives from a person, the inbox asks what it was for and offers recent purchases to link it to.

@@ -60,7 +60,7 @@ export function trendsPage(ctx, rerender) {
   // 4. In vs out vs invested, and savings rate
   const io = h('section', { class: 'card', 'aria-labelledby': 't4' },
     h('h2', { id: 't4' }, 'Money in, spent and invested'),
-    groupedBars({ labels, series: [{ name: 'In', colour: '#5BD6A0', values: sums.map((x) => x.s.income) }, { name: 'Spent', colour: '#F472B6', values: sums.map((x) => x.s.netSpent) }, { name: 'Invested and saved', colour: '#8B9CFF', values: sums.map((x) => x.s.invested + x.s.saved) }] }));
+    groupedBars({ labels, series: [{ name: 'In', colour: '#5BD6A0', values: sums.map((x) => x.s.income) }, { name: 'Spent', colour: '#F472B6', values: sums.map((x) => x.s.totalSpent) }, { name: 'Invested and saved', colour: '#8B9CFF', values: sums.map((x) => x.s.invested + x.s.saved) }] }));
   const rate = sums.map((x) => (x.s.income > 0 ? Math.round(((x.s.invested + x.s.saved) / x.s.income) * 100) : null));
   const rateCard = h('section', { class: 'card', 'aria-labelledby': 't5' },
     h('h2', { id: 't5' }, 'Savings rate per cycle'),

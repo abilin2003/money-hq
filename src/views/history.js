@@ -29,7 +29,7 @@ export function historyPage(ctx, rerender) {
   const mode = ctx.historyMode || 'cycle';
   const list = periods(ctx.all, mode, ctx.ref.settings, ctx.today, paydaysOf(ctx));
   const sums = list.map((p) => ({ ...p, s: summarise(p.txs, ctx.splitMap, ctx.settled) }));
-  const top = Math.max(1, ...sums.map((p) => p.s.netSpent));
+  const top = Math.max(1, ...sums.map((p) => p.s.totalSpent));
   const colourOf = Object.fromEntries(ctx.ref.buckets.map((b) => [b.name, b.colour]));
 
   const toggle = h('div', { class: 'seg', role: 'group', 'aria-label': 'Group by' },
@@ -42,6 +42,7 @@ export function historyPage(ctx, rerender) {
       // Built only when opened, so the page stays quick with a year of data.
       const buckets = ranked(p.s.byBucket);
       const cats = ranked(p.s.byCategory).slice(0, 8);
+      const savingsBuys = p.txs.filter((t) => t.from_savings && t.kind === 'spend' && t.status !== 'needs_review');
       body.append(
         h('div', { class: 'grid2' },
           h('div', null, h('h3', { class: 'small-h' }, 'By bucket'), buckets.length ? buckets.map(([b, v]) => h('div', { class: 'crow' }, h('span', { class: 'cname' }, h('span', { class: 'dot', style: { background: colourOf[b] || 'var(--muted)' } }), ` ${b}`), bar(v / buckets[0][1], { colour: colourOf[b] }), h('span', { class: 'r' }, pounds(v)))) : h('p', { class: 'muted' }, 'No spending.')),
@@ -50,15 +51,17 @@ export function historyPage(ctx, rerender) {
           h('div', null, h('span', { class: 'muted' }, 'Money in'), h('span', null, pounds(p.s.income))),
           h('div', null, h('span', { class: 'muted' }, 'Invested (after withdrawals)'), h('span', null, `${p.s.invested < 0 ? '−' : ''}${pounds(Math.abs(p.s.invested))}`)),
           h('div', null, h('span', { class: 'muted' }, 'Saved (after withdrawals)'), h('span', null, `${p.s.saved < 0 ? '−' : ''}${pounds(Math.abs(p.s.saved))}`)),
-          h('div', null, h('span', { class: 'muted' }, 'Paid back to you (taken off spending)'), h('span', null, pounds(p.s.paidBack))),
-          p.s.fromSavings ? h('div', null, h('span', { class: 'muted' }, 'Paid from savings (not counted)'), h('span', null, pounds(p.s.fromSavings))) : null,
+          h('div', null, h('span', { class: 'muted' }, 'Paid back to you'), h('span', null, pounds(p.s.paidBack))),
+          h('div', null, h('span', { class: 'muted' }, 'Spent from your pay'), h('span', null, pounds(p.s.netSpent))),
+          p.s.fromSavings ? h('div', null, h('span', { class: 'muted' }, 'Paid from savings (your share)'), h('span', null, pounds(p.s.fromSavings))) : null,
           p.s.waiting ? h('div', null, h('span', { class: 'muted' }, 'Lines never decided (not counted)'), h('span', null, String(p.s.waiting))) : null),
+        ...(savingsBuys.length ? [h('div', { style: { margin: '0 0 12px' } }, h('h3', { class: 'small-h' }, 'Paid from savings'), txList(savingsBuys))] : []),
         h('details', { class: 'lines' }, h('summary', null, `Show all ${p.txs.length} lines`), txList([...p.txs].sort((a, b) => b.date.localeCompare(a.date)))));
     } },
     h('summary', null,
       h('span', { class: 'plabel' }, h('span', { style: { fontWeight: 600 } }, p.label), p.sub ? h('span', { class: 'muted small' }, p.sub) : null),
-      bar(p.s.netSpent / top, { label: `${pounds(p.s.netSpent)} spent` }),
-      h('span', { class: 'r' }, pounds(p.s.netSpent))),
+      bar(p.s.totalSpent / top, { label: `${pounds(p.s.totalSpent)} spent` }),
+      h('span', { class: 'r' }, pounds(p.s.totalSpent), p.s.fromSavings ? h('span', { class: 'muted small', style: { display: 'block' } }, `incl. ${pounds(p.s.fromSavings)} from savings`) : null)),
     body);
     return details;
   };

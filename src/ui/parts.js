@@ -31,6 +31,7 @@ export function txRow(t) {
       t.colour ? h('span', { class: 'dot', style: { background: t.colour }, 'aria-hidden': 'true' }) : null,
       label,
       h('span', null, `· ${t.accountName}`),
+      t.from_savings && t.kind === 'spend' ? h('span', { class: 'tag' }, 'From savings') : null,
       t.status === 'needs_review' ? h('span', { class: 'tag review' }, 'Needs review') : null,
       t.note ? h('span', { class: 'tag' }, t.note) : null));
 }

@@ -8,7 +8,8 @@
 //   (rule 7); the rest is an IOU (`owedToYou`).
 // settled: ids of paybacks that cleared a split IOU. Those aren't taken off spending again.
 // Paybacks (rule 6) "reduce the original purchase": each comes off the bucket it was for, or the total if it has
-// no bucket. A big buy paid from savings (from_savings) is kept apart in `fromSavings`, not this cycle's spending.
+// no bucket. A big buy paid from savings (from_savings) is your share of it in `fromSavings`: it counts in
+// `totalSpent` but not in `netSpent` (spent from pay), so it doesn't eat this cycle's budgets.
 export function summarise(txs, splits = {}, settled = new Set()) {
   const out = { spent: 0, refunds: 0, income: 0, invested: 0, saved: 0, paidBack: 0, paidBackNetted: 0, fromSavings: 0, owedToYou: 0, waiting: 0, count: txs.length, byBucket: {}, byCategory: {} };
   const add = (t, cost) => {
@@ -20,7 +21,12 @@ export function summarise(txs, splits = {}, settled = new Set()) {
   for (const t of txs) {
     if (t.status === 'needs_review') { out.waiting += 1; continue; }
     const p = t.amount_pence;
-    if (t.kind === 'spend' && t.from_savings) { out.fromSavings += -p; continue; }
+    if (t.kind === 'spend' && t.from_savings) {
+      const others = Math.min(splits[t.id] || 0, -p); // e.g. family covering part of it
+      out.owedToYou += others;
+      out.fromSavings += -p - others;
+      continue;
+    }
     if (t.kind === 'spend' || t.kind === 'refund') {
       const others = t.kind === 'spend' ? Math.min(splits[t.id] || 0, -p) : 0;
       out.owedToYou += others;
@@ -39,7 +45,8 @@ export function summarise(txs, splits = {}, settled = new Set()) {
       if (t.bucket) add(t, -p);
     }
   }
-  out.netSpent = out.spent - out.refunds - out.paidBackNetted;
+  out.netSpent = out.spent - out.refunds - out.paidBackNetted; // spent from your pay (what budgets compare)
+  out.totalSpent = out.netSpent + out.fromSavings; // everything you spent, including big buys paid from savings
   return out;
 }
 

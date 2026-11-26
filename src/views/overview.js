@@ -90,10 +90,11 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
     !finished ? h('div', { class: 'days', role: 'img', 'aria-label': `Day ${c.dayNumber} of ${c.totalDays}` }, Array.from({ length: c.totalDays }, (_, i) => h('span', { class: i < c.dayNumber ? 'done' : '' }))) : null,
     h('div', { class: 'stats', style: { marginTop: '10px' } },
       stat('Money in', formatPence(s.income), null, 'actual'),
-      stat('Spent (your share)', formatPence(s.netSpent), null, 'actual'),
+      stat(s.fromSavings ? 'Spent from your pay' : 'Spent (your share)', formatPence(s.netSpent), null, 'actual'),
       unbudgeted > 0 ? stat('…of which in buckets with no budget', formatPence(unbudgeted)) : null,
-      s.paidBack ? stat('Paid back to you (taken off spending)', formatPence(s.paidBack)) : null,
-      s.fromSavings ? stat('Paid from savings (not counted)', formatPence(s.fromSavings)) : null,
+      s.paidBack ? stat('Paid back to you', formatPence(s.paidBack)) : null,
+      s.fromSavings ? stat('Paid from savings (your share)', formatPence(s.fromSavings), null, 'actual') : null,
+      s.fromSavings ? stat('Total spent (pay + savings)', formatPence(s.totalSpent), null, 'actual') : null,
       s.owedToYou ? stat('Owed to you', null, h('a', { href: '#people', class: 'tap' }, formatPence(s.owedToYou))) : null,
       stat('Invested (after withdrawals)', `${s.invested < 0 ? '−' : ''}${formatPence(Math.abs(s.invested))}`, null, 'actual'),
       plannedOf('invested') ? stat('Invested in your payday plan', formatPence(plannedOf('invested')), null, 'planned') : null,
@@ -145,7 +146,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const sums = recent.map((x) => summarise(rows.filter((t) => inCycle(t, x)), ctx.splitMap, ctx.settled));
   const inout = h('section', { class: 'card', 'aria-labelledby': 'io' },
     h('div', { class: 'ch' }, h('h2', { id: 'io' }, 'Money in vs out'), h('a', { href: '#trends', class: 'tap muted small' }, 'Trends')),
-    groupedBars({ labels: recent.map((x) => cycleName(x).slice(0, 3)), series: [{ name: 'In', colour: '#5BD6A0', values: sums.map((x) => x.income) }, { name: 'Spent', colour: '#F472B6', values: sums.map((x) => x.netSpent) }, { name: 'Invested', colour: '#8B9CFF', values: sums.map((x) => x.invested) }], onPick: () => { location.hash = 'history'; }, label: 'Money in, spent and invested per pay cycle' }));
+    groupedBars({ labels: recent.map((x) => cycleName(x).slice(0, 3)), series: [{ name: 'In', colour: '#5BD6A0', values: sums.map((x) => x.income) }, { name: 'Spent', colour: '#F472B6', values: sums.map((x) => x.totalSpent) }, { name: 'Invested', colour: '#8B9CFF', values: sums.map((x) => x.invested) }], onPick: () => { location.hash = 'history'; }, label: 'Money in, spent and invested per pay cycle' }));
 
   // ---- calendar
   const cal = h('section', { class: 'card', 'aria-labelledby': 'cl' },
@@ -162,7 +163,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
     flows = [{ name: 'Buckets', pence: budgetTotal, colour: '#F7B955' }, ...Object.values(groups)].filter((f) => f.pence > 0).sort((a, b) => b.pence - a.pence);
   } else {
     pay = s.income;
-    flows = [{ name: 'Spent', pence: s.netSpent, colour: '#F472B6' }, { name: 'Invested', pence: s.invested, colour: '#5BD6A0' }, { name: 'Saved', pence: s.saved, colour: '#B79CFF' }].filter((f) => f.pence > 0);
+    flows = [{ name: 'Spent', pence: s.totalSpent, colour: '#F472B6' }, { name: 'Invested', pence: s.invested, colour: '#5BD6A0' }, { name: 'Saved', pence: s.saved, colour: '#B79CFF' }].filter((f) => f.pence > 0);
     const rest = pay - flows.reduce((a, f) => a + f.pence, 0);
     if (rest > 0) flows.push({ name: 'Not spent or put away', pence: rest, colour: '#5F6B7A' });
   }
