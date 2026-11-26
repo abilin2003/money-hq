@@ -6,6 +6,7 @@ import { formatPence } from '../lib/money.js';
 import { shortDay, alertLine } from '../ui/parts.js';
 import { updateTransaction, enrich, addPerson, addSplit } from '../lib/data.js';
 import { interpretExplanation } from '../lib/interpret.js';
+import { micButton } from '../ui/voice.js';
 
 const KINDS = {
   out: [['spend', 'Spending'], ['transfer', 'Move between my accounts'], ['saved', 'Saved (sinking fund)'], ['invested', 'Invested']],
@@ -15,13 +16,15 @@ const KINDS = {
 // Your words become the note; a question Money HQ left in the note is replaced by your answer.
 export const noteWithAnswer = (old, words) => (!old || /^Question:/.test(old) ? words : `${words} (${old})`);
 
-export function explainPanel(ctx, t, { waiting, vocab, rerender, extras = [] }) {
+export function explainPanel(ctx, t, { waiting, vocab, rerender }) {
   const wrap = h('div', { class: 'explain', hidden: true });
   const box = h('textarea', { class: 'input', rows: 3, 'aria-label': `Explain ${t.raw_description} in your own words`, placeholder: 'e.g. This was my Bulgaria flight, paid on Capital One, out of my Bulgaria holiday fund' });
   const result = h('div', { class: 'understood', 'aria-live': 'polite' });
   const read = h('button', { class: 'btn primary', type: 'button', onclick: () => show() }, 'Work it out');
   const cancel = h('button', { class: 'linkbtn', type: 'button', onclick: () => { wrap.hidden = true; toggle.hidden = false; } }, 'Cancel');
-  const ask = h('div', { class: 'explain-ask' }, box, h('div', { class: 'explain-btns' }, ...extras.map((x) => x(box)), read, cancel));
+  // Speak instead of typing: when you stop, it works out what you said straight away.
+  const mic = micButton(box, { onStop: () => { if (box.value.trim()) show(); } });
+  const ask = h('div', { class: 'explain-ask' }, box, h('div', { class: 'explain-btns' }, mic?.button, read, cancel), mic?.status);
   wrap.append(ask, result);
   const toggle = h('button', { class: 'linkbtn explain-toggle', type: 'button', 'aria-expanded': 'false', onclick: () => { wrap.hidden = false; toggle.hidden = true; box.focus(); } }, 'Explain in my own words');
 

@@ -199,11 +199,14 @@ export function findBucket(text, vocab) {
 const ACCOUNT_WORDS = (a) => [a.name, a.institution, a.type === 'credit_card' ? 'credit card' : null, a.type === 'credit_card' ? 'my card' : null].filter(Boolean);
 export function findAccount(text, vocab) {
   const scored = vocab.accounts.map((a) => {
+    // 3: you said its whole name ("Revolut" is the Revolut account, not Revolut Pockets); 2: its bank or
+    // "credit card"; 1: the first word of its name.
+    const named = has(text, a.name);
     const words = ACCOUNT_WORDS(a);
     const full = words.some((w) => has(text, w));
     const first = normKey(a.name).split(' ')[0];
     const part = first.length > 3 && has(text, first);
-    return { a, score: full ? 2 : part ? 1 : 0 };
+    return { a, score: named ? 3 : full ? 2 : part ? 1 : 0 };
   }).filter((x) => x.score);
   if (!scored.length) return null;
   const best = Math.max(...scored.map((x) => x.score));

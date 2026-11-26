@@ -95,7 +95,7 @@ export function inboxPage(ctx, rerender) {
     const notSure = h('button', { class: 'btn', type: 'button', title: t.amount_pence < 0 ? 'Counts it as Miscellaneous spending, marked “Not sure what this was”' : 'Not counted as income, marked “Not sure what this was”', onclick: () => decide(notSure, true) }, 'Not sure');
     // A question Money HQ left in the note is shown as the card's question; any other note as a detail.
     const question = /^Question:/.test(t.note || '') ? t.note.replace(/^Question:\s*/, '') : null;
-    const ex = explainPanel(ctx, t, { waiting, vocab, rerender, extras: ctx.explainExtras || [] });
+    const ex = explainPanel(ctx, t, { waiting, vocab, rerender });
     return h('div', { class: 'inbox-row' },
       h('div', { class: 'inbox-what' },
         h('span', { class: 'desc' }, t.raw_description || '(no description)'),

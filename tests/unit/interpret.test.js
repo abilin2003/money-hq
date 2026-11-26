@@ -11,6 +11,7 @@ const vocab = {
   accounts: [
     { id: 'rev', name: 'Revolut', type: 'current', institution: 'Revolut' }, { id: 'ul', name: 'Ulster Bank', type: 'current', institution: 'Ulster Bank' },
     { id: 'cc', name: 'Capital One', type: 'credit_card', institution: 'Capital One' }, { id: 'mz', name: 'Monzo savings', type: 'savings', institution: 'Monzo' },
+    { id: 'rp', name: 'Revolut Pockets', type: 'savings', institution: 'Revolut' },
   ],
   funds: [{ id: 'bg', name: 'Bulgaria holiday' }, { id: 'hp', name: 'Holiday Pot' }, { id: 'ef', name: 'Emergency fund' }],
   people: [{ id: 'p1', name: 'Ben' }, { id: 'p2', name: 'Dad' }],

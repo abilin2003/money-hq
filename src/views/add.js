@@ -7,9 +7,13 @@ import { addDays } from '../lib/dates.js';
 import { equalShares } from '../lib/analytics.js';
 import { head, alertLine } from '../ui/parts.js';
 import { addTransaction, enrich, addPerson, addSplit } from '../lib/data.js';
+import { sayPanel } from './say.js';
 
 export function addPage(ctx, rerender) {
-  const st = ctx.addState || (ctx.addState = { type: 'out', date: ctx.today, saved: null });
+  const st = ctx.addState || (ctx.addState = { type: 'out', date: ctx.today, saved: null, mode: 'one' });
+  const modeBtn = (id, label) => h('button', { type: 'button', 'aria-pressed': String((st.mode || 'one') === id), onclick: () => { st.mode = id; rerender(); } }, label);
+  const modes = h('div', { class: 'seg wide add-mode', role: 'group', 'aria-label': 'How to add' }, modeBtn('one', 'Type one'), modeBtn('say', 'Say several'));
+  if (st.mode === 'say') return h('div', { class: 'page narrow' }, head('Add transactions'), modes, sayPanel(ctx, rerender));
   const account = ctx.ref.accounts.find((a) => a.id === ctx.lastAddAccount) || ctx.ref.accounts.find((a) => a.name === 'Revolut') || ctx.ref.accounts[0];
   // Recent shops (newest first) and the category last used at each; the categories you use most lately.
   const recent = ctx.transactions.filter((t) => t.kind === 'spend' && t.category_id && t.raw_description).slice(0, 400);
@@ -68,6 +72,7 @@ export function addPage(ctx, rerender) {
 
   return h('div', { class: 'page narrow' },
     head('Add a transaction'),
+    modes,
     st.saved ? h('p', { class: 'chip', role: 'status' }, st.saved) : null,
     h('section', { class: 'card add-card' },
       h('div', { class: 'seg wide', role: 'group', 'aria-label': 'Type' }, typeBtn('out', 'Spent'), typeBtn('in', 'Money in'), typeBtn('move', 'Move')),
