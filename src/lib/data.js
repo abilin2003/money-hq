@@ -48,7 +48,7 @@ export function enrich(t, ref) {
   // A friend's payback comes off the bucket it was for. Paybacks brought from the old app kept that bucket in
   // their original record, so use it when the payback has no category of its own.
   if (!bucket && t.kind === 'repayment' && t.legacy?.bucket) bucket = ref.buckets.find((b) => b.name === t.legacy.bucket) || null;
-  return { ...t, accountName: account?.name || 'Unknown account', account: account?.name, category: category?.name || null, bucket: bucket?.name || null, colour: bucket?.colour || null };
+  return { ...t, accountType: account?.type || null, accountName: account?.name || 'Unknown account', account: account?.name, category: category?.name || null, bucket: bucket?.name || null, colour: bucket?.colour || null };
 }
 
 // Saves new imported rows (already checked for duplicates) and links transfer pairs.

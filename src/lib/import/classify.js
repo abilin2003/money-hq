@@ -81,7 +81,11 @@ export function classify(row, rules) {
   if (payer) {
     if (payer.label === 'unsure') return review(dir === 'out' ? 'spend' : 'repayment', null, 'your payer rule says to check this one');
     // An ISA withdrawal counts against investing (net), not as a plain transfer.
-    const kind = payer.category === 'ISA withdrawal' && dir === 'in' ? 'invested' : OLD_KIND[payer.label] || 'spend';
+    let kind = payer.category === 'ISA withdrawal' && dir === 'in' ? 'invested' : OLD_KIND[payer.label] || 'spend';
+    // Monzo is savings: an own-account transfer on the Monzo statement is money saved (in) or taken out (out).
+    // Moves between Monzo pots (flagged by the bank) stay plain transfers, and the other side of the transfer
+    // (on Ulster or Revolut) stays a transfer too, so nothing is counted twice.
+    if (kind === 'transfer' && row.account === 'Monzo savings' && !row.internalHint) kind = 'saved';
     const category = kind === 'spend' ? spendCategory(row.raw_description, payer.category).category : null;
     return payer.confirm ? review(kind, category, 'your payer rule (marked "check")') : sure(kind, category, 'your payer rule');
   }

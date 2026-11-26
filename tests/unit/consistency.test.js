@@ -76,6 +76,23 @@ describe('investing is counted after withdrawals', () => {
   });
 });
 
+describe('Monzo is savings', () => {
+  it('money into a savings account counts as saved, and money taken back out comes off it', () => {
+    const s = summarise([
+      t('a', '2026-10-01', 40000, 'saved', { bucket: null, category: null, accountType: 'savings' }),
+      t('b', '2026-10-09', -15000, 'saved', { bucket: null, category: null, accountType: 'savings' }),
+      t('c', '2026-10-10', -2000, 'saved', { bucket: null, category: null, accountType: 'current' }),
+    ]);
+    expect(s.saved).toBe(40000 - 15000 + 2000);
+  });
+  it('an own-account transfer on the Monzo statement is savings; a move between Monzo pots is not', () => {
+    const rules = prepareRules([{ created_from: 'imported', match: { description_contains: 'Saji A' }, set: { legacy: { match: 'Saji A', label: 'internal', category: 'Own transfers' } } }]);
+    expect(classify({ raw_description: 'Saji A', amount_pence: 5000, account: 'Monzo savings', date: '2026-10-01' }, rules)).toMatchObject({ kind: 'saved' });
+    expect(classify({ raw_description: 'Saving Challenge Pot', amount_pence: -100, account: 'Monzo savings', date: '2026-10-01', internalHint: 'Pot transfer' }, rules)).toMatchObject({ kind: 'transfer' });
+    expect(classify({ raw_description: 'Saji A', amount_pence: -5000, account: 'Ulster Bank', date: '2026-10-01' }, rules)).toMatchObject({ kind: 'transfer' });
+  });
+});
+
 describe('whole pence', () => {
   it('goal projections with growth stay in whole pence every month', () => {
     expect(projectGoal({ target: 1000000, saved: 0, monthly: 20000, growthPct: 7 }, '2026-11-25').series.every(Number.isInteger)).toBe(true);

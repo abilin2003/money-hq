@@ -29,7 +29,9 @@ export function summarise(txs, splits = {}, settled = new Set()) {
       add(t, cost);
     } else if (t.kind === 'income') out.income += p;
     else if (t.kind === 'invested') out.invested += -p;
-    else if (t.kind === 'saved') out.saved += -p;
+    // Saved: money leaving a current account for savings, or arriving in a savings account (Monzo). Money taken
+    // back out of savings comes off it, so Saved is what actually stayed saved.
+    else if (t.kind === 'saved') out.saved += t.accountType === 'savings' ? p : -p;
     else if (t.kind === 'repayment') {
       out.paidBack += p;
       if (settled.has(t.id)) continue;

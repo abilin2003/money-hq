@@ -23,7 +23,7 @@ export function categoryLabel(name, bucket) {
 }
 
 export function txRow(t) {
-  const label = t.category ? categoryLabel(t.category, t.bucket) : t.kind === 'invested' && t.amount_pence > 0 ? 'Taken out of investments' : (KIND_LABEL[t.kind] || 'No category');
+  const label = t.category ? categoryLabel(t.category, t.bucket) : t.kind === 'invested' && t.amount_pence > 0 ? 'Taken out of investments' : t.kind === 'saved' && t.accountType === 'savings' && t.amount_pence < 0 ? 'Taken out of savings' : (KIND_LABEL[t.kind] || 'No category');
   return h('div', { class: 'tx' },
     h('span', { class: 'desc', title: t.raw_description }, t.raw_description || '(no description)'),
     h('span', { class: `amt${t.amount_pence > 0 ? ' in' : ''}` }, `${t.amount_pence > 0 ? '+' : ''}${formatPence(Math.abs(t.amount_pence))}`),

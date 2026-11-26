@@ -31,3 +31,5 @@ See the private audit report for the proposed data changes and their effect.
 ## Applied after review
 - Investing is counted **after withdrawals**: money taken out of an ISA counts against what was invested
   (imported ISA withdrawals are classified the same way), so savings-rate figures are realistic.
+- **Monzo is savings**: own-account transfers on the Monzo statement count as Saved (money in) or taken out of
+  savings (money out), net. Moves between Monzo pots and the other side of each transfer stay transfers.
