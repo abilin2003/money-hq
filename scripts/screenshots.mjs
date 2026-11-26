@@ -12,7 +12,7 @@ const OUT = 'data/screenshots';
 const PAGES = [
   ['01-overview', 'overview'], ['02-overview-current-cycle', 'overview/current'],
   ['03-analytics-spending', 'spending'], ['03a-analytics-insights', 'insights'], ['03b-analytics-compare', 'compare'], ['04-analytics-trends', 'trends'], ['05-analytics-history', 'history'], ['06-analytics-transactions', 'transactions'],
-  ['07-planning-payday-plan', 'plan'], ['08-planning-budgets', 'budgets'], ['09-planning-goals', 'goals'], ['10-planning-bills', 'bills'], ['11-planning-money-day', 'moneyday'],
+  ['07-planning-payday-plan', 'plan'], ['08-planning-money-day', 'moneyday'], ['09-planning-budgets', 'budgets'], ['10-planning-goals', 'goals'], ['11-planning-manage', 'manage'], ['11b-planning-bills', 'bills'],
   ['12-wealth', 'wealth'], ['13-activity-inbox', 'inbox'], ['14-activity-ious', 'people'], ['15-activity-import', 'import'],
   ['16-add-transaction', 'add'], ['17-settings', 'settings'],
 ];

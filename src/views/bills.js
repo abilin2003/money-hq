@@ -1,11 +1,12 @@
-// Bills (Planning): your regular bills, and regular payments Money HQ has spotted that aren't on the list yet.
-// Moved here from Budgets in Phase 2; it works the same.
+// Planning → Manage → Bills: your regular bills, and regular payments Money HQ has spotted that aren't on the
+// list yet.
 import { h } from '../ui/dom.js';
 import { formatPence, parsePence } from '../lib/money.js';
 import { detectRecurring, upcomingBills } from '../lib/budget.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
 import { saveBill } from '../lib/data.js';
 import { historyRows } from './history.js';
+import { manageTabs } from './manage.js';
 
 export function billsPage(ctx, rerender) {
   const bills = (ctx.ref.bills || []).map((b) => {
@@ -31,6 +32,7 @@ export function billsPage(ctx, rerender) {
 
   return h('div', { class: 'page' },
     head('Bills', active.length ? `${active.length} regular bill${active.length === 1 ? '' : 's'}, ${formatPence(soon.reduce((a, b) => a + b.amount_pence, 0))} due in the next 31 days. Bills come out of Essentials.` : 'Add your regular bills so safe to spend can set money aside for them.'),
+    manageTabs('bills'),
     soon.length ? h('section', { class: 'card', 'aria-labelledby': 'bn' },
       h('h2', { id: 'bn' }, 'Coming up'),
       soon.map((b) => h('div', { class: 'billrow' }, h('span', { class: b.date === ctx.today ? 'today' : 'muted' }, b.date === ctx.today ? 'Today' : shortDay(b.date)), h('span', null, b.name), h('span', { class: 'r' }, formatPence(b.amount_pence))))) : null,

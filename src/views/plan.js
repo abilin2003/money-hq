@@ -9,6 +9,8 @@ import { currentCycle, budgetsExact, budgetsFor } from './state.js';
 import { fundStatus, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
 import { payFlow } from '../ui/charts.js';
+import { matchPlanLines } from '../lib/planning.js';
+import { planProgress, stateBadge } from './moneyday.js';
 
 const KIND_FLOW = { invested: ['Invested', '#5BD6A0'], saved: ['Sinking funds', '#B79CFF'], transfer: ['Card and transfers', '#7AA2FF'], paid: ['One-off payments', '#F472B6'], kept: ['Left in Ulster', '#5F6B7A'] };
 
@@ -20,7 +22,8 @@ export function planFor(extra, start) {
   const plans = extra?.plans || {};
   if (plans[start]) return { funding: [], ...structuredClone(plans[start]), copied: false };
   const earlier = Object.keys(plans).filter((k) => k < start).sort().pop();
-  if (earlier) return { ...structuredClone(plans[earlier]), funding: [], copied: earlier }; // extra money is one-off, so it isn't copied
+  // Extra money is one-off, and a line confirmed last cycle hasn't been confirmed this time, so neither is copied.
+  if (earlier) { const p = structuredClone(plans[earlier]); return { ...p, items: (p.items || []).map(({ verified, ...it }) => it), funding: [], copied: earlier }; }
   return { pay_pence: null, items: [], funding: [], copied: false };
 }
 
@@ -34,11 +37,13 @@ export function planPage(ctx, rerender) {
   draft.funding = draft.funding || [];
   const t = planTotals(draft.pay_pence || 0, draft.items, Object.fromEntries(Object.entries(draft.budgets).filter(([, v]) => Number.isInteger(v))), draft.funding);
 
-  const items = draft.items.map((it, i) => h('div', { class: 'planrow' },
+  const states = matchPlanLines(draft.items, ctx.transactions, c, ctx.today);
+  const items = draft.items.map((it, i) => h('div', { class: 'planitem' }, h('div', { class: 'planrow' },
     h('input', { class: 'input', 'aria-label': 'What for', value: it.name, onchange: (e) => { it.name = e.target.value; touch(); } }),
     h('select', { class: 'input', 'aria-label': 'Kind', onchange: (e) => { it.kind = e.target.value; touch(); } }, PLAN_KINDS.map(([v, l]) => h('option', { value: v, selected: v === it.kind }, l))),
     amountInput(it.amount_pence, (p) => { it.amount_pence = p || 0; }, `${it.name || 'Item'} amount`),
-    h('button', { class: 'linkbtn', type: 'button', 'aria-label': `Remove ${it.name}`, onclick: () => { draft.items.splice(i, 1); touch(); } }, 'Remove')));
+    h('button', { class: 'linkbtn', type: 'button', 'aria-label': `Remove ${it.name}`, onclick: () => { draft.items.splice(i, 1); touch(); } }, 'Remove')),
+    it.amount_pence && it.kind !== 'kept' ? h('p', { class: 'muted small planstate' }, stateBadge(states[i]), states[i].tx ? ` Seen in your bank ${shortDay(states[i].tx.date)}: ${states[i].tx.raw_description}` : ' Not in your bank lines yet', states[i].verified ? `, confirmed ${shortDay(states[i].verified)}` : '') : null));
 
   const bucketRows = ctx.ref.buckets.map((b) => h('div', { class: 'planrow bucketrow' },
     h('span', { class: 'bname' }, h('span', { class: 'dot', style: { background: b.colour } }), b.name),
@@ -74,6 +79,9 @@ export function planPage(ctx, rerender) {
         if (p === null || p < 0) { e.target.select(); return; }
         const saved = await saveFund({ id: f.id, balance_pence: p, balance_date: ctx.today });
         ctx.ref.funds = ctx.ref.funds.map((x) => (x.id === saved.id ? saved : x));
+        // Keep a history of each fund's balance, so goals linked to it can show progress over time.
+        const hist = ctx.ref.settings?.extra?.fund_history || {};
+        ctx.ref.settings = await saveSettings(ctx.ref.settings, { extra: { fund_history: { ...hist, [f.id]: [...(hist[f.id] || []).filter((x) => x.date !== ctx.today), { date: ctx.today, pence: p }].sort((a, b) => a.date.localeCompare(b.date)) } } });
         rerender();
       } })));
   });
@@ -89,6 +97,7 @@ export function planPage(ctx, rerender) {
 
   return h('div', { class: 'page' },
     head('Payday plan', `${c.name} cycle, paid ${shortDay(c.start)}. Give every pound a job.`, save),
+    moneydayLink(ctx, c),
     draft.copied ? h('section', { class: 'card notice-card' }, h('p', { style: { margin: 0 } }, `Copied from the cycle that started ${shortDay(draft.copied)}. Change what's different this time, then save.`)) : null,
     h('section', { class: 'card', 'aria-labelledby': 'pay' },
       h('h2', { id: 'pay' }, 'Pay'),
@@ -125,6 +134,16 @@ function flowCard(draft, bucketTotal) {
   const flows = [{ name: 'Buckets', pence: bucketTotal, colour: '#F7B955' }, ...Object.values(groups)].filter((x) => x.pence > 0).sort((a, b) => b.pence - a.pence);
   if (!flows.length) return null;
   return h('section', { class: 'card', 'aria-labelledby': 'pf' }, h('h2', { id: 'pf' }, 'Where your pay goes'), payFlow({ total: draft.pay_pence, flows }));
+}
+
+// The plan is step 6 of Money day; step 7 confirms its lines went through. A strip linking the two.
+function moneydayLink(ctx, c) {
+  const { plan, counts } = planProgress(ctx, c);
+  const ticks = ctx.ref.settings?.extra?.moneyday?.[c.start] || [];
+  return h('section', { class: 'card strip md-strip' },
+    h('span', null, h('span', { style: { fontWeight: 600 } }, 'Money day, step 6 of 7'), h('br'),
+      h('span', { class: 'muted small' }, plan ? `${counts.planned} planned · ${counts.completed} completed in your bank · ${counts.verified} verified, of ${counts.total} to move` : 'Save this plan, then confirm each transfer in step 7.', ticks.length ? ` · ${ticks.length} step${ticks.length === 1 ? '' : 's'} ticked` : '')),
+    h('a', { href: '#moneyday', class: 'btn tap' }, plan && counts.total ? 'Confirm transfers' : 'Back to Money day'));
 }
 
 // More assigned than the pay means extra money came from somewhere. Ask where, and record it as a line,

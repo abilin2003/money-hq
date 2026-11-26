@@ -1,11 +1,13 @@
-// Goals with dates: how much each needs per payday, whether it's on track, and what-if sliders (kept from the
-// old app). Growth rates are assumptions you choose: investments can go down as well as up. Not financial advice.
+// Goals: a card per goal with its balance, target, % done, deadline, what each payday needs, when you'll get there,
+// a progress history and where it's saved; plus what-if sliders. Growth rates are assumptions you choose:
+// investments can go down as well as up. Not financial advice.
 import { h } from '../ui/dom.js';
 import { formatPence, parsePence } from '../lib/money.js';
 import { projectGoal, neededMonthly } from '../lib/analytics.js';
 import { head, shortDay, bar, alertLine } from '../ui/parts.js';
 import { lineChart } from '../ui/charts.js';
 import { saveGoal, deleteGoal } from '../lib/data.js';
+import { goalProgress, ago } from '../lib/planning.js';
 
 // What's saved towards a goal: its linked sinking fund's balance, or its linked account's latest balance.
 export function savedFor(ctx, g) {
@@ -14,6 +16,20 @@ export function savedFor(ctx, g) {
   return 0;
 }
 
+// Balances over time for the account or sinking fund a goal is linked to (oldest first).
+export function historyFor(ctx, g) {
+  if (g.account_id) return ctx.ref.snapshots.filter((x) => x.account_id === g.account_id).map((x) => ({ date: x.date, pence: x.balance_pence }));
+  if (g.sinking_fund_id) {
+    const f = ctx.ref.funds.find((x) => x.id === g.sinking_fund_id);
+    const hist = [...(ctx.ref.settings?.extra?.fund_history?.[g.sinking_fund_id] || [])];
+    if (f?.balance_date && !hist.some((x) => x.date === f.balance_date)) hist.push({ date: f.balance_date, pence: f.balance_pence || 0 });
+    return hist.sort((a, b) => a.date.localeCompare(b.date));
+  }
+  return [];
+}
+const linkName = (ctx, g) => (g.sinking_fund_id ? `${ctx.ref.funds.find((f) => f.id === g.sinking_fund_id)?.name || 'A sinking fund'} (pot)` : g.account_id ? ctx.ref.accounts.find((a) => a.id === g.account_id)?.name || 'An account' : 'Not linked');
+const STATUS = { reached: ['Reached', 'var(--good)'], 'on track': ['On track', 'var(--good)'], behind: ['Behind', 'var(--warning)'], 'no deadline': ['No deadline', 'var(--accent)'], 'needs a plan': ['Needs a monthly amount', 'var(--warning)'] };
+
 export function goalsPage(ctx, rerender) {
   const what = ctx.whatIf || (ctx.whatIf = {});
   const card = (g) => {
@@ -21,21 +37,32 @@ export function goalsPage(ctx, rerender) {
     const growth = Number(g.growth_rate) || 0;
     const now = projectGoal({ target: g.target_pence, saved, monthly: g.monthly_pence, growthPct: growth }, ctx.today);
     const need = neededMonthly(g.target_pence, saved, ctx.today, g.target_date);
-    const status = saved >= g.target_pence ? ['Reached', 'var(--good)'] : !now.date ? ['Needs a monthly amount', 'var(--warning)'] : g.target_date && now.date > g.target_date ? ['Behind', 'var(--warning)'] : ['On track', 'var(--good)'];
+    const history = historyFor(ctx, g);
+    const gp = goalProgress({ target: g.target_pence, saved, date: g.target_date, monthly: g.monthly_pence, history, today: ctx.today });
+    const status = STATUS[gp.status];
+    const last = history[history.length - 1];
     const w = what[g.id] || (what[g.id] = { monthly: g.monthly_pence, growth, lump: 0 });
     const alt = projectGoal({ target: g.target_pence, saved, monthly: w.monthly, growthPct: w.growth, lump: w.lump }, ctx.today);
     const slider = (label, key, max, step, fmt) => h('label', { class: 'slider' }, h('span', null, label, h('b', null, fmt(w[key]))),
       h('input', { type: 'range', min: 0, max, step, value: w[key], oninput: (e) => { w[key] = Number(e.target.value); rerender(); } }));
     const len = Math.max(now.series.length, alt.series.length);
     const pad = (arr) => Array.from({ length: len }, (_, i) => (i < arr.length ? arr[i] : null));
-    return h('section', { class: 'card', 'aria-label': g.name },
-      h('div', { class: 'ch' }, h('h2', null, g.name), h('span', { class: 'small', style: { color: status[1] } }, status[0])),
-      bar(saved / g.target_pence, { colour: 'var(--good)', label: `${formatPence(saved)} of ${formatPence(g.target_pence)}` }),
-      h('div', { class: 'stats', style: { marginTop: '10px' } },
-        h('div', null, h('span', { class: 'muted' }, 'Saved so far'), h('span', null, `${formatPence(saved)} of ${formatPence(g.target_pence)}`)),
-        h('div', null, h('span', { class: 'muted' }, 'You put in'), h('span', null, `${formatPence(g.monthly_pence)} a month${growth ? `, ${growth}% growth (assumed)` : ''}`)),
-        h('div', null, h('span', { class: 'muted' }, 'At that rate'), h('span', null, now.date ? `reached ${shortDay(now.date)} ${now.date.slice(0, 4)}` : 'never, without a monthly amount')),
-        g.target_date ? h('div', null, h('span', { class: 'muted' }, `Needed to hit ${shortDay(g.target_date)} ${g.target_date.slice(0, 4)}`), h('span', null, `${formatPence(need)} a month`)) : null),
+    void need; void now;
+    return h('section', { class: 'card goalcard', 'aria-label': g.name },
+      h('div', { class: 'ch' }, h('h2', null, g.name), h('span', { class: 'gstatus small', style: { color: status[1], borderColor: status[1] } }, status[0])),
+      h('p', { class: 'muted small', style: { margin: '-4px 0 10px' } }, `Saved in: ${linkName(ctx, g)}${last ? ` · balance updated ${ago(last.date, ctx.today)}` : ''}`),
+      h('div', { class: 'gtop' },
+        h('div', null, h('span', { class: 'gpct display' }, `${gp.pct}%`), h('span', { class: 'muted small' }, ' done')),
+        h('div', { class: 'r' }, h('span', { class: 'display', style: { fontSize: '20px', fontWeight: 600 } }, formatPence(saved)), h('br'), h('span', { class: 'muted small' }, `of ${formatPence(g.target_pence)} · ${formatPence(gp.left)} to go`))),
+      h('div', { class: 'gbar' }, bar(saved / g.target_pence, { colour: 'var(--good)', label: `${gp.pct}% of ${formatPence(g.target_pence)}` })),
+      h('div', { class: 'ggrid' },
+        h('div', null, h('span', { class: 'muted small' }, 'Deadline'), h('strong', null, g.target_date ? `${shortDay(g.target_date)} ${g.target_date.slice(0, 4)}` : 'None set')),
+        h('div', null, h('span', { class: 'muted small' }, 'Each payday needs'), h('strong', null, gp.perPayday === null ? '–' : formatPence(gp.perPayday))),
+        h('div', null, h('span', { class: 'muted small' }, 'You plan to put in'), h('strong', null, g.monthly_pence ? `${formatPence(g.monthly_pence)} a payday` : 'Nothing yet')),
+        h('div', null, h('span', { class: 'muted small' }, 'Expected to finish'), h('strong', null, gp.expected ? `${shortDay(gp.expected)} ${gp.expected.slice(0, 4)}` : 'Not at this rate'), gp.rateSource === 'recent pace' ? h('span', { class: 'muted small' }, `at your recent pace of ${formatPence(gp.pace)} a month`) : null)),
+      history.length >= 2 ? h('div', { class: 'ghist' }, h('h3', { class: 'small-h' }, 'Progress'), lineChart({ labels: history.map((x) => shortDay(x.date)), series: [{ name: 'Balance', colour: '#5BD6A0', values: history.map((x) => x.pence) }], label: `${g.name}: balance over time` }))
+        : h('p', { class: 'muted small' }, history.length === 1 ? `One balance so far (${formatPence(history[0].pence)} on ${shortDay(history[0].date)}). Update it on money day and the progress line builds up.` : 'No balance history yet: link it to an account or pot and update the balance on money day.'),
+      growth ? h('p', { class: 'muted small' }, `Assumes ${growth}% yearly growth, which is not guaranteed.`) : null,
       h('details', { class: 'whatif' }, h('summary', null, 'What if…'),
         slider('Monthly amount', 'monthly', Math.max(50000, g.monthly_pence * 3), 500, (v) => formatPence(v)),
         slider('Yearly growth (an assumption)', 'growth', 10, 0.5, (v) => `${v}%`),

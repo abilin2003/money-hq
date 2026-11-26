@@ -2,7 +2,7 @@
 // Add and Settings, and a bottom tab bar with the five sections. A section with more than one page gets a row of
 // tabs above the page, on both.
 import { h, icon, logo } from './dom.js';
-import { SECTIONS, sectionOf, pageLabel } from './sections.js';
+import { SECTIONS, sectionOf, pageLabel, isPage } from './sections.js';
 
 export { SECTIONS, sectionOf, pageLabel };
 
@@ -32,7 +32,7 @@ export function shell({ route, email, onSignOut, inboxCount = 0 }) {
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Main' }, SECTIONS.map((s) => sectionLink(s, true)));
 
   const subnav = sec && sec.pages.length > 1 ? h('nav', { class: 'subnav', 'aria-label': `${sec.label} pages` },
-    sec.pages.map(([id, label]) => h('a', { href: `#${id}`, 'aria-current': id === route ? 'page' : null }, label, id === 'inbox' ? badge('badge') : null))) : null;
+    sec.pages.map((pg) => h('a', { href: `#${pg[0]}`, 'aria-current': isPage(pg, route) ? 'page' : null }, pg[1], pg[0] === 'inbox' ? badge('badge') : null))) : null;
 
   const main = h('main', { class: 'main', id: 'content', tabindex: '-1' }, subnav);
   const root = h('div', { class: 'shell' }, h('a', { class: 'skip', href: '#content' }, 'Skip to content'), sidebar, topbar, main, tabbar);

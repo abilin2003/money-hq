@@ -17,6 +17,7 @@ import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
 import { planPage } from './views/plan.js';
 import { budgetsPage } from './views/budgets.js';
+import { managePage } from './views/manage.js';
 import { trendsPage } from './views/trends.js';
 import { peoplePage } from './views/people.js';
 import { addPage } from './views/add.js';
@@ -102,7 +103,8 @@ function render() {
     : route === 'import' ? importPage(ctx, render)
     : route === 'history' ? historyPage(ctx, render)
     : route === 'plan' ? planPage(ctx, render)
-    : route === 'budgets' ? budgetsPage(ctx, render)
+    : route === 'budgets' ? budgetsPage(ctx, param)
+    : route === 'manage' ? managePage(ctx, render)
     : placeholderPage(route);
   main.append(page);
   const y = window.scrollY;

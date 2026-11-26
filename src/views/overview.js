@@ -14,7 +14,7 @@ import { dailySpend, cumulative, netWorth } from '../lib/analytics.js';
 import { resolvePeriod } from '../lib/period.js';
 import { head, shortDay, dayLabel, pounds, bar, txRow } from '../ui/parts.js';
 import { paceChart } from '../ui/charts.js';
-import { cycleState, cycleFigures, currentCycle } from './state.js';
+import { cycleState, cycleFigures, currentCycle, budgetsFor } from './state.js';
 import { periodInfo, stateHref } from './explorer.js';
 import { insightsFor, insightCard } from './insights.js';
 
@@ -93,7 +93,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   // ---- buckets with progress bars
   const share = today / c.totalDays;
   const buckets = h('section', { class: 'card ov-buckets', 'aria-labelledby': 'ob' },
-    h('div', { class: 'ch' }, h('h2', { id: 'ob' }, 'Buckets'), h('a', { href: '#budgets', class: 'tap muted small' }, 'Manage')),
+    h('div', { class: 'ch' }, h('h2', { id: 'ob' }, 'Buckets'), h('a', { href: '#budgets', class: 'tap muted small' }, 'Budget overview')),
     ctx.ref.buckets.map((b) => {
       const spent = s.byBucket[b.name] || 0;
       const e = eff[b.name];
@@ -121,13 +121,14 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
 
   // ---- alerts
   const alerts = [];
+  const prevBudgets = budgetsFor(ctx, st.prev).budgets; // a budget lower than last cycle's is a deliberate cut, not a mistake
   if (ctx.inboxCount) alerts.push(['warn', `${ctx.inboxCount} line${ctx.inboxCount === 1 ? '' : 's'} to review`, 'They aren’t counted until you decide what they are.', '#inbox', 'Review']);
   for (const b of ctx.ref.buckets) {
     const e = eff[b.name];
     const spent = s.byBucket[b.name] || 0;
     const last = st.prevS.byBucket[b.name] || 0;
     if (e && spent > e.total) alerts.push(['over', `${b.name} is ${pounds(spent - e.total)} over`, `${pounds(spent)} spent against ${pounds(e.total)}.`, `#spending/${c.start}`, 'See what it went on']);
-    else if (!finished && e && last > e.total * 1.5 && last - e.total >= 2000) alerts.push(['warn', `${b.name} budget looks low`, `${pounds(e.total)} budgeted, ${pounds(last)} spent last cycle.`, '#plan', 'Adjust budget']);
+    else if (!finished && e && last > e.total * 1.5 && last - e.total >= 2000 && !(Number.isInteger(prevBudgets[b.name]) && e.budget < prevBudgets[b.name])) alerts.push(['warn', `${b.name} budget looks low`, `${pounds(e.total)} budgeted, ${pounds(last)} spent last cycle.`, '#plan', 'Adjust budget']);
   }
   if (!finished) {
     const overdue = st.bills.filter((b) => b.overdue);

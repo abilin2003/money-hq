@@ -179,7 +179,7 @@ export function spendingPage(ctx, param, rerender) {
       h('a', { href: go({ small: limit }), class: 'crow linkrow' }, h('span', { class: 'cname' }, `${small.length} payments under ${pounds(limit)}`), h('span', { class: 'muted small' }, `${pct(small.length, fq.payments)} of payments`), h('span', { class: 'r' }, pounds(total(small)))),
       h('p', { class: 'muted small', style: { margin: '4px 0 6px' } }, `${pct(total(small), all)} of your spending. Where they go most:`),
       smallShops.map((g) => h('a', { href: go({ small: limit, merchant: g.key }), class: 'crow linkrow' }, h('span', { class: 'cname' }, shopName(g.lines), h('span', { class: 'muted small' }, ` ×${g.count}`)), h('span'), h('span', { class: 'r' }, pounds(g.pence))))),
-    h('p', { class: 'muted small', style: { margin: '8px 0 0' } }, h('a', { href: '#budgets', class: 'tap' }, 'Choose which buckets are essential')));
+    h('p', { class: 'muted small', style: { margin: '8px 0 0' } }, h('a', { href: '#manage', class: 'tap' }, 'Choose which buckets are essential')));
 
   // ---- money in, saved, invested and spent
   const flowRows = [['Spent from your pay', pay, '#F472B6', go({ savings: false })], ['Saved (after withdrawals)', fl.saved, '#B79CFF', go({ kind: 'saved' })], ['Invested (after withdrawals)', fl.invested, '#5BD6A0', go({ kind: 'invested' })], ['Paid from savings', all - pay, '#F7B955', go({ savings: true })]];

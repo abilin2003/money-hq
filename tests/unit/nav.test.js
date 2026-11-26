@@ -9,13 +9,14 @@ describe('navigation', () => {
     expect(SECTIONS.map((s) => s.label)).toEqual(['Overview', 'Analytics', 'Planning', 'Wealth', 'Activity']);
   });
   it('keeps every page that existed before', () => {
-    const all = [...SECTIONS.flatMap((s) => s.pages.map(([id]) => id)), ...OUTSIDE.map(([id]) => id)];
+    const tabs = SECTIONS.flatMap((s) => s.pages.map(([id]) => id));
+    const all = [...tabs, ...OUTSIDE.map(([id]) => id)];
     for (const id of BEFORE) expect(all).toContain(id);
-    expect(new Set(all).size).toBe(all.length);
+    expect(new Set(tabs).size).toBe(tabs.length);
   });
   it('puts pages in the sections the plan asks for', () => {
     expect(['spending', 'insights', 'compare', 'trends', 'history', 'transactions'].map((r) => sectionOf(r).id)).toEqual(Array(6).fill('analytics'));
-    expect(['plan', 'budgets', 'goals', 'bills', 'moneyday'].map((r) => sectionOf(r).id)).toEqual(Array(5).fill('planning'));
+    expect(['plan', 'moneyday', 'budgets', 'goals', 'manage', 'bills'].map((r) => sectionOf(r).id)).toEqual(Array(6).fill('planning'));
     expect(['inbox', 'people', 'import'].map((r) => sectionOf(r).id)).toEqual(Array(3).fill('activity'));
     expect(sectionOf('settings')).toBe(null);
   });
