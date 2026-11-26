@@ -4,11 +4,11 @@ import { h } from '../ui/dom.js';
 import { formatPence, parsePence } from '../lib/money.js';
 import { planTotals, fundNeedPerCycle } from '../lib/budget.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
-import { saveSettings, saveBudgets, ensureCycle, saveFund } from '../lib/data.js';
-import { currentCycle, budgetsExact, budgetsFor, paydaysOf, usualDay } from './state.js';
+import { saveSettings, saveBudgets, ensureCycle, saveFund, addSnapshot } from '../lib/data.js';
+import { currentCycle, budgetsExact, budgetsFor, paydaysOf, usualDay, cardSpendBefore, fundsOf } from './state.js';
 import { cycleFor, cycleName } from '../lib/cycles.js';
 import { isIsoDate } from '../lib/dates.js';
-import { fundStatus, cardOwed } from '../lib/position.js';
+import { fundStatus, cardOwed, isCardLine } from '../lib/position.js';
 import { kindTag } from './overview.js';
 import { payFlow } from '../ui/charts.js';
 import { matchPlanLines } from '../lib/planning.js';
@@ -40,15 +40,19 @@ export function planPage(ctx, rerender, param) {
     onchange: (e) => { const p = e.target.value.trim() === '' ? null : parsePence(e.target.value); if (p === undefined || (p !== null && (Number.isNaN(p) || p < 0))) { e.target.select(); return; } onSet(p); touch(); } });
 
   draft.funding = draft.funding || [];
+  // The card repayment follows what you spent on the card in the cycle before this payday (see cardSpendIn).
+  const { card, spend } = cardSpendBefore(ctx, c);
+  for (const it of draft.items) if (isCardLine(it, card) && it.auto !== false && !it.verified) it.amount_pence = spend.pence;
   const t = planTotals(draft.pay_pence || 0, draft.items, Object.fromEntries(Object.entries(draft.budgets).filter(([, v]) => Number.isInteger(v))), draft.funding);
 
   const states = matchPlanLines(draft.items, ctx.transactions, c, ctx.today);
   const items = draft.items.map((it, i) => h('div', { class: 'planitem' }, h('div', { class: 'planrow' },
     h('input', { class: 'input', 'aria-label': 'What for', value: it.name, onchange: (e) => { it.name = e.target.value; touch(); } }),
     h('select', { class: 'input', 'aria-label': 'Kind', onchange: (e) => { it.kind = e.target.value; touch(); } }, PLAN_KINDS.map(([v, l]) => h('option', { value: v, selected: v === it.kind }, l))),
-    amountInput(it.amount_pence, (p) => { it.amount_pence = p || 0; }, `${it.name || 'Item'} amount`),
+    amountInput(it.amount_pence, (p) => { it.amount_pence = p || 0; if (isCardLine(it, card)) it.auto = false; }, `${it.name || 'Item'} amount`),
     h('button', { class: 'linkbtn', type: 'button', 'aria-label': `Remove ${it.name}`, onclick: () => { draft.items.splice(i, 1); touch(); } }, 'Remove')),
-    it.amount_pence && it.kind !== 'kept' ? h('p', { class: 'muted small planstate' }, stateBadge(states[i]), states[i].tx ? ` Seen in your bank ${shortDay(states[i].tx.date)}: ${states[i].tx.raw_description}` : ' Not in your bank lines yet', states[i].verified ? `, confirmed ${shortDay(states[i].verified)}` : '') : null));
+    it.amount_pence && it.kind !== 'kept' ? h('p', { class: 'muted small planstate' }, stateBadge(states[i]), states[i].tx ? ` Seen in your bank ${shortDay(states[i].tx.date)}: ${states[i].tx.raw_description}` : ' Not in your bank lines yet', states[i].verified ? `, confirmed ${shortDay(states[i].verified)}` : '') : null,
+    isCardLine(it, card) ? cardNote(it, card, spend, touch) : null));
 
   const bucketRows = ctx.ref.buckets.map((b) => h('div', { class: 'planrow bucketrow' },
     h('span', { class: 'bname' }, h('span', { class: 'dot', style: { background: b.colour } }), b.name),
@@ -72,16 +76,23 @@ export function planPage(ctx, rerender, param) {
   if (!draft.dirty && !draft.copied) save.disabled = true;
 
   const plansNow = { ...(ctx.ref.settings?.extra?.plans || {}), [c.start]: { items: draft.items } };
-  const funds = (ctx.ref.funds || []).map((f) => {
+  const funds = fundsOf(ctx).map((f) => {
     const need = fundNeedPerCycle(f, ctx.today);
     const fs = fundStatus(f, plansNow, ctx.today);
     return h('div', { class: 'planrow fundrow' },
       h('span', null, h('span', { style: { fontWeight: 500 } }, f.name, kindTag(fs.status)), h('br'),
         h('span', { class: 'muted small' }, fs.verified ? `Verified ${formatPence(fs.verified.pence)} on ${shortDay(fs.verified.date)}` : 'Balance never typed in', fs.plannedThisPayday ? ` · this payday’s plan puts in ${formatPence(fs.plannedThisPayday)}` : '', fs.planned ? ` · expected ${formatPence(fs.expected)} (not checked)` : ''),
+        f.mirrors ? [h('br'), h('span', { class: 'muted small' }, `Same money as your ${f.mirrors.name}: its balance on Wealth is this fund’s balance.`)] : null,
         h('br'), h('span', { class: 'muted small' }, `${f.target_pence ? `Target ${formatPence(f.target_pence)}` : 'No target'}${f.due_date ? ` by ${shortDay(f.due_date)}` : ''}${need !== null ? ` · needs ${formatPence(need)} a payday` : ''}`)),
-      h('label', { class: 'field' }, 'In it now', h('input', { class: 'input money', inputmode: 'decimal', value: money(f.balance_pence), onchange: async (e) => {
+      h('label', { class: 'field' }, 'In it now', h('input', { class: 'input money', inputmode: 'decimal', value: money(f.balance_pence), 'aria-label': `${f.name} balance`, onchange: async (e) => {
         const p = parsePence(e.target.value);
         if (p === null || p < 0) { e.target.select(); return; }
+        if (f.mirrors) { // typed here, saved as the account's balance, so the two can't disagree
+          const snap = await addSnapshot(f.mirrors.id, ctx.today, p);
+          ctx.ref.snapshots = [...(ctx.ref.snapshots || []).filter((s) => s.id !== snap.id && !(s.account_id === snap.account_id && s.date === snap.date)), snap].sort((x, y) => x.date.localeCompare(y.date));
+          rerender();
+          return;
+        }
         const saved = await saveFund({ id: f.id, balance_pence: p, balance_date: ctx.today });
         ctx.ref.funds = ctx.ref.funds.map((x) => (x.id === saved.id ? saved : x));
         // Keep a history of each fund's balance, so goals linked to it can show progress over time.
@@ -109,7 +120,7 @@ export function planPage(ctx, rerender, param) {
       h('div', { class: 'planrow' }, h('span', null, 'Take-home pay this payday'), h('span'), amountInput(draft.pay_pence, (p) => { draft.pay_pence = p; }, 'Pay'))),
     h('section', { class: 'card', 'aria-labelledby': 'out' },
       h('h2', { id: 'out' }, 'Where it goes on payday'),
-      cardHint(ctx),
+      draft.items.some((it) => isCardLine(it, card)) ? null : cardHint(ctx),
       items,
       h('button', { class: 'btn', type: 'button', style: { marginTop: '10px' }, onclick: () => { draft.items.push({ name: '', kind: 'saved', amount_pence: 0 }); touch(); } }, 'Add a line')),
     h('section', { class: 'card', 'aria-labelledby': 'bb' },
@@ -174,4 +185,18 @@ function cardHint(ctx) {
   const o = cardOwed(card, ctx.ref.snapshots || [], ctx.all, ctx.today);
   if (o.status === 'unknown') return null;
   return h('p', { class: 'muted small', style: { marginTop: 0 } }, kindTag(o.status), ` ${card.name}: about ${formatPence(o.pence)} to repay${o.since ? ` (purchases since ${shortDay(o.since)})` : ''}. Repaying it is a transfer, not spending: the purchases were already counted when you made them. Type the card’s balance on Wealth to verify it.`);
+}
+
+// Under the card repayment line: where its amount comes from, and a warning if the card's statement for that
+// cycle doesn't look imported yet (then the amount would be too low).
+function cardNote(it, card, spend, touch) {
+  const range = `${spend.name} cycle, ${shortDay(spend.from)} to ${shortDay(spend.to)}`;
+  if (it.verified) return h('p', { class: 'muted small planstate' }, `Confirmed on Money day at ${formatPence(it.amount_pence || 0)}, so it no longer follows the card.`);
+  if (it.auto === false) {
+    return h('p', { class: 'muted small planstate' }, 'You typed this amount. ',
+      h('button', { class: 'linkbtn', type: 'button', onclick: () => { delete it.auto; touch(); } }, `Use what you spent on ${card.name} instead (${formatPence(spend.pence)})`));
+  }
+  return h('p', { class: 'muted small planstate' }, kindTag(spend.complete ? 'actual' : 'estimated'),
+    ` Worked out for you: what you spent on ${card.name} in the ${range} (${spend.count} payment${spend.count === 1 ? '' : 's'}, less refunds). It updates when you import. Type an amount to set your own.`,
+    spend.complete ? null : h('span', { class: 'warn' }, ` ${card.name} lines are only imported up to ${spend.lastImported ? shortDay(spend.lastImported) : 'no date yet'}, so this may be too low: import the ${card.name} statement.`));
 }

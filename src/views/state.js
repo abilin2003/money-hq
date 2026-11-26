@@ -5,7 +5,7 @@ import { summarise } from '../lib/summary.js';
 import { billsInCycle, safeToSpend, effectiveBudgets } from '../lib/budget.js';
 import { inCycle } from '../ui/parts.js';
 import { historyRows } from './history.js';
-import { cashPosition, cardOwed } from '../lib/position.js';
+import { cashPosition, cardOwed, cardSpendIn, withCardAmounts, mirroredFund } from '../lib/position.js';
 
 // The paydays you entered, plus real salary dates before the first one (cached until either changes).
 export function paydaysOf(ctx) {
@@ -65,7 +65,25 @@ export function cycleFigures(ctx, c, st, finished) {
   const cash = finished ? null : cashPosition({ accounts: ctx.ref.accounts, snapshots: ctx.ref.snapshots || [], txs: ctx.transactions, today: ctx.today, billsDue, reserve });
   const card = ctx.ref.accounts.find((a) => a.type === 'credit_card' && a.is_active !== false);
   const owed = card ? cardOwed(card, ctx.ref.snapshots || [], ctx.all, finished ? c.end : ctx.today) : null;
-  const planItems = ctx.ref.settings?.extra?.plans?.[c.start]?.items || [];
+  const planItems = planItemsFor(ctx, c, ctx.ref.settings?.extra?.plans?.[c.start]?.items || []);
   const plannedOf = (kind) => planItems.filter((i) => i.kind === kind).reduce((a, i) => a + (i.amount_pence || 0), 0);
   return { budgetTotal, spentBudgeted, prevBudgeted, unbudgeted: s.netSpent - spentBudgeted, billsDue, billsPaid, cash, card, owed, plannedOf, today: finished ? c.totalDays : c.dayNumber };
+}
+
+// The card's spending in the cycle before this payday: what that payday's card repayment should be.
+export function cardSpendBefore(ctx, c) {
+  const card = ctx.ref.accounts.find((a) => a.type === 'credit_card' && a.is_active !== false);
+  if (!card) return { card: null, spend: null };
+  const prev = cycleFor(addDays(c.start, -1), paydaysOf(ctx), usualDay(ctx));
+  return { card, spend: { ...cardSpendIn(card, historyRows(ctx.all), prev.start, prev.end), name: cycleName(prev) } };
+}
+// A plan's lines with the card repayment worked out from the card (see withCardAmounts).
+export function planItemsFor(ctx, c, items) {
+  const { card, spend } = cardSpendBefore(ctx, c);
+  return withCardAmounts(items, card, spend);
+}
+// Sinking funds, with any fund that is really an account showing that account's balance.
+export function fundsOf(ctx) {
+  const mirrors = ctx.ref.settings?.extra?.fund_mirrors || {};
+  return (ctx.ref.funds || []).map((f) => { const a = mirrors[f.id] && ctx.ref.accounts.find((x) => x.id === mirrors[f.id]); return a ? mirroredFund(f, a, ctx.ref.snapshots || []) : f; });
 }

@@ -12,7 +12,7 @@ import { netWorth } from '../lib/analytics.js';
 import { matchPlanLines } from '../lib/planning.js';
 import { head, shortDay, pounds, inCycle, alertLine } from '../ui/parts.js';
 import { saveSettings, addSnapshot } from '../lib/data.js';
-import { currentCycle, budgetsFor, paydaysOf, usualDay } from './state.js';
+import { currentCycle, budgetsFor, paydaysOf, usualDay, planItemsFor } from './state.js';
 import { historyRows } from './history.js';
 import { stateHref } from './explorer.js';
 import { PLAN_KINDS } from './plan.js';
@@ -23,7 +23,7 @@ export const STATE_LABEL = { planned: 'Planned', completed: 'Completed', verifie
 // The plan's lines for a cycle with their state, and counts of each.
 export function planProgress(ctx, cycle) {
   const plan = ctx.ref.settings?.extra?.plans?.[cycle.start];
-  const lines = plan ? matchPlanLines(plan.items || [], ctx.transactions, cycle, ctx.today) : [];
+  const lines = plan ? matchPlanLines(planItemsFor(ctx, cycle, plan.items || []), ctx.transactions, cycle, ctx.today) : [];
   const moving = lines.filter((l) => l.state !== 'stays');
   return { plan, lines, counts: { planned: moving.filter((l) => l.state === 'planned').length, completed: moving.filter((l) => l.state === 'completed').length, verified: moving.filter((l) => l.state === 'verified').length, total: moving.length } };
 }
@@ -92,7 +92,7 @@ export function moneydayPage(ctx, rerender) {
   // ---- 7. confirm the plan's transfers
   const setVerified = (i, on, el) => {
     const plans = { ...(extra.plans || {}) };
-    const items = (plans[cur.start].items || []).map((it, k) => (k === i ? (on ? { ...it, verified: ctx.today } : (({ verified, ...rest }) => rest)(it)) : it));
+    const items = (plans[cur.start].items || []).map((it, k) => (k === i ? (on ? { ...it, verified: ctx.today, amount_pence: prog.lines[i].amount_pence } : (({ verified, ...rest }) => rest)(it)) : it));
     plans[cur.start] = { ...plans[cur.start], items };
     return save({ plans }, el);
   };

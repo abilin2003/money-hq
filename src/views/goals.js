@@ -8,10 +8,11 @@ import { head, shortDay, bar, alertLine } from '../ui/parts.js';
 import { lineChart } from '../ui/charts.js';
 import { saveGoal, deleteGoal } from '../lib/data.js';
 import { goalProgress, ago } from '../lib/planning.js';
+import { fundsOf } from './state.js';
 
 // What's saved towards a goal: its linked sinking fund's balance, or its linked account's latest balance.
 export function savedFor(ctx, g) {
-  if (g.sinking_fund_id) return ctx.ref.funds.find((f) => f.id === g.sinking_fund_id)?.balance_pence || 0;
+  if (g.sinking_fund_id) return fundsOf(ctx).find((f) => f.id === g.sinking_fund_id)?.balance_pence || 0;
   if (g.account_id) { const snaps = ctx.ref.snapshots.filter((s) => s.account_id === g.account_id); return snaps.length ? snaps[snaps.length - 1].balance_pence : 0; }
   return 0;
 }
@@ -20,7 +21,8 @@ export function savedFor(ctx, g) {
 export function historyFor(ctx, g) {
   if (g.account_id) return ctx.ref.snapshots.filter((x) => x.account_id === g.account_id).map((x) => ({ date: x.date, pence: x.balance_pence }));
   if (g.sinking_fund_id) {
-    const f = ctx.ref.funds.find((x) => x.id === g.sinking_fund_id);
+    const f = fundsOf(ctx).find((x) => x.id === g.sinking_fund_id);
+    if (f?.mirrors) return historyFor(ctx, { account_id: f.mirrors.id });
     const hist = [...(ctx.ref.settings?.extra?.fund_history?.[g.sinking_fund_id] || [])];
     if (f?.balance_date && !hist.some((x) => x.date === f.balance_date)) hist.push({ date: f.balance_date, pence: f.balance_pence || 0 });
     return hist.sort((a, b) => a.date.localeCompare(b.date));

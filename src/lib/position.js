@@ -50,6 +50,33 @@ export function cardOwed(card, snapshots, txs, today) {
   return { status: purchases.length ? 'estimated' : 'unknown', pence: purchases.reduce((a, t) => a - t.amount_pence, 0), since, count: purchases.length };
 }
 
+// ---------------------------------------------------------------- the card repayment on payday
+// What you put on a credit card in one pay cycle (purchases less refunds), so the repayment line in the next
+// payday's plan can be worked out instead of guessed. Card lines waiting for review count: you still owe them.
+// complete: the card's imported lines reach the end of that cycle (if not, a statement is probably missing).
+export function cardSpendIn(card, txs, from, to) {
+  const onCard = txs.filter((t) => t.account_id === card.id);
+  const lines = onCard.filter((t) => t.date >= from && t.date <= to && (t.kind === 'spend' || t.kind === 'refund'));
+  const lastImported = onCard.map((t) => t.date).sort().pop() || null;
+  return { pence: Math.max(0, -lines.reduce((a, t) => a + t.amount_pence, 0)), count: lines.filter((t) => t.amount_pence < 0).length, from, to, lastImported, complete: Boolean(lastImported) && lastImported >= to };
+}
+// A payday line that repays the card: a transfer whose name mentions the card (e.g. "Capital One repayment").
+export const isCardLine = (item, card) => Boolean(card) && item.kind === 'transfer' && [card.institution, card.name].filter(Boolean).some((n) => { const k = normKey(n); return k && ` ${normKey(item.name)} `.includes(` ${k} `); });
+// Card lines follow the card's spending unless you typed your own amount (auto: false) or already confirmed the
+// payment on Money day (then the amount you confirmed stays).
+export function withCardAmounts(items, card, spend) {
+  if (!card || !spend) return items;
+  return items.map((it) => (isCardLine(it, card) && it.auto !== false && !it.verified ? { ...it, amount_pence: spend.pence, autoCard: true } : it));
+}
+
+// ---------------------------------------------------------------- a fund that is an account
+// Some funds aren't a pot of their own: the Emergency fund is your Cash ISA. Such a fund shows the account's
+// latest typed-in balance, so the same money is never typed in twice or allowed to disagree.
+export function mirroredFund(fund, account, snapshots) {
+  const last = lastSnapshot(account.id, snapshots);
+  return { ...fund, balance_pence: last ? Math.abs(last.balance_pence) : null, balance_date: last?.date || null, mirrors: account };
+}
+
 // A sinking fund's money, kept in three parts: what you've verified (typed in), what your payday plans put in
 // after that, and the expected total (verified + planned, not yet checked).
 const matches = (fundName, itemName) => { const f = normKey(fundName); const i = normKey(itemName); return Boolean(f && i) && (i === f || i.includes(f) || f.includes(i)); };

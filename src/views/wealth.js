@@ -15,6 +15,7 @@ import { addSnapshot } from '../lib/data.js';
 import { balanceNow, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
 import { historyRows } from './history.js';
+import { fundsOf } from './state.js';
 
 const TYPE = { current: 'Current account', savings: 'Savings', credit_card: 'Credit card (owed)', isa: 'ISA', investment: 'Investments', pension: 'Pension', cash: 'Cash' };
 const GROUP_COLOUR = { 'Cash and savings': '#7AA2FF', 'ISAs and investments': '#5BD6A0', Pension: '#B79CFF', Debt: '#FF8A80' };
@@ -117,7 +118,7 @@ export function wealthPage(ctx, rerender) {
         h('span', { class: `small ${a.stale ? 'warn' : 'muted'}` }, `${TYPE[a.type] || a.type}${a.last ? ` · updated ${shortDay(a.last.date)} ${a.last.date.slice(0, 4)} (${ago(a.last.date, ctx.today)})` : ' · no balance yet'}`)),
       h('span', { class: `r ${a.value < 0 ? 'over' : ''}` }, a.value === null ? '–' : signed(a.value)));
   };
-  const funds = (ctx.ref.funds || []).filter((f) => f.balance_pence);
+  const funds = fundsOf(ctx).filter((f) => f.balance_pence);
   const fundTotal = funds.reduce((a, f) => a + f.balance_pence, 0);
 
   return h('div', { class: 'page' },
