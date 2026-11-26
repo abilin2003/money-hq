@@ -27,41 +27,63 @@ function yAxis(svg, max, x0, x1, y0, y1, ticks = 4) {
   }
 }
 
-// Pace chart: running spend this cycle vs the budget line vs last cycle's pace. Spec: Overview hero.
+// Pace chart: running spend this cycle against the even-spending budget line and last cycle. Spec: Overview hero.
 // days: total days; spentByDay: cumulative pence per day so far; budget, lastTotal: pence.
-// onDay({ day, spent, budgetLine, lastLine }) makes it interactive: point, tap or use the arrow keys to read any day
-// (spent is null for days still to come); onDay(null) when the pointer leaves.
-export function paceChart({ days, today, spentByDay, budget, lastTotal, startLabel, endLabel, onDay = null, todayLabel = 'Today' }) {
-  const W = narrow() ? 360 : 520; const H = 190; const x0 = 46; const x1 = W - 12; const y0 = 150; const y1 = 20;
-  const max = niceMax(Math.max(budget, lastTotal, spentByDay[spentByDay.length - 1] || 0) * 1.05);
+// Optional: lastByDay (last cycle's real running total, drawn as a curve instead of a straight line), projection
+// (pence: where this cycle ends at the current rate, drawn dashed from today to payday), dayTick(d) (labels the
+// x-axis every 7 days), wide (a bigger canvas for a full-width chart).
+// onDay({ day, spent, budgetLine, lastLine, x, y }) makes it interactive: point, tap or use the arrow keys to read
+// any day (spent is null for days still to come; x and y are 0–1 positions for a tooltip); onDay(null) on leaving.
+export function paceChart({ days, today, spentByDay, budget, lastTotal, startLabel, endLabel, onDay = null, todayLabel = 'Today', lastByDay = null, projection = null, dayTick = null, wide = false }) {
+  const W = narrow() ? 360 : wide ? 760 : 520; const H = wide && !narrow() ? 250 : 200; const x0 = 50; const x1 = W - (projection ? 18 : 12); const y0 = H - 42; const y1 = 22;
+  const lastEnd = lastByDay?.length ? lastByDay[Math.min(days, lastByDay.length) - 1] : lastTotal;
+  const max = niceMax(Math.max(budget, lastEnd || 0, lastTotal || 0, projection || 0, spentByDay[spentByDay.length - 1] || 0) * 1.05);
   const X = (d) => x0 + ((x1 - x0) * d) / Math.max(1, days);
   const Y = (p) => y0 - ((y0 - y1) * p) / max;
-  const svg = frame(W, H, `Spending this cycle: ${gbp(spentByDay[spentByDay.length - 1] || 0)} so far, against a ${gbp(budget)} budget line and last cycle's ${gbp(lastTotal)}`);
+  const svg = frame(W, H, `Spending this cycle: ${gbp(spentByDay[spentByDay.length - 1] || 0)} so far, against a ${gbp(budget)} budget${lastEnd ? ` and last cycle's ${gbp(lastEnd)}` : ''}${projection ? `; on course for ${gbp(projection)}` : ''}`);
   yAxis(svg, max, x0, x1, y0, y1);
-  if (lastTotal) svg.append(s('line', { x1: X(0), y1: Y(0), x2: X(days), y2: Y(lastTotal), stroke: C.axis, 'stroke-width': 1.5, 'stroke-dasharray': '2 4' }));
-  if (budget) svg.append(s('line', { x1: X(0), y1: Y(0), x2: X(days), y2: Y(budget), stroke: C.muted, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' }));
-  svg.append(s('line', { x1: X(today), x2: X(today), y1: y1 - 6, y2: y0, stroke: '#2A3644', 'stroke-width': 1 }));
+  // last cycle: its real running total if we have it, otherwise a straight line to its total
+  if (lastByDay?.length) {
+    const lp = [[X(0), Y(0)], ...lastByDay.slice(0, days).map((p, i) => [X(i + 1), Y(p)])];
+    svg.append(s('polyline', { points: lp.map((p) => p.join(',')).join(' '), fill: 'none', stroke: C.axis, 'stroke-width': 1.75, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round' }));
+  } else if (lastTotal) svg.append(s('line', { x1: X(0), y1: Y(0), x2: X(days), y2: Y(lastTotal), stroke: C.axis, 'stroke-width': 1.5, 'stroke-dasharray': '2 4' }));
+  if (budget) svg.append(s('line', { x1: X(0), y1: Y(0), x2: X(days), y2: Y(budget), stroke: C.muted, 'stroke-width': 1.25, 'stroke-dasharray': '6 5' }));
+  if (todayLabel && today < days) svg.append(s('line', { x1: X(today), x2: X(today), y1: y1 - 8, y2: y0, stroke: '#2A3644', 'stroke-width': 1 }));
   const pts = [[X(0), Y(0)], ...spentByDay.map((p, i) => [X(i + 1), Y(p)])];
-  svg.append(s('polyline', { points: pts.map((p) => p.join(',')).join(' '), fill: 'none', stroke: C.accent, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
   const last = pts[pts.length - 1];
-  svg.append(s('circle', { cx: last[0], cy: last[1], r: 5, fill: C.accent, stroke: C.surface, 'stroke-width': 2 }));
-  if (lastTotal) svg.append(s('text', { x: x1, y: Y(lastTotal) - 6, fill: C.muted, 'font-size': FS(), 'text-anchor': 'end' }, `Last cycle, ${gbp(lastTotal)}`));
-  if (budget) svg.append(s('text', { x: x1, y: Y(budget) + (Math.abs(Y(budget) - Y(lastTotal)) < 14 ? 16 : -6), fill: C.text2, 'font-size': FS(), 'text-anchor': 'end' }, `Budget, ${gbp(budget)}`));
-  if (todayLabel) svg.append(s('text', { x: Math.min(X(today) + 6, x1 - 40), y: 12, fill: C.text2, 'font-size': FS() }, todayLabel));
-  svg.append(s('text', { x: x0, y: H - 14, fill: C.axis, 'font-size': FS() }, startLabel));
-  svg.append(s('text', { x: x1, y: H - 14, fill: C.axis, 'font-size': FS(), 'text-anchor': 'end' }, endLabel));
+  if (projection && today < days) svg.append(s('line', { x1: last[0], y1: last[1], x2: X(days), y2: Y(projection), stroke: C.accent, 'stroke-width': 2, 'stroke-dasharray': '4 5', opacity: 0.55, 'stroke-linecap': 'round' }));
+  svg.append(s('polyline', { points: pts.map((p) => p.join(',')).join(' '), fill: 'none', stroke: C.accent, 'stroke-width': 2.75, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+  svg.append(s('circle', { cx: last[0], cy: last[1], r: 4.5, fill: C.accent, stroke: C.surface, 'stroke-width': 2 }));
+  if (projection && today < days) svg.append(s('circle', { cx: X(days), cy: Y(projection), r: 3.5, fill: C.surface, stroke: C.accent, 'stroke-width': 1.5, opacity: 0.8 }));
+  // end labels, kept apart so they never sit on top of each other
+  const labels = [];
+  if (budget) labels.push([Y(budget), C.text2, `Budget ${gbp(budget)}`]);
+  if (lastEnd && (lastByDay?.length || lastTotal)) labels.push([lastByDay?.length ? Y(lastByDay[Math.min(days, lastByDay.length) - 1]) : Y(lastTotal), C.muted, `Last cycle ${gbp(lastEnd)}`]);
+  if (projection && today < days) labels.push([Y(projection), C.accent, `Projected ${gbp(projection)}`]);
+  labels.sort((p, q) => p[0] - q[0]);
+  let prevY = -Infinity;
+  for (const [y, fill, text] of labels) { const yy = Math.max(y - 6, prevY + 14); prevY = yy; svg.append(s('text', { x: x1, y: yy, fill, 'font-size': FS(), 'text-anchor': 'end' }, text)); }
+  if (todayLabel && today < days) svg.append(s('text', { x: Math.min(X(today) + 6, x1 - 40), y: 12, fill: C.text2, 'font-size': FS() }, todayLabel));
+  if (dayTick) {
+    for (let d = 0; d < days - 3; d += 7) svg.append(s('text', { x: X(d), y: H - 18, fill: C.axis, 'font-size': FS(), 'text-anchor': d === 0 ? 'start' : 'middle' }, dayTick(d)));
+    svg.append(s('text', { x: x1, y: H - 18, fill: C.axis, 'font-size': FS(), 'text-anchor': 'end' }, endLabel));
+  } else {
+    svg.append(s('text', { x: x0, y: H - 14, fill: C.axis, 'font-size': FS() }, startLabel));
+    svg.append(s('text', { x: x1, y: H - 14, fill: C.axis, 'font-size': FS(), 'text-anchor': 'end' }, endLabel));
+  }
   if (onDay) {
-    const guide = s('line', { y1: y1 - 6, y2: y0, stroke: C.text2, 'stroke-width': 1, opacity: 0, 'pointer-events': 'none' });
-    const dot = s('circle', { r: 4.5, fill: C.text, opacity: 0, 'pointer-events': 'none' });
+    const guide = s('line', { y1: y1 - 8, y2: y0, stroke: C.text2, 'stroke-width': 1, opacity: 0, 'pointer-events': 'none' });
+    const dot = s('circle', { r: 5, fill: C.text, stroke: C.surface, 'stroke-width': 2, opacity: 0, 'pointer-events': 'none' });
     let cur = Math.max(1, today);
-    const zone = s('rect', { x: x0, y: y1 - 6, width: x1 - x0, height: y0 - y1 + 6, fill: 'transparent', tabindex: 0, role: 'slider', 'aria-label': 'Day of the cycle', 'aria-valuemin': 1, 'aria-valuemax': days, class: 'pick-zone' });
+    const zone = s('rect', { x: x0, y: y1 - 8, width: x1 - x0, height: y0 - y1 + 8, fill: 'transparent', tabindex: 0, role: 'slider', 'aria-label': 'Day of the cycle', 'aria-valuemin': 1, 'aria-valuemax': days, class: 'pick-zone' });
     const show = (d) => {
       cur = Math.max(1, Math.min(days, d));
       const spent = cur <= spentByDay.length ? spentByDay[cur - 1] : null;
       guide.setAttribute('x1', X(cur)); guide.setAttribute('x2', X(cur)); guide.setAttribute('opacity', 1);
       if (spent !== null) { dot.setAttribute('cx', X(cur)); dot.setAttribute('cy', Y(spent)); dot.setAttribute('opacity', 1); } else dot.setAttribute('opacity', 0);
       zone.setAttribute('aria-valuenow', cur);
-      onDay({ day: cur, spent, budgetLine: budget ? Math.round((budget * cur) / days) : null, lastLine: lastTotal ? Math.round((lastTotal * cur) / days) : null });
+      const lastLine = lastByDay?.length ? (cur <= lastByDay.length ? lastByDay[cur - 1] : null) : lastTotal ? Math.round((lastTotal * cur) / days) : null;
+      onDay({ day: cur, spent, budgetLine: budget ? Math.round((budget * cur) / days) : null, lastLine, x: X(cur) / W, y: (spent !== null ? Y(spent) : Y((budget * cur) / days || 0)) / H });
     };
     const hide = () => { guide.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); onDay(null); };
     const at = (e) => { const r = svg.getBoundingClientRect(); return Math.round(((((e.clientX - r.left) / r.width) * W - x0) / (x1 - x0)) * days); };

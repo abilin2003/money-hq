@@ -40,13 +40,13 @@ export function overviewPage(ctx, rerender, param) {
       rerender();
     } }, `Reopen ${cycleName({ end: lastClosed.end_date })}`) : null;
     // On the cycle's last day (the day before payday) the review is ready.
-    const lastDay = ctx.today >= current.end ? h('section', { class: 'card strip review-strip' }, h('span', null, h('strong', null, `Your ${current.name} cycle ends today`), h('br'), h('span', { class: 'muted small' }, 'Its end-of-cycle report is ready. Nothing closes until you confirm.')), h('a', { href: `#review/${current.start}`, class: 'btn primary tap' }, 'Review & Close Pay Cycle')) : null;
+    const lastDay = ctx.today >= current.end ? h('div', { class: 'ov-banner', role: 'status' }, h('span', null, h('strong', null, `Your ${current.name} cycle ends today.`), ' Its report is ready; nothing closes until you confirm.'), h('a', { href: `#review/${current.start}`, class: 'btn primary tap' }, 'Review & Close Pay Cycle')) : null;
     return overviewView(ctx, current, { actions: [add, imp, back, reopen], notice: lastDay });
   }
   // Closing happens on the review page, after you've looked over the report: nothing closes on its own.
   const closeBtn = h('a', { href: `#review/${c.start}`, class: 'btn primary tap' }, 'Review & Close Pay Cycle');
-  const notice = h('section', { class: 'card notice-card' },
-    h('p', { style: { margin: 0 } }, `The ${current.name} cycle started on ${dayLabel(current.start)}. Review and close ${c.name} when you’re ready (its report is saved, nothing is moved), and the Overview moves on to ${current.name}. `, h('a', { href: '#overview/current', class: 'tap' }, `Peek at ${current.name} so far`)));
+  const notice = h('div', { class: 'ov-banner', role: 'status' },
+    h('span', null, `${current.name} started on ${dayLabel(current.start)}. Review and close ${c.name} to move on: its report is saved and nothing is moved.`), h('a', { href: '#overview/current', class: 'sec-link' }, `See ${current.name} so far →`));
   return overviewView(ctx, c, { finished: true, actions: [add, closeBtn, imp], notice });
 }
 
