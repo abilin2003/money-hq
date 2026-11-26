@@ -68,7 +68,7 @@ export function safeToSpend({ cycle, today, budgets, spentByBucket, bills, reser
     short: raw < 0 ? -raw : 0,
     lines: [
       { label: 'Left in your buckets', pence: left },
-      { label: 'Bills still due before payday', pence: -due },
+      { label: 'Bills still to come out before payday', pence: -due },
       { label: 'Reserve', pence: -reserve },
     ],
   };

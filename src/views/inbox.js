@@ -28,8 +28,7 @@ function choiceOptions(ctx, t) {
   const groups = ctx.ref.buckets.map((b) => h('optgroup', { label: t.amount_pence < 0 ? b.name : `Refund: ${b.name}` },
     ctx.ref.categories.filter((c) => c.is_active && c.bucket_id === b.id).map((c) => h('option', { value: `cat:${c.id}`, selected: c.id === t.category_id && ['spend', 'refund'].includes(t.kind) }, c.name))));
   const kinds = (t.amount_pence < 0 ? KINDS_OUT : KINDS_IN).map(([v, l]) => h('option', { value: v, selected: v === `kind:${t.kind}` && !t.category_id }, l));
-  const unsure = h('option', { value: 'unsure' }, t.amount_pence < 0 ? 'Not sure: count it as Miscellaneous spending' : 'Not sure: don’t count it as income');
-  return [h('option', { value: '', selected: !t.category_id && !['transfer', 'invested', 'saved', 'income', 'repayment'].includes(t.kind) }, 'Choose…'), unsure, h('optgroup', { label: 'Not spending' }, kinds), ...groups];
+  return [h('option', { value: '', selected: !t.category_id && !['transfer', 'invested', 'saved', 'income', 'repayment'].includes(t.kind) }, 'Choose…'), h('optgroup', { label: 'Not spending' }, kinds), ...groups];
 }
 
 // "cat:<id>" -> spend (or refund for money in) in that category; "kind:transfer" -> that kind, no category.
@@ -61,12 +60,14 @@ export function inboxPage(ctx, rerender) {
     select.className = 'input';
     select.setAttribute('aria-label', `What is ${t.raw_description}?`);
     const always = h('input', { type: 'checkbox', id: `al-${t.id}` });
-    const approve = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
-      const unsure = select.value === 'unsure';
+    // Approve saves what you chose; Not sure saves it without a choice (see unsureChoice). Same steps after that.
+    const decide = async (btn, unsure) => {
       const choice = unsure ? unsureChoice(t, ctx.ref.categories) : decode(select.value, t.amount_pence);
-      if (!choice) { alertLine(approve, 'Choose what this is first, or pick Not sure.'); return; }
+      if (!choice) { alertLine(btn, 'Choose what this is first, or press Not sure.'); return; }
+      const label = btn.textContent;
       approve.disabled = true;
-      approve.textContent = 'Saving…';
+      notSure.disabled = true;
+      btn.textContent = 'Saving…';
       try {
         const targets = [t];
         if (always.checked && key && !unsure) {
@@ -82,10 +83,13 @@ export function inboxPage(ctx, rerender) {
         rerender();
       } catch (err) {
         approve.disabled = false;
-        approve.textContent = 'Approve';
-        alertLine(approve, err.message);
+        notSure.disabled = false;
+        btn.textContent = label;
+        alertLine(btn, err.message);
       }
-    } }, 'Approve');
+    };
+    const approve = h('button', { class: 'btn primary', type: 'button', onclick: () => decide(approve, false) }, 'Approve');
+    const notSure = h('button', { class: 'btn', type: 'button', title: t.amount_pence < 0 ? 'Counts it as Miscellaneous spending, marked “Not sure what this was”' : 'Not counted as income, marked “Not sure what this was”', onclick: () => decide(notSure, true) }, 'Not sure');
     return h('div', { class: 'inbox-row' },
       h('div', { class: 'inbox-what' },
         h('span', { class: 'desc' }, t.raw_description || '(no description)'),
@@ -94,11 +98,11 @@ export function inboxPage(ctx, rerender) {
       h('div', { class: 'inbox-act' },
         select,
         key ? h('label', { class: 'check', for: `al-${t.id}` }, always, `Always do this for “${key}”`) : null,
-        approve));
+        h('div', { class: 'inbox-btns' }, notSure, approve)));
   };
 
   return h('div', { class: 'page' },
-    head('Review inbox', waiting.length ? `${waiting.length} line${waiting.length === 1 ? '' : 's'} waiting. They aren't counted in any totals until you approve them. Don’t know one? Pick “Not sure” and you can change it later from Transactions.` : 'Nothing to review.'),
+    head('Review inbox', waiting.length ? `${waiting.length} line${waiting.length === 1 ? '' : 's'} waiting. They aren't counted in any totals until you approve them. Don’t know one? Press Not sure: money out counts as Miscellaneous spending, money in isn’t counted as income, and you can change it later from Transactions.` : 'Nothing to review.'),
     ctx.oldIous ? h('section', { class: 'card notice-card' }, h('p', { style: { margin: 0 } }, `Also needs attention: ${ctx.oldIous} IOU${ctx.oldIous === 1 ? '' : 's'} older than 30 days. `, h('a', { href: '#people', class: 'tap' }, 'See who owes you'))) : null,
     h('section', { class: 'card', 'aria-label': 'Lines to review' },
       current.length ? current.map(card) : h('p', { class: 'muted', style: { margin: 0 } }, older.length ? 'Nothing new from your latest imports.' : 'The inbox is clear. Import new statements and anything Money HQ isn’t sure about lands here.')),

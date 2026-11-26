@@ -33,7 +33,7 @@ describe('safe to spend = money left in buckets − bills still due before payda
   it('day 2 with nothing spent: the whole budget minus bills still due, with the working shown', () => {
     const s = safeToSpend({ cycle: dec, today: '2026-11-25', budgets, spentByBucket: {}, bills: [{ name: 'Gym', amount_pence: 2995, paid: false, date: '2026-12-01' }], reserve: 0 });
     expect(s.total).toBe(28500 - 2995);
-    expect(s.lines.map((l) => l.label)).toEqual(['Left in your buckets', 'Bills still due before payday', 'Reserve']);
+    expect(s.lines.map((l) => l.label)).toEqual(['Left in your buckets', 'Bills still to come out before payday', 'Reserve']);
     expect(s.perDay).toBe(Math.floor((28500 - 2995) / 23)); // 23 days including today
   });
   it('overspending one bucket brings safe to spend down', () => {

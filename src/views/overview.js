@@ -39,6 +39,12 @@ export const kindTag = (kind) => h('span', { class: `ktag k-${kind.replace(/\s+/
 // current accounts, once you've typed their balances in (Wealth): it never assumes a balance.
 // The allowance is planned; safe-to-spend cash is the lower of it and what your current accounts really hold after
 // bills, and only exists once you've typed those balances in.
+// How the allowance is made up, e.g. "£325.00 left in your budgets − £74.92 bills still to come out".
+function allowanceSum(safe) {
+  const parts = safe.lines.filter((l, i) => i === 0 || l.pence);
+  if (parts.length < 2) return null;
+  return h('p', { class: 'muted small', style: { margin: '2px 0 0' } }, parts.map((l, i) => `${i ? (l.pence < 0 ? ' − ' : ' + ') : ''}${formatPence(Math.abs(l.pence))} ${i ? l.label.toLowerCase() : 'left in your budgets'}`).join(''));
+}
 function cashLine(cash, safe) {
   if (cash.status === 'unknown') return h('p', { class: 'pos-check' }, kindTag('not verified'), ' From your budgets. Safe-to-spend cash appears once your current-account balances are entered.');
   const safeCash = Math.max(0, Math.min(safe.total, cash.available));
@@ -91,6 +97,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
       h('p', { class: 'm-label' }, 'Spending allowance left', kindTag('planned')),
       h('div', { class: 'pos-figure display' }, money(safe.total)),
       h('p', { class: 'pos-sub' }, `${formatPence(safe.perDay)} a day for ${safe.daysLeft} day${safe.daysLeft === 1 ? '' : 's'}`, safe.short ? h('span', { class: 'over' }, ` · ${pounds(safe.short)} past safe`) : null),
+      allowanceSum(safe),
       cashLine(f.cash, safe));
   const spentMetric = budgetTotal
     ? metric('Spent vs budget', 'actual', [h('span', { class: 'fig' }, pounds(spentBudgeted)), h('span', { class: 'm-of' }, ` / ${pounds(budgetTotal)}`)],

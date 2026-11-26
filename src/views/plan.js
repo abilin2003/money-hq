@@ -196,7 +196,7 @@ function cardNote(it, card, spend, touch) {
     return h('p', { class: 'muted small planstate' }, 'You typed this amount. ',
       h('button', { class: 'linkbtn', type: 'button', onclick: () => { delete it.auto; touch(); } }, `Use what you spent on ${card.name} instead (${formatPence(spend.pence)})`));
   }
-  return h('p', { class: 'muted small planstate' }, kindTag(spend.complete ? 'actual' : 'estimated'),
-    ` Worked out for you: what you spent on ${card.name} in the ${range} (${spend.count} payment${spend.count === 1 ? '' : 's'}, less refunds). It updates when you import. Type an amount to set your own.`,
-    spend.complete ? null : h('span', { class: 'warn' }, ` ${card.name} lines are only imported up to ${spend.lastImported ? shortDay(spend.lastImported) : 'no date yet'}, so this may be too low: import the ${card.name} statement.`));
+  return h('p', { class: 'muted small planstate' },
+    `The total of your ${card.name} purchases in the ${range}: ${spend.count} payment${spend.count === 1 ? '' : 's'}, less refunds. Add a ${card.name} transaction from those dates and this changes with it. Type an amount here only if you want to override it.`,
+    spend.complete ? null : h('span', { class: 'warn' }, ` The last ${card.name} purchase Money HQ has is ${spend.lastImported ? shortDay(spend.lastImported) : 'none yet'}: if you used the card after that, add those purchases.`));
 }
