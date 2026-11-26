@@ -608,3 +608,8 @@ select.input { max-width: 100%; }
 }
 /* Side-by-side cards are the same height, so a short card does not leave a gap below it. */
 .grid-even { align-items: stretch; }
+/* A panel's title takes focus when it opens (for keyboards and screen readers) but isn't a control, so no outline. */
+.panel h2:focus { outline: none; }
+/* In a detail panel, shop and category names wrap rather than being cut short. */
+.panel .cmp-row { grid-template-columns: minmax(0, 1fr) 58px 58px 66px; }
+.panel .cname { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
