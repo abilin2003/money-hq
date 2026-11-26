@@ -197,6 +197,6 @@ function cardNote(it, card, spend, touch) {
       h('button', { class: 'linkbtn', type: 'button', onclick: () => { delete it.auto; touch(); } }, `Use what you spent on ${card.name} instead (${formatPence(spend.pence)})`));
   }
   return h('p', { class: 'muted small planstate' },
-    `The total of your ${card.name} purchases in the ${range}: ${spend.count} payment${spend.count === 1 ? '' : 's'}, less refunds. Add a ${card.name} transaction from those dates and this changes with it. Type an amount here only if you want to override it.`,
+    `The total of your ${card.name} purchases in the ${range}: ${spend.count} payment${spend.count === 1 ? '' : 's'}, less refunds and anything friends paid onto the card. Add a ${card.name} transaction from those dates and this changes with it. Type an amount here only if you want to override it.`,
     spend.complete ? null : h('span', { class: 'warn' }, ` The last ${card.name} purchase Money HQ has is ${spend.lastImported ? shortDay(spend.lastImported) : 'none yet'}: if you used the card after that, add those purchases.`));
 }

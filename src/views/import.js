@@ -4,7 +4,7 @@ import { h } from '../ui/dom.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
 import { buildImportPlan } from '../lib/import/plan.js';
 import { prepareRules } from '../lib/import/classify.js';
-import { saveImport, enrich } from '../lib/data.js';
+import { saveImport, enrich, updateTransaction } from '../lib/data.js';
 
 const BANK_NAME = { ulster: 'Ulster Bank', revolut: 'Revolut statement', 'revolut-app': 'Revolut app export', monzo: 'Monzo', list: 'Your own list' };
 
@@ -15,7 +15,7 @@ export function importPage(ctx, rerender) {
   async function load(files) {
     if (!files.length) return;
     const read = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
-    const existing = ctx.all.map((t) => ({ id: t.id, account: t.account, date: t.date, amount_pence: t.amount_pence, fingerprint: t.fingerprint, source: t.source, archived: t.archived }));
+    const existing = ctx.all.map((t) => ({ id: t.id, account: t.account, date: t.date, amount_pence: t.amount_pence, fingerprint: t.fingerprint, source: t.source, archived: t.archived, note: t.note, status: t.status }));
     state.plan = buildImportPlan(read, prepareRules(ctx.ref.rules), existing);
     state.done = null;
     rerender();
@@ -35,9 +35,11 @@ export function importPage(ctx, rerender) {
       fingerprint: r.fingerprint, source: `import:${plan.files.find((f) => f.name === r.file)?.bank || 'file'}`, pairId: r.pairWith?.id || null,
     }));
     const names = plan.files.filter((f) => !f.error).map((f) => f.name).join(', ');
-    const saved = await saveImport(rows, { file_name: names.slice(0, 500), account_id: null, row_count: plan.rows.length, new_count: rows.length, duplicate_count: plan.counts.duplicates });
+    const saved = rows.length ? await saveImport(rows, { file_name: names.slice(0, 500), account_id: null, row_count: plan.rows.length, new_count: rows.length, duplicate_count: plan.counts.duplicates }) : [];
     for (const t of saved) ctx.add(enrich(t, ctx.ref));
-    state.done = { added: saved.length, review: saved.filter((t) => t.status === 'needs_review').length };
+    // What the statement says about the entries you typed: corrected ones and ones it doesn't have go to the inbox.
+    for (const c of plan.checks) ctx.replace(enrich(await updateTransaction(c.id, c.patch), ctx.ref));
+    state.done = { added: saved.length, review: saved.filter((t) => t.status === 'needs_review').length + plan.checks.length, checked: plan.checks.length };
     state.plan = null;
     rerender();
   }
@@ -55,7 +57,7 @@ export function importPage(ctx, rerender) {
   if (state.done) {
     out.push(h('section', { class: 'card', role: 'status' },
       h('h2', null, 'Imported'),
-      h('p', { style: { margin: 0 } }, `${state.done.added} new transaction${state.done.added === 1 ? '' : 's'} saved.`),
+      h('p', { style: { margin: 0 } }, `${state.done.added} new transaction${state.done.added === 1 ? '' : 's'} saved.`, state.done.checked ? ` ${state.done.checked} of the entries you typed need a look: the statement corrected them or doesn’t have them.` : ''),
       state.done.review ? h('p', { style: { margin: '8px 0 0' } }, h('a', { href: '#inbox' }, `${state.done.review} need a quick look in the review inbox`)) : null));
   }
 
@@ -64,11 +66,12 @@ export function importPage(ctx, rerender) {
     const fileRows = plan.files.map((f) => h('div', null,
       h('span', null, h('span', null, f.name), h('br'), h('span', { class: 'muted small' }, f.error ? f.error : `${BANK_NAME[f.bank] || f.bank}, ${shortDay(f.from)} to ${shortDay(f.to)}, ${f.rows} lines`)),
       f.error ? h('span', { class: 'over' }, 'Not read') : h('span', null, `${f.rows - f.duplicates} new`)));
-    const btn = h('button', { class: 'btn primary', type: 'button', disabled: plan.counts.new === 0, onclick: async () => {
+    const todo = plan.counts.new + plan.checks.length;
+    const btn = h('button', { class: 'btn primary', type: 'button', disabled: todo === 0, onclick: async () => {
       btn.disabled = true;
       btn.textContent = 'Saving…';
-      try { await save(btn); } catch (err) { btn.disabled = false; btn.textContent = `Import ${plan.counts.new} new`; alertLine(btn, err.message); }
-    } }, plan.counts.new ? `Import ${plan.counts.new} new` : 'Nothing new to import');
+      try { await save(btn); } catch (err) { btn.disabled = false; btn.textContent = 'Import'; alertLine(btn, err.message); }
+    } }, plan.counts.new ? `Import ${plan.counts.new} new` : plan.checks.length ? 'Save the checks' : 'Nothing new to import');
     out.push(h('section', { class: 'card', 'aria-labelledby': 'sum' },
       h('h2', { id: 'sum' }, 'What’s in these files'),
       h('div', { class: 'stats' }, fileRows),
@@ -77,7 +80,9 @@ export function importPage(ctx, rerender) {
         h('div', null, h('span', { class: 'muted' }, 'Sorted automatically'), h('span', null, String(plan.counts.sorted))),
         h('div', null, h('span', { class: 'muted' }, 'Need a quick look (go to the inbox)'), h('span', null, String(plan.counts.needsReview))),
         h('div', null, h('span', { class: 'muted' }, 'Moves between your accounts (not spending)'), h('span', null, String(plan.counts.transfers))),
-        h('div', null, h('span', { class: 'muted' }, 'Already in Money HQ (skipped)'), h('span', null, String(plan.counts.duplicates)))),
+        h('div', null, h('span', { class: 'muted' }, 'Already in Money HQ (skipped)'), h('span', null, String(plan.counts.duplicates))),
+        plan.counts.corrected ? h('div', null, h('span', { class: 'muted' }, 'Typed entries the statement corrects (to the inbox)'), h('span', null, String(plan.counts.corrected))) : null,
+        plan.counts.notOnStatement ? h('div', null, h('span', { class: 'muted' }, 'Typed entries not on the statement (to the inbox)'), h('span', null, String(plan.counts.notOnStatement))) : null),
       h('div', { style: { display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' } }, btn,
         h('button', { class: 'btn', type: 'button', onclick: () => { state.plan = null; rerender(); } }, 'Cancel'))));
   }

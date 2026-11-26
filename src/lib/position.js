@@ -51,12 +51,12 @@ export function cardOwed(card, snapshots, txs, today) {
 }
 
 // ---------------------------------------------------------------- the card repayment on payday
-// What you put on a credit card in one pay cycle (purchases less refunds), so the repayment line in the next
+// What you put on a credit card in one pay cycle (purchases less refunds and money friends paid onto the card), so the repayment line in the next
 // payday's plan can be worked out instead of guessed. Card lines waiting for review count: you still owe them.
 // complete: the card's imported lines reach the end of that cycle (if not, a statement is probably missing).
 export function cardSpendIn(card, txs, from, to) {
   const onCard = txs.filter((t) => t.account_id === card.id);
-  const lines = onCard.filter((t) => t.date >= from && t.date <= to && (t.kind === 'spend' || t.kind === 'refund'));
+  const lines = onCard.filter((t) => t.date >= from && t.date <= to && (t.kind === 'spend' || t.kind === 'refund' || (t.kind === 'repayment' && t.amount_pence > 0)));
   const lastImported = onCard.map((t) => t.date).sort().pop() || null;
   return { pence: Math.max(0, -lines.reduce((a, t) => a + t.amount_pence, 0)), count: lines.filter((t) => t.amount_pence < 0).length, from, to, lastImported, complete: Boolean(lastImported) && lastImported >= to };
 }
