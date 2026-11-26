@@ -58,6 +58,24 @@ describe('credit card repayments are transfers when imported', () => {
   });
 });
 
+describe('investing is counted after withdrawals', () => {
+  it('money taken out of an ISA comes off what you invested', () => {
+    const s = summarise([
+      t('a', '2026-10-26', -50000, 'invested', { bucket: null, category: null }),
+      t('b', '2026-10-26', -110000, 'invested', { bucket: null, category: null }),
+      t('c', '2026-11-05', -50000, 'invested', { bucket: null, category: null }),
+      t('d', '2026-11-05', 50000, 'invested', { bucket: null, category: null }),
+      t('e', '2026-11-16', 28800, 'invested', { bucket: null, category: null }),
+    ]);
+    expect(s.invested).toBe(50000 + 110000 + 50000 - 50000 - 28800);
+  });
+  it('an imported ISA withdrawal is classified as investing, not a plain transfer', () => {
+    const rules = prepareRules([{ created_from: 'imported', match: { description_contains: 'Trading 212' }, set: { legacy: { match: 'Trading 212', label: 'internal', category: 'ISA withdrawal', direction: 'in' } } }]);
+    expect(classify({ raw_description: 'Trading 212 Uk Lim', amount_pence: 6000, account: 'Ulster Bank', date: '2026-11-16' }, rules)).toMatchObject({ kind: 'invested', status: 'reviewed' });
+    expect(classify({ raw_description: 'Trading 212', amount_pence: 6000, account: 'Ulster Bank', date: '2026-11-16' }, prepareRules([]))).toMatchObject({ kind: 'invested' });
+  });
+});
+
 describe('whole pence', () => {
   it('goal projections with growth stay in whole pence every month', () => {
     expect(projectGoal({ target: 1000000, saved: 0, monthly: 20000, growthPct: 7 }, '2026-11-25').series.every(Number.isInteger)).toBe(true);

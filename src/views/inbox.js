@@ -7,7 +7,7 @@ import { head, dayLabel, alertLine } from '../ui/parts.js';
 import { updateTransaction, addLearnedRule, enrich } from '../lib/data.js';
 
 const KINDS_OUT = [['kind:transfer', 'Move between my accounts'], ['kind:invested', 'Invested'], ['kind:saved', 'Saved (sinking fund)']];
-const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance)'], ['kind:transfer', 'Move between my accounts']];
+const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance)'], ['kind:invested', 'Taken out of an ISA or investments'], ['kind:transfer', 'Move between my accounts']];
 
 function choiceOptions(ctx, t) {
   const groups = ctx.ref.buckets.map((b) => h('optgroup', { label: t.amount_pence < 0 ? b.name : `Refund: ${b.name}` },

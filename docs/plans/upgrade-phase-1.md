@@ -27,3 +27,7 @@ Done 26 Nov 2026. Real figures are in the private audit report in `data/` (never
 
 ## Needs your approval (not done)
 See the private audit report for the proposed data changes and their effect.
+
+## Applied after review
+- Investing is counted **after withdrawals**: money taken out of an ISA counts against what was invested
+  (imported ISA withdrawals are classified the same way), so savings-rate figures are realistic.

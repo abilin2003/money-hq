@@ -95,7 +95,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
       s.paidBack ? stat('Paid back to you (taken off spending)', formatPence(s.paidBack)) : null,
       s.fromSavings ? stat('Paid from savings (not counted)', formatPence(s.fromSavings)) : null,
       s.owedToYou ? stat('Owed to you', null, h('a', { href: '#people', class: 'tap' }, formatPence(s.owedToYou))) : null,
-      stat('Invested', formatPence(s.invested), null, 'actual'),
+      stat('Invested (after withdrawals)', formatPence(s.invested), null, 'actual'),
       plannedOf('invested') ? stat('Invested in your payday plan', formatPence(plannedOf('invested')), null, 'planned') : null,
       stat('Saved', formatPence(s.saved), null, 'actual'),
       plannedOf('saved') ? stat('Sinking funds in your payday plan', formatPence(plannedOf('saved')), null, 'planned') : null,

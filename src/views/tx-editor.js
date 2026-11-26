@@ -8,7 +8,7 @@ import { updateTransaction, enrich, addPerson, addSplit, removeSplit, settleSpli
 import { decode } from './inbox.js';
 
 const KINDS_OUT = [['kind:transfer', 'Move between my accounts'], ['kind:invested', 'Invested'], ['kind:saved', 'Saved (sinking fund)']];
-const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance, gift)'], ['kind:transfer', 'Move between my accounts']];
+const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance, gift)'], ['kind:invested', 'Taken out of an ISA or investments'], ['kind:transfer', 'Move between my accounts']];
 
 export function choiceSelect(ctx, t, label = 'What is it?') {
   const groups = ctx.ref.buckets.map((b) => h('optgroup', { label: t.amount_pence < 0 ? b.name : `Refund: ${b.name}` },

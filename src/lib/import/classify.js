@@ -80,7 +80,8 @@ export function classify(row, rules) {
   }
   if (payer) {
     if (payer.label === 'unsure') return review(dir === 'out' ? 'spend' : 'repayment', null, 'your payer rule says to check this one');
-    const kind = OLD_KIND[payer.label] || 'spend';
+    // An ISA withdrawal counts against investing (net), not as a plain transfer.
+    const kind = payer.category === 'ISA withdrawal' && dir === 'in' ? 'invested' : OLD_KIND[payer.label] || 'spend';
     const category = kind === 'spend' ? spendCategory(row.raw_description, payer.category).category : null;
     return payer.confirm ? review(kind, category, 'your payer rule (marked "check")') : sure(kind, category, 'your payer rule');
   }
@@ -107,7 +108,7 @@ export function classify(row, rules) {
     const kind = OLD_KIND[best.rule.kind] || 'spend';
     if (dir === 'in' && !best.directional) {
       if (kind === 'spend') return review('refund', spendCategory(row.raw_description, best.rule.category).category, 'money back from a shop: a refund?');
-      if (kind === 'invested') return review('transfer', null, 'money back from an investment account');
+      if (kind === 'invested') return sure('invested', null, 'taken out of an ISA: counts against what you invested');
     }
     if (!(dir === 'out' && ['income', 'repayment', 'saved'].includes(kind))) {
       if (kind !== 'spend') return sure(kind, null, 'a shop rule from your old app');
