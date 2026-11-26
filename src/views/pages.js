@@ -7,7 +7,8 @@ import { txEditor } from './tx-editor.js';
 import { closeCycle, reopenCycle } from '../lib/data.js';
 import { paydaysOf, usualDay } from './state.js';
 import { overviewView } from './overview.js';
-import { historyRows } from './history.js';
+import { readState, periodInfo, periodBar } from './explorer.js';
+import { resolvePeriod } from '../lib/period.js';
 
 export function cyclesFor(ctx) {
   const first = ctx.transactions.map((t) => t.date).sort()[0] || ctx.today;
@@ -50,16 +51,14 @@ export function overviewPage(ctx, rerender, param) {
   return overviewView(ctx, c, { finished: true, actions: [add, closeBtn, imp], notice });
 }
 
-// Analytics → Transactions: any cycle in your history (older, archived lines included), searchable and editable.
+// Analytics → Transactions: every line in the period you've picked (the same selector as Spending), searchable,
+// and each one opens to change it or split it. Older, archived lines are included.
 export function transactionsPage(ctx, param, rerender) {
-  const rows = historyRows(ctx.all);
-  const first = rows.map((t) => t.date).sort()[0] || ctx.today;
-  const cycles = cycleList(paydaysOf(ctx), first, ctx.today, usualDay(ctx));
-  const c = cycles.find((x) => x.start === param) || cycles.find((x) => rows.some((t) => inCycle(t, x))) || cycles[0];
+  const { sel } = readState(ctx, param);
+  const info = periodInfo(ctx);
+  const per = resolvePeriod(sel, info);
   const q = (ctx.txSearch || '').toLowerCase();
-  const list = historyRows(ctx.all).filter((t) => inCycle(t, c) && (!q || `${t.raw_description} ${t.category || ''} ${t.note || ''} ${t.tag || ''}`.toLowerCase().includes(q)));
-  const picker = h('select', { class: 'input', id: 'cycle', 'aria-label': 'Pay cycle', style: { width: 'auto', minWidth: '240px' }, onchange: (e) => { location.hash = `transactions/${e.target.value}`; } },
-    cycles.map((x) => h('option', { value: x.start, selected: x.start === c.start }, `${x.name} cycle (${shortDay(x.start)} to ${shortDay(x.end)})`)));
+  const list = info.rows.filter((t) => t.date >= per.from && t.date <= per.to && (!q || `${t.raw_description} ${t.category || ''} ${t.note || ''} ${t.tag || ''}`.toLowerCase().includes(q)));
   const search = h('input', { class: 'input', type: 'search', value: ctx.txSearch || '', placeholder: 'Search shop, category, note or tag', 'aria-label': 'Search transactions', onchange: (e) => { ctx.txSearch = e.target.value; rerender(); } });
   const groups = new Map();
   for (const t of list) { if (!groups.has(t.date)) groups.set(t.date, []); groups.get(t.date).push(t); }
@@ -68,10 +67,11 @@ export function transactionsPage(ctx, param, rerender) {
     return d;
   };
   return h('div', { class: 'page' },
-    head('Transactions', `${list.length} in the ${c.name} cycle, ${shortDay(c.start)} to ${shortDay(c.end)}. Tap one to change it or split it.`, picker, h('a', { href: '#import', class: 'btn primary tap' }, 'Import statements')),
+    head('Transactions', `${list.length} line${list.length === 1 ? '' : 's'} in ${per.label}${q ? ' matching your search' : ''}. Tap one to change it or split it.`, h('a', { href: '#import', class: 'btn primary tap' }, 'Import statements')),
+    periodBar(ctx, 'transactions', per, info),
     h('div', { class: 'searchbar' }, search),
     h('section', { class: 'card', 'aria-label': 'Transactions' },
-      list.length ? [...groups].map(([date, txs]) => h('div', { class: 'txgroup' }, h('h3', null, dayLabel(date)), txs.map(row))) : h('p', { class: 'muted', style: { margin: 0 } }, q ? 'Nothing matches that search.' : 'No transactions in this cycle yet.')));
+      list.length ? [...groups].map(([date, txs]) => h('div', { class: 'txgroup' }, h('h3', null, dayLabel(date)), txs.map(row))) : h('p', { class: 'muted', style: { margin: 0 } }, q ? 'Nothing matches that search.' : 'No transactions in this period.')));
 }
 
 const COMING = {};

@@ -2,7 +2,7 @@
 // links still work; a section's tab row switches between its pages. Settings and Add sit outside the sections.
 export const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: 'overview', pages: [['overview', 'Overview']] },
-  { id: 'analytics', label: 'Analytics', icon: 'trends', pages: [['spending', 'Spending'], ['trends', 'Trends'], ['history', 'History'], ['transactions', 'Transactions']] },
+  { id: 'analytics', label: 'Analytics', icon: 'trends', pages: [['spending', 'Spending'], ['compare', 'Compare'], ['trends', 'Trends'], ['history', 'History'], ['transactions', 'Transactions']] },
   { id: 'planning', label: 'Planning', icon: 'plan', pages: [['plan', 'Payday plan'], ['budgets', 'Budgets'], ['goals', 'Goals'], ['bills', 'Bills'], ['moneyday', 'Money day']] },
   { id: 'wealth', label: 'Wealth', icon: 'wealth', pages: [['wealth', 'Wealth']] },
   { id: 'activity', label: 'Activity', icon: 'activity', pages: [['inbox', 'Review inbox'], ['people', 'IOUs'], ['import', 'Import']] },

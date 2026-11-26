@@ -30,7 +30,7 @@ export function billDates(bill, cycle) {
 }
 
 const matchKey = (bill) => normKey(bill.match || merchantKey(bill.name));
-const paysBill = (t, bill) => t.amount_pence < 0 && ` ${normKey(t.raw_description)} `.includes(` ${matchKey(bill)} `);
+export const paysBill = (t, bill) => t.amount_pence < 0 && ` ${normKey(t.raw_description)} `.includes(` ${matchKey(bill)} `);
 
 // Every bill date in the cycle, with paid = a matching payment within 10 days either side is already there
 // (banks often charge a few days late: a bill due on the 1st can land on the 9th).

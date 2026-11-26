@@ -19,13 +19,14 @@ export function trendsPage(ctx, rerender) {
   const first = rows.map((t) => t.date).sort()[0] || ctx.today;
   // Complete cycles only (the one you're in isn't finished yet), oldest first, at most 12.
   const all = cycleList(paydaysOf(ctx), first, ctx.today, usualDay(ctx)).filter((c) => c.end < cur.start && c.start >= first); // complete cycles only: finished, and fully inside your records
+  if (ctx.period?.kind === 'last') ctx.trendsCount = ctx.period.n; // picked "last n cycles" on Spending: show the same here
   const n = Math.min(ctx.trendsCount || 6, all.length);
   const cycles = all.slice(0, n).reverse();
   const sums = cycles.map((c) => ({ c, s: summarise(rows.filter((t) => inCycle(t, c)), ctx.splitMap, ctx.settled), txs: rows.filter((t) => inCycle(t, c)) }));
   const labels = cycles.map((c) => `${cycleName(c).slice(0, 3)} ${c.end.slice(2, 4)}`);
 
   const toggle = h('div', { class: 'seg', role: 'group', 'aria-label': 'How many cycles' },
-    [[3, '3 cycles'], [6, '6 cycles'], [12, '12 cycles']].map(([k, l]) => h('button', { type: 'button', 'aria-pressed': String(n === Math.min(k, all.length) && (ctx.trendsCount || 6) === k), onclick: () => { ctx.trendsCount = k; rerender(); } }, l)));
+    [[3, '3 cycles'], [6, '6 cycles'], [12, '12 cycles']].map(([k, l]) => h('button', { type: 'button', 'aria-pressed': String(n === Math.min(k, all.length) && (ctx.trendsCount || 6) === k), onclick: () => { ctx.trendsCount = k; ctx.period = { kind: 'last', n: k }; rerender(); } }, l)));
 
   if (all.length < NEEDS) {
     return h('div', { class: 'page' }, head('Trends'),

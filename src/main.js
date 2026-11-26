@@ -10,6 +10,7 @@ import { shell } from './ui/shell.js';
 import { overviewPage, transactionsPage, placeholderPage } from './views/pages.js';
 import { spendingPage } from './views/spending.js';
 import { billsPage } from './views/bills.js';
+import { comparePage } from './views/compare.js';
 import { inboxPage, waitingLines } from './views/inbox.js';
 import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
@@ -88,6 +89,7 @@ function render() {
     : route === 'trends' ? trendsPage(ctx, render)
     : route === 'spending' ? spendingPage(ctx, param, render)
     : route === 'bills' ? billsPage(ctx, render)
+    : route === 'compare' ? comparePage(ctx, param, render)
     : route === 'people' ? peoplePage(ctx, render)
     : route === 'add' ? addPage(ctx, render)
     : route === 'goals' ? goalsPage(ctx, render)
@@ -103,14 +105,20 @@ function render() {
   main.append(page);
   const y = window.scrollY;
   show(root);
-  if (location.hash === (render.lastHash ?? location.hash)) window.scrollTo(0, y); // stay in place when the same page redraws
-  render.lastHash = location.hash;
+  // Stay in place when the same page redraws, or opens a detail panel or changes period; go to the top on a new page.
+  window.scrollTo(0, route === (render.lastRoute ?? route) ? y : 0);
+  render.lastRoute = route;
   const sub = main.querySelector('.subnav'); const open = sub?.querySelector('[aria-current]'); // phones: keep the open tab in view
   if (open && open.offsetLeft + open.offsetWidth > sub.offsetLeft + sub.clientWidth) sub.scrollLeft = open.offsetLeft - sub.offsetLeft - 12;
   document.title = `${main.querySelector('h1')?.textContent || 'Money HQ'} · Money HQ`;
 }
 
-window.addEventListener('hashchange', () => { window.scrollTo(0, 0); render(); });
+window.addEventListener('hashchange', () => render());
+// Escape closes a detail panel (it's part of the address, so this is the same as pressing its close button).
+window.addEventListener('keydown', (e) => {
+  const wrap = document.querySelector('.panel-wrap');
+  if (e.key === 'Escape' && wrap) location.hash = wrap.dataset.close;
+});
 window.addEventListener('online', () => { if (!ctx) boot(); });
 supabase?.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT' && ctx) boot(); });
 boot();

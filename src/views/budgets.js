@@ -4,9 +4,11 @@ import { h } from '../ui/dom.js';
 import { parsePence } from '../lib/money.js';
 import { head, alertLine } from '../ui/parts.js';
 import { saveSettings, saveCategory } from '../lib/data.js';
+import { DEFAULT_ESSENTIAL } from './explorer.js';
 
 export function budgetsPage(ctx, rerender) {
   const leftover = ctx.ref.settings?.extra?.leftover || {};
+  const essential = ctx.ref.settings?.extra?.essential_buckets || DEFAULT_ESSENTIAL;
   const saveExtra = async (patch, el) => {
     try { ctx.ref.settings = await saveSettings(ctx.ref.settings, patch); rerender(); } catch (err) { alertLine(el, err.message); }
   };
@@ -32,6 +34,7 @@ export function budgetsPage(ctx, rerender) {
     } });
     return h('section', { class: 'card', 'aria-label': b.name },
       h('div', { class: 'ch' }, h('h2', null, h('span', { class: 'dot', style: { background: b.colour, marginRight: '10px' } }), b.name), sel),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: essential.includes(b.name), onchange: (e) => saveExtra({ extra: { essential_buckets: e.target.checked ? [...new Set([...essential, b.name])] : essential.filter((x) => x !== b.name) } }, e.target) }), 'Essential spending (for Analytics)'),
       b.description ? h('p', { class: 'muted small', style: { marginTop: 0 } }, b.description) : null,
       cats.map(catRow), add);
   });
