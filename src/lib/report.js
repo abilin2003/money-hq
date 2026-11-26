@@ -101,7 +101,7 @@ export function buildReport(input) {
   const small = applyFilter(lines, { small: smallLimit });
   const freqShops = group(pays(lines), (l) => l.merchant).filter((g) => g.count >= 3 && g.key !== UNKNOWN_MERCHANT).sort((a, b) => b.count - a.count).slice(0, 5).map((g) => ({ key: g.key, name: shopName(g.lines), count: g.count, pence: g.pence }));
   const conv = (ls) => total(ls.filter((l) => CONVENIENCE.test(l.category)));
-  const topDays = byDay(lines, cycle.start, cycle.end).filter((d) => d.pence > 0).sort((a, b) => b.pence - a.pence).slice(0, 5).map((d) => ({ date: d.key, weekday: weekdayOf(d.key), pence: d.pence, count: d.count, top: shopName(d.lines.filter((l) => l.kind === 'spend').sort((a, b) => b.cost - a.cost).slice(0, 1)) }));
+  const topDays = byDay(lines, cycle.start, cycle.end).filter((d) => d.pence > 0).sort((a, b) => b.pence - a.pence).slice(0, 5).map((d) => ({ date: d.key, weekday: weekdayOf(d.key), pence: d.pence, count: d.count, top: (() => { const l = d.lines.filter((x) => x.kind === 'spend').sort((x, y) => y.cost - x.cost)[0]; return l ? (l.merchant === UNKNOWN_MERCHANT ? l.t.raw_description : shopName([l])) : ''; })() }));
   const spendOnly = (ls) => ls.filter((l) => l.kind !== 'payback'); // money paid back to you isn't a habit
   const changes = prev ? compare(spendOnly(plines), spendOnly(lines), (l) => l.category).filter((r) => Math.abs(r.diff) >= 1000).slice(0, 8).map((r) => {
     const d = decompose(r.linesB, [{ lines: r.linesA, scale: 1 }]);

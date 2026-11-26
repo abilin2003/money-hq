@@ -13,6 +13,7 @@ export const manageTabs = (on) => h('div', { class: 'seg wide manage-tabs', role
   [['manage', 'Categories and rollover'], ['bills', 'Bills']].map(([id, label]) => h('a', { href: `#${id}`, class: 'segl', 'aria-current': on === id ? 'page' : null }, label)));
 
 export function managePage(ctx, rerender) {
+  const phone = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 759px)').matches; // set-up folds away on a phone
   const leftover = ctx.ref.settings?.extra?.leftover || {};
   const essential = ctx.ref.settings?.extra?.essential_buckets || DEFAULT_ESSENTIAL;
   const saveExtra = async (patch, el) => {
@@ -38,8 +39,9 @@ export function managePage(ctx, rerender) {
       if (!name) return;
       try { const saved = await saveCategory({ name, bucket_id: b.id, is_active: true }); ctx.ref.categories = [...ctx.ref.categories, saved]; rerender(); } catch (err) { alertLine(e.target, err.message); }
     } });
-    return h('section', { class: 'card', 'aria-label': b.name },
-      h('div', { class: 'ch' }, h('h2', null, h('span', { class: 'dot', style: { background: b.colour, marginRight: '10px' } }), b.name), sel),
+    return h('details', { class: 'card mcard', open: !phone, 'aria-label': b.name },
+      h('summary', { class: 'ch mcard-sum' }, h('h2', null, h('span', { class: 'dot', style: { background: b.colour, marginRight: '10px' } }), b.name), h('span', { class: 'muted small' }, `${cats.length} categor${cats.length === 1 ? 'y' : 'ies'} · ${(leftover[b.name] || 'sweep') === 'rollover' ? 'rolls over' : 'sweeps'}`)),
+      h('div', { class: 'planrow', style: { gridTemplateColumns: 'minmax(0,1fr) auto' } }, h('span', { class: 'muted small' }, 'Leftover on payday'), sel),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: essential.includes(b.name), onchange: (e) => saveExtra({ extra: { essential_buckets: e.target.checked ? [...new Set([...essential, b.name])] : essential.filter((x) => x !== b.name) } }, e.target) }), 'Essential spending (for Analytics)'),
       b.description ? h('p', { class: 'muted small', style: { marginTop: 0 } }, b.description) : null,
       cats.map(catRow), add);

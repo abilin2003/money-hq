@@ -133,6 +133,7 @@ function render() {
   document.title = `${main.querySelector('h1')?.textContent || 'Money HQ'} · Money HQ`;
   openPanel(root);
   fitChartText(root);
+  phoneHelpers(root, route);
 }
 
 // Charts scale to fit their card, and so does their text: a wide chart in a half-width card (or on a phone) would
@@ -182,6 +183,34 @@ function openPanel(root) {
     if (dy > 90) location.hash = wrap.dataset.close; else sheet.style.transform = '';
   });
 }
+
+// Phone helpers, after each page is drawn:
+// - the section tabs fade at an edge that has more tabs past it, so it's clear the row scrolls;
+// - long pages get a "Jump to" menu of their sections (the report has its own section bar).
+const PHONE = '(max-width: 759px)';
+const JUMP_PAGES = new Set(['spending', 'insights', 'compare', 'trends', 'plan', 'moneyday', 'budgets', 'wealth', 'goals', 'manage', 'transactions']);
+function phoneHelpers(root, route) {
+  if (!matchMedia(PHONE).matches) return;
+  const sub = root.querySelector('.subnav');
+  if (sub) {
+    const edges = () => { sub.classList.toggle('more-left', sub.scrollLeft > 4); sub.classList.toggle('more-right', sub.scrollLeft + sub.clientWidth < sub.scrollWidth - 4); };
+    sub.addEventListener('scroll', edges, { passive: true });
+    edges();
+  }
+  if (!JUMP_PAGES.has(route)) return;
+  const page = root.querySelector('.page');
+  const targets = [...page.querySelectorAll(':scope > section, :scope > div > section, :scope > div > div > section')].filter((s) => s.querySelector('h2') && s.offsetParent);
+  if (targets.length < 5) return;
+  const select = h('select', { class: 'input jump-select', 'aria-label': 'Jump to a section', onchange: (e) => { const t = targets[Number(e.target.value)]; if (t) t.scrollIntoView({ block: 'start' }); e.target.value = ''; } },
+    h('option', { value: '' }, 'Jump to a section…'), targets.map((s, i) => h('option', { value: String(i) }, s.querySelector('h2').textContent.trim())));
+  const after = page.querySelector(':scope > .periodbar') || page.querySelector(':scope > .page-head');
+  if (after) after.after(select); else page.prepend(select);
+}
+// While you type on a phone, the bottom tab bar steps aside so it can't cover the field or the Save button
+// (the on-screen keyboard often pushes fixed bars up over them).
+const isField = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'range'].includes(el.type)));
+document.addEventListener('focusin', (e) => { if (matchMedia(PHONE).matches && isField(e.target)) document.body.classList.add('typing'); });
+document.addEventListener('focusout', () => { setTimeout(() => { if (!isField(document.activeElement)) document.body.classList.remove('typing'); }, 0); });
 
 window.addEventListener('hashchange', () => render());
 // Charts are drawn for the screen size, so redraw when it crosses the phone/laptop width.

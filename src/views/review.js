@@ -65,6 +65,43 @@ export function reportInputs(ctx, c) {
 }
 
 // ---------------------------------------------------------------- the report, drawn
+// The report card: the cycle's main findings in under a minute, before the detail. Everything in it comes from
+// the report's own figures and narrative (so a saved report's card is fixed with it).
+export function reportCard(r) {
+  const s = r.summary;
+  const put = s.saved + s.invested;
+  const overBy = s.budget.total ? s.budget.spent - s.budget.total : null;
+  const change = s.prev ? s.spent - s.prev.spent : null;
+  const observation = r.narrative.better[0] || r.narrative.drivers[0] || r.narrative.wentWell[0] || 'Nothing stood out this cycle.';
+  const chosen = r.review?.improvements?.[0]?.text;
+  const improvement = chosen || r.narrative.suggestions[0]?.text || 'No change suggested by this cycle’s numbers.';
+  const fig = (label, value, sub, cls = '') => h('div', { class: 'rc-fig' }, h('span', { class: 'm-label' }, label), h('span', { class: `rc-v display ${cls}` }, value), sub ? h('span', { class: 'rc-sub' }, sub) : null);
+  return h('section', { class: 'card report-card', id: 'report-card', 'aria-labelledby': 'rc-h' },
+    h('div', { class: 'rc-head' }, h('h2', { id: 'rc-h' }, 'Report card'), h('span', { class: 'muted small' }, `${r.cycle.name} cycle`)),
+    h('div', { class: 'rc-figs' },
+      fig('Total spending', pounds(s.spent), s.fromSavings ? `incl. ${pounds(s.fromSavings)} from savings` : 'all from pay'),
+      fig('Against budget', overBy === null ? 'No budget' : `${pounds(Math.abs(overBy))} ${overBy > 0 ? 'over' : 'under'}`, overBy === null ? null : `${pounds(s.budget.spent)} of ${pounds(s.budget.total)}`, overBy === null ? '' : overBy > 0 ? 'over' : 'good'),
+      fig('Against last cycle', change === null ? '–' : `${change > 0 ? '▲' : change < 0 ? '▼' : ''} ${pounds(Math.abs(change))}`, change === null ? 'no earlier cycle' : `${change > 0 ? 'more' : 'less'} than ${s.prev.name}`, change === null ? '' : change > 0 ? 'over' : 'good'),
+      fig('Saved and invested', `${put < 0 ? '−' : ''}${pounds(Math.abs(put))}`, s.savingsRate === null ? null : `${s.savingsRate}% of income`)),
+    h('div', { class: 'rc-notes' },
+      h('div', null, h('span', { class: 'm-label' }, 'Most important observation'), h('p', null, observation)),
+      h('div', null, h('span', { class: 'm-label' }, chosen ? 'Improvement you chose for next cycle' : 'Main potential improvement'), h('p', null, improvement))));
+}
+
+// Jump to any part of the report (scrolls; the page address stays the same).
+export function reportToc(hasSeven = true) {
+  const go = (id) => () => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    (el.closest('section') || el).scrollIntoView({ block: 'start' });
+    const head = el.tagName === 'H2' ? el : el.querySelector('h2');
+    head?.setAttribute('tabindex', '-1');
+    head?.focus({ preventScroll: true });
+  };
+  const items = [['report-card', 'Report card'], ['rs1', 'Summary'], ['rs2', 'Spending'], ['rs3', 'Budgets'], ['rs4', 'Habits'], ['rs5', 'Savings'], ['rs6', 'Review'], ...(hasSeven ? [['rs7', 'Next cycle']] : [])];
+  return h('nav', { class: 'report-toc no-print', 'aria-label': 'Report sections' }, items.map(([id, label]) => h('button', { type: 'button', onclick: go(id) }, label)));
+}
+
 export function renderReport(ctx, r, sel) {
   const s = r.summary;
   const sec = (n, title, ...kids) => h('section', { class: 'card rsec', 'aria-labelledby': `rs${n}` }, h('h2', { id: `rs${n}` }, h('span', { class: 'rnum' }, String(n)), title), ...kids);
@@ -255,5 +292,5 @@ export function reviewPage(ctx, param, rerender) {
 
   return h('div', { class: 'page report' },
     head(`${c.name} cycle review`, `${shortDay(c.start)} to ${shortDay(c.end)} ${c.end.slice(0, 4)} · ${closed ? 'closed' : c.end >= ctx.today ? 'last day of the cycle' : 'finished, not closed yet'}`, print, h('a', { href: '#reports', class: 'btn tap no-print' }, 'All reports')),
-    banners, renderReport(ctx, r, sel), seven);
+    banners, reportToc(Boolean(seven)), reportCard(r), renderReport(ctx, r, sel), seven);
 }

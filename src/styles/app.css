@@ -833,3 +833,59 @@ body { font-variant-numeric: tabular-nums; }
 /* Clickable rows say so: pointer, a soft highlight, and the same focus ring as everything else. */
 a.crow, a.crow4, a.bva, a.chg, a.cmp-row, a.pline, a.rrow, a.bk2, .tx-mini a { cursor: pointer; transition: background-color 0.12s ease; }
 a.crow:focus-visible, a.crow4:focus-visible, a.bva:focus-visible, a.chg:focus-visible, a.cmp-row:focus-visible, a.pline:focus-visible, a.bk2:focus-visible, .tx-mini a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- Redesign Phase 4: report card, report navigation, print ---- */
+.report-toc { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--border); }
+.report-toc::-webkit-scrollbar { display: none; }
+.report-toc button { flex: none; font: inherit; font-size: 13px; font-weight: 500; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0 14px; min-height: 34px; cursor: pointer; }
+.report-toc button:hover { color: var(--text); border-color: var(--border-strong); }
+.report .rsec, .report-card { scroll-margin-top: 64px; }
+.report-card { border-color: var(--border-strong); padding: 24px 26px; }
+.rc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.rc-head h2 { margin: 0; font-size: 18px; }
+.rc-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+.rc-fig { display: flex; flex-direction: column; gap: 6px; padding: 0 20px; border-left: 1px solid var(--border); min-width: 0; }
+.rc-fig:first-child { padding-left: 0; border-left: 0; }
+.rc-v { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+.rc-sub { color: var(--muted); font-size: 13px; }
+.rc-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; padding-top: 16px; }
+.rc-notes p { margin: 6px 0 0; color: var(--text); font-size: 14.5px; line-height: 1.55; }
+@media (max-width: 759px) {
+  .report-toc { top: 61px; margin: 0 -16px; padding: 8px 16px; }
+  .report .rsec, .report-card { scroll-margin-top: 120px; }
+  .report-card { padding: 18px; }
+  .rc-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 0; }
+  .rc-fig:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .rc-v { font-size: 21px; }
+  .rc-notes { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+}
+@media print {
+  .report-card { border: 1px solid #C3CAD4; break-inside: avoid; }
+  .report h2 { break-after: avoid; }
+  .rtile, .rnote, .rtr, .rc-fig, .rgoal, .rreason { break-inside: avoid; }
+  .report .bar .fill, .report .stack span, .report .dot, .report .rnum { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .report .rsec { padding: 14px 0; border: 0; border-top: 1px solid #D9DEE5; border-radius: 0; }
+  .report .rnum { background: #EEF0FE; color: #3B4BD8; }
+  .report .chart { max-height: 260px; }
+}
+.report h2:focus { outline: none; }
+
+/* ---- Redesign Phase 4: phone navigation helpers ---- */
+.jump-select { font-size: 14px; }
+@media (min-width: 760px) { .jump-select { display: none; } }
+@media (max-width: 759px) {
+  .subnav.more-right { -webkit-mask-image: linear-gradient(to right, #000 80%, transparent); mask-image: linear-gradient(to right, #000 80%, transparent); }
+  .subnav.more-left { -webkit-mask-image: linear-gradient(to left, #000 80%, transparent); mask-image: linear-gradient(to left, #000 80%, transparent); }
+  .subnav.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent); }
+  body.typing .tabbar { display: none; }
+  body.typing .main { padding-bottom: 24px; }
+  body.typing .add-actions { bottom: 0; }
+  .page > section, .page > div > section { scroll-margin-top: 72px; }
+}
+.mcard > summary { list-style: none; cursor: pointer; margin-bottom: 0; }
+.mcard > summary::-webkit-details-marker { display: none; }
+.mcard > summary::after { content: '▾'; color: var(--muted); margin-left: 8px; transition: transform 0.15s ease; }
+.mcard:not([open]) > summary::after { transform: rotate(-90deg); }
+.mcard[open] > summary { margin-bottom: 12px; }
+.mcard-sum h2 { margin: 0; }
+.mcard-sum .muted { margin-left: auto; }
