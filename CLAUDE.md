@@ -31,7 +31,7 @@ Reference designs are in `docs/design/` (Midnight, dark theme).
 - Move data from old backups: `npm run migrate -- --dry-run` first, then `npm run migrate` (asks for my password)
 - Apply the 16 agreed categories (`src/lib/categories.js`) to stored data: `npm run merge-categories` (asks for my password; safe to re-run)
 - Save a payday plan from a private file: `npm run set-plan -- data/plan-YYYY-MM-DD.json`
-- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0006 have been run.
+- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0008 have been run.
 - The previous app lives in `legacy/`: `npm run legacy` (http://localhost:8080) and `npm run test:legacy`.
 - Deploy: `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on push to `main` (needs the two
   `VITE_` values as repository variables, and Pages source set to GitHub Actions).

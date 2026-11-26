@@ -584,3 +584,27 @@ select.input { max-width: 100%; }
   a { color: inherit; text-decoration: none; }
   svg.chart text { fill: #333 !important; }
 }
+
+/* ---- Phase 7 (upgrade): touch, forms and states ---- */
+.error-card { border-left: 3px solid var(--over); }
+.quickcats { margin-bottom: 6px; }
+.crumbs a { display: inline-flex; align-items: center; min-height: 32px; }
+.md-progress a { min-height: 40px; }
+.ins-how summary { min-height: 44px; }
+.panel { transition: transform 0.18s ease-out; }
+/* Phones and tablets: every row you can tap is at least 44px tall. */
+@media (pointer: coarse) {
+  a.crow, .crow4, a.bva, a.chg, a.cmp-row, .rbucket > summary, .crow.sub, a.rrow, a.pline, .linkrow { min-height: 44px; }
+  .chip-btn, .seg button { min-height: 44px; }
+}
+@media (max-width: 759px) {
+  .add-actions { position: sticky; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 3; background: var(--surface); padding: 10px 0 4px; margin: 0 -4px; }
+  .add-actions .btn { flex: 1; }
+  .panel-head { touch-action: none; }
+  .page-head { margin-bottom: 2px; }
+  .card:not(.kpi):not(.tile):not(.periodbar):not(.ins2):not(.strip) { padding: 18px 16px; }
+  .grid-main, .grid-even, .grid2 { gap: 12px; }
+  .page { gap: 12px; }
+}
+/* Side-by-side cards are the same height, so a short card does not leave a gap below it. */
+.grid-even { align-items: stretch; }

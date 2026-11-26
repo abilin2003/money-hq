@@ -14,6 +14,16 @@ export const waitingLines = (all) => historyRows(all).filter((t) => t.status ===
 const KINDS_OUT = [['kind:transfer', 'Move between my accounts'], ['kind:invested', 'Invested'], ['kind:saved', 'Saved (sinking fund)']];
 const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance)'], ['kind:invested', 'Taken out of an ISA or investments'], ['kind:transfer', 'Move between my accounts']];
 
+// One menu for money out and one for money in, built once per page and copied for each row.
+function menuFor(ctx, t, cache) {
+  const key = t.amount_pence < 0 ? 'out' : 'in';
+  if (!cache.has(key)) { const sel = h('select', null, choiceOptions(ctx, { amount_pence: t.amount_pence, kind: null, category_id: null })); cache.set(key, sel); }
+  const select = cache.get(key).cloneNode(true);
+  const want = t.category_id && ['spend', 'refund'].includes(t.kind) ? `cat:${t.category_id}` : `kind:${t.kind}`;
+  select.value = [...select.options].some((o) => o.value === want) ? want : '';
+  return select;
+}
+
 function choiceOptions(ctx, t) {
   const groups = ctx.ref.buckets.map((b) => h('optgroup', { label: t.amount_pence < 0 ? b.name : `Refund: ${b.name}` },
     ctx.ref.categories.filter((c) => c.is_active && c.bucket_id === b.id).map((c) => h('option', { value: `cat:${c.id}`, selected: c.id === t.category_id && ['spend', 'refund'].includes(t.kind) }, c.name))));
@@ -33,9 +43,12 @@ export function inboxPage(ctx, rerender) {
   const current = waiting.filter((t) => !t.archived);
   const older = waiting.filter((t) => t.archived);
 
+  const menus = new Map();
   const card = (t) => {
     const key = merchantKey(t.raw_description) || normKey(t.raw_description);
-    const select = h('select', { class: 'input', 'aria-label': `What is ${t.raw_description}?` }, choiceOptions(ctx, t));
+    const select = menuFor(ctx, t, menus);
+    select.className = 'input';
+    select.setAttribute('aria-label', `What is ${t.raw_description}?`);
     const always = h('input', { type: 'checkbox', id: `al-${t.id}` });
     const approve = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
       const choice = decode(select.value, t.amount_pence);

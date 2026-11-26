@@ -9,7 +9,12 @@ import { head, shortDay, pounds, inCycle, txList, bar } from '../ui/parts.js';
 // The bank's own copy of the fresh-start period is stored, but the live lines are the ones counted,
 // so those archived copies are left out here to avoid counting November twice.
 const OVERLAP = 'overlaps fresh start';
-export const historyRows = (all) => all.filter((t) => !(t.archived && String(t.source || '').includes(OVERLAP)));
+// Worked out once per version of your data (every change makes a new list), since most pages need it.
+const rowsMemo = new WeakMap();
+export const historyRows = (all) => {
+  if (!rowsMemo.has(all)) rowsMemo.set(all, all.filter((t) => !(t.archived && String(t.source || '').includes(OVERLAP))));
+  return rowsMemo.get(all);
+};
 
 export function periods(all, mode, settings, today, paydays = settings?.paydays || []) {
   const rows = historyRows(all);

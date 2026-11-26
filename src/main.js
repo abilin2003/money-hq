@@ -7,6 +7,7 @@ import { dayDiff } from './lib/dates.js';
 import { todayLondon } from './lib/dates.js';
 import { loginScreen, unreachableScreen, notConfiguredScreen } from './auth/screens.js';
 import { shell } from './ui/shell.js';
+import { h } from './ui/dom.js';
 import { overviewPage, transactionsPage, placeholderPage } from './views/pages.js';
 import { spendingPage } from './views/spending.js';
 import { billsPage } from './views/bills.js';
@@ -88,7 +89,9 @@ function render() {
   // An empty address means Overview. #more was the old phone menu; the five sections replace it.
   const route = !hashRoute || hashRoute === 'more' ? 'overview' : hashRoute;
   const { root, main } = shell({ route, email: ctx.email, onSignOut: signOut, inboxCount: ctx.inboxCount });
-  const page = route === 'overview' ? overviewPage(ctx, render, param)
+  let page;
+  try {
+  page = route === 'overview' ? overviewPage(ctx, render, param)
     : route === 'transactions' ? transactionsPage(ctx, param, render)
     : route === 'trends' ? trendsPage(ctx, render)
     : route === 'spending' ? spendingPage(ctx, param, render)
@@ -110,6 +113,15 @@ function render() {
     : route === 'budgets' ? budgetsPage(ctx, param)
     : route === 'manage' ? managePage(ctx, render)
     : placeholderPage(route);
+  } catch (err) {
+    // One page going wrong shouldn't take the app down: say so, and offer a way on. Nothing is saved or changed.
+    console.error(err);
+    page = h('div', { class: 'page' }, h('section', { class: 'card error-card', role: 'alert' },
+      h('h1', { class: 'display', style: { fontSize: '20px', margin: '0 0 8px' } }, 'This page couldn’t be shown'),
+      h('p', { class: 'muted' }, 'Your data is safe: nothing was saved or changed. Try again, or go back to the Overview.'),
+      h('p', { class: 'muted small' }, `Details: ${err.message}`),
+      h('div', { class: 'chips' }, h('button', { class: 'btn primary', type: 'button', onclick: () => render() }, 'Try again'), h('a', { href: '#overview', class: 'btn tap' }, 'Overview'))));
+  }
   main.append(page);
   const y = window.scrollY;
   show(root);
@@ -119,9 +131,67 @@ function render() {
   const sub = main.querySelector('.subnav'); const open = sub?.querySelector('[aria-current]'); // phones: keep the open tab in view
   if (open && open.offsetLeft + open.offsetWidth > sub.offsetLeft + sub.clientWidth) sub.scrollLeft = open.offsetLeft - sub.offsetLeft - 12;
   document.title = `${main.querySelector('h1')?.textContent || 'Money HQ'} · Money HQ`;
+  openPanel(root);
+  fitChartText(root);
+}
+
+// Charts scale to fit their card, and so does their text: a wide chart in a half-width card (or on a phone) would
+// end up with 7px labels. After drawing, any chart that's been shrunk gets its text enlarged back to about 10.5px.
+// A label that would then run off the chart's edge (a wide amount on the axis) is shrunk back just enough to fit.
+// Charts inside a closed section have no width yet, so they're fitted when the section opens.
+function fitChartText(root) {
+  for (const svg of root.querySelectorAll('svg.chart')) {
+    if (svg.dataset.fitted) continue;
+    const vb = Number((svg.getAttribute('viewBox') || '').split(' ')[2]);
+    const w = svg.getBoundingClientRect().width;
+    if (!vb || !w) continue;
+    svg.dataset.fitted = '1';
+    const scale = w / vb;
+    if (scale >= 0.9) continue;
+    const factor = Math.min(1.5, 0.95 / scale);
+    for (const t of svg.querySelectorAll('text')) {
+      const size = Number(t.getAttribute('font-size') || 11) * factor;
+      t.setAttribute('font-size', size.toFixed(1));
+      const b = t.getBBox();
+      const over = Math.max(0, -b.x, b.x + b.width - vb);
+      if (over > 0 && b.width > 0) t.setAttribute('font-size', (size * Math.max(0.6, (b.width - over) / b.width)).toFixed(1));
+      const c = over > 0 ? t.getBBox() : null; // still not fitting: nudge it back inside
+      if (c && c.x + c.width > vb) t.setAttribute('x', Number(t.getAttribute('x')) - (c.x + c.width - vb) - 1);
+      else if (c && c.x < 0) t.setAttribute('x', Number(t.getAttribute('x')) - c.x + 1);
+    }
+  }
+  for (const d of root.querySelectorAll('details:not([open])')) {
+    if (d.querySelector('svg.chart:not([data-fitted])')) d.addEventListener('toggle', () => { if (d.open) fitChartText(d); }, { once: true });
+  }
+}
+
+// A detail panel that has just opened gets keyboard focus (so screen readers and keyboards land in it), and on a
+// phone the sheet can be swiped down to close, like other apps' bottom sheets.
+function openPanel(root) {
+  const wrap = root.querySelector('.panel-wrap');
+  if (!wrap) { render.panelKey = null; return; }
+  const sheet = wrap.querySelector('.panel');
+  if (render.panelKey !== location.hash) { render.panelKey = location.hash; sheet.querySelector('h2')?.setAttribute('tabindex', '-1'); sheet.querySelector('h2')?.focus({ preventScroll: true }); }
+  if (!window.matchMedia?.('(max-width: 759px)').matches) return; // the laptop drawer isn't swiped
+  let startY = null; let dy = 0;
+  const head = sheet.querySelector('.panel-head');
+  head.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; dy = 0; sheet.style.transition = 'none'; }, { passive: true });
+  head.addEventListener('touchmove', (e) => { if (startY === null) return; dy = Math.max(0, e.touches[0].clientY - startY); sheet.style.transform = `translateY(${dy}px)`; }, { passive: true });
+  head.addEventListener('touchend', () => {
+    sheet.style.transition = ''; startY = null;
+    if (dy > 90) location.hash = wrap.dataset.close; else sheet.style.transform = '';
+  });
 }
 
 window.addEventListener('hashchange', () => render());
+// Charts are drawn for the screen size, so redraw when it crosses the phone/laptop width.
+// Not when you're typing or have typed something not yet saved (rotating a phone mid-entry mustn't clear it),
+// and only on pages that have charts.
+window.matchMedia?.('(max-width: 759px)').addEventListener?.('change', () => {
+  const fields = [...document.querySelectorAll('.page input, .page textarea, .page select, .panel input, .panel textarea')];
+  if (fields.includes(document.activeElement) || fields.some((el) => (el.type === 'checkbox' ? el.checked !== el.defaultChecked : el.tagName === 'SELECT' ? false : el.value !== el.defaultValue))) return;
+  if (document.querySelector('.page svg.chart')) render();
+});
 // Escape closes a detail panel (it's part of the address, so this is the same as pressing its close button).
 window.addEventListener('keydown', (e) => {
   const wrap = document.querySelector('.panel-wrap');

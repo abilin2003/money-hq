@@ -96,7 +96,9 @@ export function goalsPage(ctx, rerender) {
 
   return h('div', { class: 'page' },
     head('Goals', ctx.ref.goals.length ? 'How much each goal needs, and when you’ll get there.' : 'Set a goal with a date and Money HQ shows what it needs each payday.'),
-    h('div', { class: 'grid2' }, ctx.ref.goals.map(card)),
+    ctx.ref.goals.length ? h('div', { class: 'grid2' }, ctx.ref.goals.map(card)) : h('section', { class: 'card empty-card' },
+      h('h2', null, 'No goals yet'),
+      h('p', { class: 'muted', style: { margin: 0 } }, 'A goal is a target with a date, like an emergency fund of £3,000 by next December. Link it to the account or pot it’s saved in and Money HQ shows how far along you are, what each payday needs, and when you’ll get there. Add your first one below.')),
     h('section', { class: 'card', 'aria-labelledby': 'ng' }, h('h2', { id: 'ng' }, 'New goal'),
       h('div', { class: 'edit-grid' }, name, target, date, monthly, growth, link, add)));
 }

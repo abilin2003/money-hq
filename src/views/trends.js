@@ -97,7 +97,8 @@ export function trendsPage(ctx, rerender) {
   return h('div', { class: 'page' },
     head('Trends', `The last ${n} complete pay cycles, ${shortDay(cycles[0].start)} to ${shortDay(cycles[cycles.length - 1].end)}.`, toggle),
     stacked,
-    h('div', { class: 'grid-even' }, cats, bridge),
+    bridge,
+    cats,
     h('div', { class: 'grid-even' }, io, rateCard),
     h('div', { class: 'grid-even' }, income, worth),
     ins);
