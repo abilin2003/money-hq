@@ -10,6 +10,14 @@ import { normKey } from './text.js';
 // pace and projection can raise a warning about it.
 // eff: { bucket: { budget, carried, total } }; spent: { bucket: pence }; prevBudgets: { bucket: pence };
 // cycle: { dayNumber, totalDays }; finished: the cycle is over.
+// Last cycle's running total lined up with this cycle, which may be a different length: day d of this cycle is
+// compared with the same share of the way through last cycle, and both end on payday. prevCum: cumulative pence
+// per day of last cycle; days: this cycle's length. Returns one value per day of this cycle.
+export function alignToCycle(prevCum, days) {
+  if (!prevCum?.length || !days) return [];
+  return Array.from({ length: days }, (_, i) => prevCum[Math.max(1, Math.min(prevCum.length, Math.round(((i + 1) * prevCum.length) / days))) - 1]);
+}
+
 // Projections need a few days to go on: before day 4 of a cycle there's no projection or pace warning.
 export const MIN_DAYS_TO_PROJECT = 4;
 export function budgetOverview({ eff, spent, prevBudgets = {}, cycle, finished = false }) {

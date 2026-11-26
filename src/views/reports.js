@@ -58,7 +58,7 @@ export function reportsPage(ctx, param, rerender) {
       h('div', { class: 'rtable' },
         h('div', { class: 'rtr muted small' }, h('span'), h('span', { class: 'r' }, A.name), h('span', { class: 'r' }, B.name), h('span', { class: 'r' }, 'Change')),
         line('Income', ra.income, rb.income), line('Spending', ra.spent, rb.spent, pounds, true), line('Saved', ra.saved, rb.saved), line('Invested', ra.invested, rb.invested),
-        line('Left after spending and saving', ra.net, rb.net), line('Saving + investing rate', ra.savingsRate, rb.savingsRate, (v) => `${v}%`),
+        line('Unspent income', ra.net, rb.net), line('Saving + investing rate', ra.savingsRate, rb.savingsRate, (v) => `${v}%`),
         line('Over budget by', Math.max(0, ra.budget.spent - ra.budget.total), Math.max(0, rb.budget.spent - rb.budget.total), pounds, true),
         line('Payments', A.r.spending.payments, B.r.spending.payments, String, true), line('Small payments', A.r.habits.small.pence, B.r.habits.small.pence, pounds, true),
         line('Takeaway and convenience', A.r.habits.convenience.now, B.r.habits.convenience.now, pounds, true),

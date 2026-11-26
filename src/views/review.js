@@ -118,7 +118,7 @@ export function renderReport(ctx, r, sel) {
       tile('Spending', pounds(s.spent), s.fromSavings ? `incl. ${pounds(s.fromSavings)} from savings` : 'all from pay'),
       tile('Saved', signed(s.saved), 'after withdrawals'),
       tile('Invested', signed(s.invested), 'after withdrawals'),
-      tile('Left after spending and saving', signed(s.net), 'income − spending − saving and investing; not the change in your bank balance', s.net < 0 ? 'over' : 'good'),
+      tile('Unspent income', signed(s.net), 'income − spending − saving and investing; not the change in your bank balance', s.net < 0 ? 'over' : 'good'),
       tile('Saving + investing rate', s.savingsRate === null ? '–' : `${s.savingsRate}%`, s.prev?.savingsRate != null ? `${s.prev.savingsRate}% the cycle before` : null),
       tile('Spending vs budget', s.budget.total ? `${pounds(s.budget.spent)} / ${pounds(s.budget.total)}` : 'No budgets', s.budget.total ? (s.budget.spent > s.budget.total ? `${pounds(s.budget.spent - s.budget.total)} over` : `${pounds(s.budget.total - s.budget.spent)} under`) : null, s.budget.spent > s.budget.total && s.budget.total ? 'over' : ''),
       tile('Against last cycle', s.prev ? diffTxt(s.spent - s.prev.spent) : '–', s.prev ? `spent ${pounds(s.prev.spent)} in ${s.prev.name}` : 'no earlier cycle', s.prev && s.spent > s.prev.spent ? 'over' : 'good')),

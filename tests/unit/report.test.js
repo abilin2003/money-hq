@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { summarise } from '../../src/lib/summary.js';
 import { buildReport, suggestBudgets, needsRefresh, fingerprint, measure } from '../../src/lib/report.js';
-import { spendLines, total } from '../../src/lib/explore.js';
+import { spendLines, total, merchantResolver } from '../../src/lib/explore.js';
 
 let n = 0;
 const t = (date, pence, kind = 'spend', more = {}) => ({ id: `r${n++}`, date, amount_pence: pence, kind, status: 'reviewed', bucket: 'Fun', category: 'Eating out', raw_description: 'Cafe', ...more });
@@ -87,5 +87,16 @@ describe('budget suggestions', () => {
   it('only where the last cycles clearly say so', () => {
     const out = suggestBudgets({ Fun: 14000, Groceries: 9000, Life: 7500 }, [{ Fun: 30000, Groceries: 8000, Life: 2000 }, { Fun: 25000, Groceries: 9500, Life: 3000 }, { Fun: 12000, Groceries: 8500, Life: 1000 }]);
     expect(out.map((x) => [x.bucket, x.to])).toEqual([['Fun', 22500], ['Life', 3000]]);
+  });
+});
+
+describe('most expensive days', () => {
+  it('name a day by its biggest payment: the shop for a bank line, your description for a typed one', () => {
+    const rows = [
+      { id: 'x1', date: '2026-11-03', amount_pence: -4000, kind: 'spend', status: 'reviewed', bucket: 'Fun', category: 'Gifts', raw_description: 'Gift for newborn', source: 'csv', archived: false },
+      { id: 'x2', date: '2026-11-04', amount_pence: -3000, kind: 'spend', status: 'reviewed', bucket: 'Fun', category: 'Eating out', raw_description: 'MCDONALDS 123', source: 'import:revolut' },
+    ];
+    const r = buildReport({ cycle, txs: rows, eff, merchants: merchantResolver(rows) });
+    expect(r.habits.topDays.map((d) => d.top)).toEqual(['Gift for newborn', 'Mcdonalds 123']);
   });
 });

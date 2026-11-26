@@ -39,7 +39,8 @@ export function managePage(ctx, rerender) {
       if (!name) return;
       try { const saved = await saveCategory({ name, bucket_id: b.id, is_active: true }); ctx.ref.categories = [...ctx.ref.categories, saved]; rerender(); } catch (err) { alertLine(e.target, err.message); }
     } });
-    return h('details', { class: 'card mcard', open: !phone, 'aria-label': b.name },
+    const key = `manage:${b.id}`;
+    return h('details', { class: 'card mcard', open: ctx.openCards?.[key] ?? !phone, 'aria-label': b.name, ontoggle: (e) => { (ctx.openCards ||= {})[key] = e.currentTarget.open; } },
       h('summary', { class: 'ch mcard-sum' }, h('h2', null, h('span', { class: 'dot', style: { background: b.colour, marginRight: '10px' } }), b.name), h('span', { class: 'muted small' }, `${cats.length} categor${cats.length === 1 ? 'y' : 'ies'} · ${(leftover[b.name] || 'sweep') === 'rollover' ? 'rolls over' : 'sweeps'}`)),
       h('div', { class: 'planrow', style: { gridTemplateColumns: 'minmax(0,1fr) auto' } }, h('span', { class: 'muted small' }, 'Leftover on payday'), sel),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: essential.includes(b.name), onchange: (e) => saveExtra({ extra: { essential_buckets: e.target.checked ? [...new Set([...essential, b.name])] : essential.filter((x) => x !== b.name) } }, e.target) }), 'Essential spending (for Analytics)'),

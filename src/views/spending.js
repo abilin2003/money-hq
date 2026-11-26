@@ -42,7 +42,7 @@ export function spendingPage(ctx, param, rerender) {
     tile('From savings', pounds(all - pay), 'big buys', go({ savings: true })),
     tile('Money in', pounds(fl.income), null, go({ kind: 'income' })),
     tile('Saved and invested', signed(fl.saved + fl.invested), 'after withdrawals', go({ kind: 'putaway' })),
-    tile('Left after spending and saving', signed(left), 'income − spending − saving; not your bank balance', null));
+    tile('Unspent income', signed(left), 'income − spending − saving; not your bank balance', null));
 
   // ---- spending by category: buckets, each opening into its categories
   const buckets = group(lines, (l) => l.bucket);

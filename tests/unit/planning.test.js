@@ -1,6 +1,6 @@
 // Planning maths: budget overview, plan lines matched to the bank, goal progress and wealth. Made-up data.
 import { describe, it, expect } from 'vitest';
-import { budgetOverview, matchPlanLines, goalProgress, wealthSeries, investmentReturn } from '../../src/lib/planning.js';
+import { budgetOverview, matchPlanLines, goalProgress, wealthSeries, investmentReturn, alignToCycle } from '../../src/lib/planning.js';
 
 describe('budget overview', () => {
   const eff = { Fun: { budget: 10000, carried: 2000, total: 12000 }, Groceries: { budget: 20000, carried: 0, total: 20000 }, Life: { budget: 5000, carried: 0, total: 5000 } };
@@ -70,5 +70,17 @@ describe('wealth', () => {
   it('investment gains are value now minus value then minus money put in since', () => {
     const txs = [{ date: '2026-09-10', amount_pence: -100000, kind: 'invested', status: 'reviewed' }, { date: '2026-10-10', amount_pence: 20000, kind: 'invested', status: 'reviewed' }, { date: '2026-08-10', amount_pence: -50000, kind: 'invested', status: 'reviewed' }];
     expect(investmentReturn(accounts, snaps, txs)).toMatchObject({ known: true, start: 500000, now: 620000, contributed: 80000, gain: 40000, contributedAll: 130000 });
+  });
+});
+
+describe('last cycle lined up with this one', () => {
+  it('compares the same share of the way through cycles of different lengths, ending on the same total', () => {
+    const prev = Array.from({ length: 32 }, (_, i) => (i + 1) * 100); // £1 a day for 32 days
+    const a = alignToCycle(prev, 29);
+    expect(a).toHaveLength(29);
+    expect(a[28]).toBe(3200); // payday to payday: the whole of last cycle
+    expect(a[13]).toBe(prev[Math.round((14 * 32) / 29) - 1]); // day 14 of 29 ~ day 15 of 32
+    expect(alignToCycle(prev.slice(0, 10), 20)[0]).toBe(100); // never before last cycle's first day
+    expect(alignToCycle([], 20)).toEqual([]);
   });
 });

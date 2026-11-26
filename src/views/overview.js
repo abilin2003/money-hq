@@ -20,6 +20,7 @@ import { resolvePeriod } from '../lib/period.js';
 import { shortDay, dayLabel, pounds, bar, inCycle } from '../ui/parts.js';
 import { paceChart } from '../ui/charts.js';
 import { cycleState, cycleFigures, currentCycle, budgetsFor } from './state.js';
+import { MIN_DAYS_TO_PROJECT, alignToCycle } from '../lib/planning.js';
 import { historyRows } from './history.js';
 import { periodInfo, stateHref } from './explorer.js';
 import { insightsFor } from './insights.js';
@@ -65,12 +66,12 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   // Cycles differ in length, so last cycle is lined up by how far through it was: day 10 of a 25-day cycle is
   // compared with the point 40% through last cycle, and both end on payday.
   const prevCum = prevRows.length ? cumulative(dailySpend(prevRows, st.prev, ctx.splitMap, ctx.settled, only), st.prev.totalDays) : null;
-  const lastByDay = prevCum ? Array.from({ length: c.totalDays }, (_, i) => prevCum[Math.max(1, Math.min(prevCum.length, Math.round(((i + 1) * prevCum.length) / c.totalDays))) - 1]) : null;
+  const lastByDay = prevCum ? alignToCycle(prevCum, c.totalDays) : null;
   const lastAtToday = lastByDay ? lastByDay[Math.min(today, lastByDay.length) - 1] : null;
   const nw = netWorth(ctx.ref.accounts, ctx.ref.snapshots || [], ctx.today);
   const p = budgetTotal ? pace(budgetTotal, spentBudgeted, { ...c, dayNumber: today }) : null;
   // A projection only once there's enough of the cycle to go on (4 days or more, with some spending).
-  const projection = !finished && p && today >= 4 && spentBudgeted > 0 ? p.projected : null;
+  const projection = !finished && p && today >= MIN_DAYS_TO_PROJECT && spentBudgeted > 0 ? p.projected : null;
 
   // ---- 1. header
   const header = h('header', { class: 'ov-head' },
@@ -200,14 +201,17 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const urgent = alerts.filter((a) => a[0] !== 'info').length;
   const attentionCol = h('div', { class: `ctl-col ctl-attn ${urgent ? '' : 'is-calm'}`, 'aria-labelledby': 'oa-h', role: 'region' },
     h('div', { class: 'sec-head small-head' }, h('h2', { id: 'oa-h' }, 'Needs attention'), urgent ? h('span', { class: 'badge' }, String(urgent)) : null),
-    alerts.length ? h('ul', { class: 'attn-list' }, alerts.slice(0, 5).map(([lvl, title, href, link]) => h('li', { class: `attn lv-${lvl}` }, h('span', { class: 'attn-dot', 'aria-hidden': 'true' }), h('span', { class: 'attn-t' }, title), h('a', { href, class: 'sec-link' }, `${link} →`))))
+    alerts.length ? h('ul', { class: 'attn-list' }, alerts.map(([lvl, title, href, link]) => h('li', { class: `attn lv-${lvl}` }, h('span', { class: 'attn-dot', 'aria-hidden': 'true' }), h('span', { class: 'attn-t' }, title), h('a', { href, class: 'sec-link' }, `${link} →`))))
       : h('p', { class: 'all-clear' }, '✓ All clear for now.'));
   const control = h('section', { class: 'ov-control', 'aria-label': 'Financial control' }, bucketsCol, recentCol, attentionCol);
 
   // ---- 5. insights: the two most useful, each linked to its payments
   const info = periodInfo(ctx);
   const per = resolvePeriod(c.start === currentCycle(ctx).start ? { kind: 'current' } : { kind: 'cycle', start: c.start }, info);
-  const found = insightsFor(ctx, per, info).slice(0, 2);
+  // The most important insight, then the next one about something else (not two 'Unusual…' in a row).
+  const all = insightsFor(ctx, per, info);
+  const kindOf = (i) => i.id.split('-')[0];
+  const found = all.length ? [all[0], all.find((i) => kindOf(i) !== kindOf(all[0]))].filter(Boolean) : [];
   const insightsSec = found.length ? h('section', { class: 'ov-insights2', 'aria-labelledby': 'oi-h' },
     h('div', { class: 'sec-head' }, h('h2', { id: 'oi-h' }, 'Insights'), h('a', { href: stateHref('insights', per.sel), class: 'sec-link' }, 'All insights →')),
     h('div', { class: 'ins-pair' }, found.map((i) => h('article', { class: `ins-line lv-${i.level}` },

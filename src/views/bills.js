@@ -36,7 +36,7 @@ export function billsPage(ctx, rerender) {
     soon.length ? h('section', { class: 'card', 'aria-labelledby': 'bn' },
       h('h2', { id: 'bn' }, 'Coming up'),
       soon.map((b) => h('div', { class: 'billrow' }, h('span', { class: b.date === ctx.today ? 'today' : 'muted' }, b.date === ctx.today ? 'Today' : shortDay(b.date)), h('span', null, b.name), h('span', { class: 'r' }, formatPence(b.amount_pence))))) : null,
-    h('details', { class: 'card mcard', open: !(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 759px)').matches), 'aria-labelledby': 'bl' },
+    h('details', { class: 'card mcard', open: ctx.openCards?.bills ?? !(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 759px)').matches), 'aria-labelledby': 'bl', ontoggle: (e) => { (ctx.openCards ||= {}).bills = e.currentTarget.open; } },
       h('summary', { class: 'ch mcard-sum' }, h('h2', { id: 'bl' }, 'Your bills'), h('span', { class: 'muted small' }, `${(ctx.ref.bills || []).length} to edit`)),
       h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Name, amount, next date, and the words in the bank line that show it’s been paid.'),
       bills.length ? bills : h('p', { class: 'muted' }, 'No bills yet.'),
