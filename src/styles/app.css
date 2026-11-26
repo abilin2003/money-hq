@@ -828,3 +828,23 @@ a.crow:focus-visible, a.crow4:focus-visible, a.bva:focus-visible, a.chg:focus-vi
 /* Review inbox: Not sure and Approve side by side */
 .inbox-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .inbox-btns .btn { flex: 1 1 auto; }
+
+/* Review inbox: questions and "Explain in my own words" */
+.inbox-q { margin-top: 4px; font-size: 13px; color: var(--warning); }
+.inbox-explain { grid-column: 1 / -1; }
+.explain-toggle { font-size: 13px; padding: 0; }
+.explain { margin-top: 4px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, rgba(255,255,255,0.02)); }
+.explain textarea { width: 100%; min-height: 72px; resize: vertical; font: inherit; }
+.explain-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.u-title { margin: 0 0 2px; font-weight: 600; }
+.u-orig { margin: 0 0 8px; }
+.u-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 0.8fr); gap: 4px 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+.u-label { font-size: 13px; color: var(--muted); }
+.u-row .input { width: 100%; }
+.u-list { display: flex; flex-direction: column; gap: 4px; }
+.u-questions { margin: 8px 0 0; padding-left: 18px; color: var(--warning); font-size: 13px; }
+@media (max-width: 759px) {
+  .u-row { grid-template-columns: 1fr; }
+  .u-why { margin-top: -2px; }
+  .explain-btns .btn { flex: 1 1 auto; }
+}

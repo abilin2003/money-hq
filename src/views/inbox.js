@@ -6,6 +6,8 @@ import { merchantKey, normKey } from '../lib/text.js';
 import { head, dayLabel, alertLine } from '../ui/parts.js';
 import { updateTransaction, addLearnedRule, enrich } from '../lib/data.js';
 import { historyRows } from './history.js';
+import { explainPanel } from './explain.js';
+import { vocabFrom } from '../lib/interpret.js';
 
 // Everything still undecided: current lines and older (archived) history, minus the bank's duplicate copy of
 // the fresh-start month. Newest first.
@@ -54,6 +56,7 @@ export function inboxPage(ctx, rerender) {
   const older = waiting.filter((t) => t.archived);
 
   const menus = new Map();
+  const vocab = vocabFrom(ctx);
   const card = (t) => {
     const key = merchantKey(t.raw_description) || normKey(t.raw_description);
     const select = menuFor(ctx, t, menus);
@@ -90,15 +93,20 @@ export function inboxPage(ctx, rerender) {
     };
     const approve = h('button', { class: 'btn primary', type: 'button', onclick: () => decide(approve, false) }, 'Approve');
     const notSure = h('button', { class: 'btn', type: 'button', title: t.amount_pence < 0 ? 'Counts it as Miscellaneous spending, marked “Not sure what this was”' : 'Not counted as income, marked “Not sure what this was”', onclick: () => decide(notSure, true) }, 'Not sure');
+    // A question Money HQ left in the note is shown as the card's question; any other note as a detail.
+    const question = /^Question:/.test(t.note || '') ? t.note.replace(/^Question:\s*/, '') : null;
+    const ex = explainPanel(ctx, t, { waiting, vocab, rerender, extras: ctx.explainExtras || [] });
     return h('div', { class: 'inbox-row' },
       h('div', { class: 'inbox-what' },
         h('span', { class: 'desc' }, t.raw_description || '(no description)'),
-        h('span', { class: 'muted small' }, `${dayLabel(t.date)} · ${t.accountName}${t.note ? ` · ${t.note}` : ''}`)),
+        h('span', { class: 'muted small' }, `${dayLabel(t.date)} · ${t.accountName}${t.note && !question ? ` · ${t.note}` : ''}`),
+        question ? h('span', { class: 'inbox-q' }, question) : null),
       h('span', { class: `amt${t.amount_pence > 0 ? ' in' : ''}` }, `${t.amount_pence > 0 ? '+' : ''}${formatPence(Math.abs(t.amount_pence))}`),
       h('div', { class: 'inbox-act' },
         select,
         key ? h('label', { class: 'check', for: `al-${t.id}` }, always, `Always do this for “${key}”`) : null,
-        h('div', { class: 'inbox-btns' }, notSure, approve)));
+        h('div', { class: 'inbox-btns' }, notSure, approve)),
+      h('div', { class: 'inbox-explain' }, ex.toggle, ex.panel));
   };
 
   return h('div', { class: 'page' },
