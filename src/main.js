@@ -8,7 +8,7 @@ import { todayLondon } from './lib/dates.js';
 import { loginScreen, unreachableScreen, notConfiguredScreen } from './auth/screens.js';
 import { shell } from './ui/shell.js';
 import { overviewPage, transactionsPage, morePage, placeholderPage } from './views/pages.js';
-import { inboxPage } from './views/inbox.js';
+import { inboxPage, waitingLines } from './views/inbox.js';
 import { importPage } from './views/import.js';
 import { historyPage } from './views/history.js';
 import { planPage } from './views/plan.js';
@@ -54,7 +54,7 @@ function makeContext(email, ref, all) {
   const c = { email, ref, all, today: todayLondon(), signOut };
   const refresh = () => {
     c.transactions = c.all.filter((t) => !t.archived);
-    c.inboxCount = c.transactions.filter((t) => t.status === 'needs_review').length;
+    c.inboxCount = waitingLines(c.all).length;
     c.splitMap = splitTotals(c.ref.splits || []);
     c.settled = new Set((c.ref.splits || []).map((s) => s.settled_by_transaction_id).filter(Boolean));
     const dateOf = Object.fromEntries(c.all.map((t) => [t.id, t.date]));

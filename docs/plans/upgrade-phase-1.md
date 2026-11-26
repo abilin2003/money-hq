@@ -39,3 +39,5 @@ See the private audit report for the proposed data changes and their effect.
 
 ## Next (Phase 2 candidates)
 - When money arrives from a person, the inbox asks what it was for and offers recent purchases to link it to.
+- **Older undecided lines are in the inbox**, in their own section, so every line in your history can be decided.
+  Once approved they count in History and Trends.

@@ -5,6 +5,11 @@ import { formatPence } from '../lib/money.js';
 import { merchantKey, normKey } from '../lib/text.js';
 import { head, dayLabel, alertLine } from '../ui/parts.js';
 import { updateTransaction, addLearnedRule, enrich } from '../lib/data.js';
+import { historyRows } from './history.js';
+
+// Everything still undecided: current lines and older (archived) history, minus the bank's duplicate copy of
+// the fresh-start month. Newest first.
+export const waitingLines = (all) => historyRows(all).filter((t) => t.status === 'needs_review').sort((a, b) => b.date.localeCompare(a.date));
 
 const KINDS_OUT = [['kind:transfer', 'Move between my accounts'], ['kind:invested', 'Invested'], ['kind:saved', 'Saved (sinking fund)']];
 const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance)'], ['kind:invested', 'Taken out of an ISA or investments'], ['kind:transfer', 'Move between my accounts']];
@@ -24,7 +29,9 @@ export function decode(value, amount_pence) {
 }
 
 export function inboxPage(ctx, rerender) {
-  const waiting = ctx.transactions.filter((t) => t.status === 'needs_review').sort((a, b) => b.date.localeCompare(a.date));
+  const waiting = waitingLines(ctx.all);
+  const current = waiting.filter((t) => !t.archived);
+  const older = waiting.filter((t) => t.archived);
 
   const card = (t) => {
     const key = merchantKey(t.raw_description) || normKey(t.raw_description);
@@ -68,5 +75,9 @@ export function inboxPage(ctx, rerender) {
   return h('div', { class: 'page' },
     head('Review inbox', waiting.length ? `${waiting.length} line${waiting.length === 1 ? '' : 's'} waiting. They aren't counted in any totals until you approve them.` : 'Nothing to review.'),
     h('section', { class: 'card', 'aria-label': 'Lines to review' },
-      waiting.length ? waiting.map(card) : h('p', { class: 'muted', style: { margin: 0 } }, 'The inbox is clear. Import new statements and anything Money HQ isn’t sure about lands here.')));
+      current.length ? current.map(card) : h('p', { class: 'muted', style: { margin: 0 } }, older.length ? 'Nothing new from your latest imports.' : 'The inbox is clear. Import new statements and anything Money HQ isn’t sure about lands here.')),
+    older.length ? h('section', { class: 'card', 'aria-label': 'Older lines to review' },
+      h('h2', null, `From your older records (${older.length})`),
+      h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Lines from before your fresh start that were never decided. Once approved they count in History and Trends.'),
+      older.map(card)) : null);
 }
