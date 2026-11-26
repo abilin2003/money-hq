@@ -28,7 +28,8 @@ function choiceOptions(ctx, t) {
   const groups = ctx.ref.buckets.map((b) => h('optgroup', { label: t.amount_pence < 0 ? b.name : `Refund: ${b.name}` },
     ctx.ref.categories.filter((c) => c.is_active && c.bucket_id === b.id).map((c) => h('option', { value: `cat:${c.id}`, selected: c.id === t.category_id && ['spend', 'refund'].includes(t.kind) }, c.name))));
   const kinds = (t.amount_pence < 0 ? KINDS_OUT : KINDS_IN).map(([v, l]) => h('option', { value: v, selected: v === `kind:${t.kind}` && !t.category_id }, l));
-  return [h('option', { value: '', selected: !t.category_id && !['transfer', 'invested', 'saved', 'income', 'repayment'].includes(t.kind) }, 'Choose…'), h('optgroup', { label: 'Not spending' }, kinds), ...groups];
+  const unsure = h('option', { value: 'unsure' }, t.amount_pence < 0 ? 'Not sure: count it as Miscellaneous spending' : 'Not sure: don’t count it as income');
+  return [h('option', { value: '', selected: !t.category_id && !['transfer', 'invested', 'saved', 'income', 'repayment'].includes(t.kind) }, 'Choose…'), unsure, h('optgroup', { label: 'Not spending' }, kinds), ...groups];
 }
 
 // "cat:<id>" -> spend (or refund for money in) in that category; "kind:transfer" -> that kind, no category.
@@ -36,6 +37,16 @@ export function decode(value, amount_pence) {
   if (value.startsWith('cat:')) return { kind: amount_pence < 0 ? 'spend' : 'refund', category_id: value.slice(4) };
   if (value.startsWith('kind:')) return { kind: value.slice(5), category_id: null };
   return null;
+}
+
+// "Not sure what this is": the line leaves the inbox, marked so you can find it later (search "not sure").
+// Money out still counts as spending (it did leave your account), in Miscellaneous; money in isn't counted as
+// income, so an unknown amount can't make your pay or savings rate look better than it is.
+export const UNSURE_NOTE = 'Not sure what this was';
+export function unsureChoice(t, categories) {
+  const misc = categories.find((c) => c.is_active !== false && /^misc/i.test(c.name));
+  const note = t.note ? (t.note.includes(UNSURE_NOTE) ? t.note : `${UNSURE_NOTE} · ${t.note}`) : UNSURE_NOTE;
+  return t.amount_pence < 0 ? { kind: 'spend', category_id: misc?.id || null, note } : { kind: 'transfer', category_id: null, note };
 }
 
 export function inboxPage(ctx, rerender) {
@@ -51,13 +62,14 @@ export function inboxPage(ctx, rerender) {
     select.setAttribute('aria-label', `What is ${t.raw_description}?`);
     const always = h('input', { type: 'checkbox', id: `al-${t.id}` });
     const approve = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
-      const choice = decode(select.value, t.amount_pence);
-      if (!choice) { alertLine(approve, 'Choose what this is first.'); return; }
+      const unsure = select.value === 'unsure';
+      const choice = unsure ? unsureChoice(t, ctx.ref.categories) : decode(select.value, t.amount_pence);
+      if (!choice) { alertLine(approve, 'Choose what this is first, or pick Not sure.'); return; }
       approve.disabled = true;
       approve.textContent = 'Saving…';
       try {
         const targets = [t];
-        if (always.checked && key) {
+        if (always.checked && key && !unsure) {
           const rule = await addLearnedRule(key, t.amount_pence < 0 ? 'out' : 'in', { kind: choice.kind, category: ctx.ref.categories.find((c) => c.id === choice.category_id)?.name || null });
           ctx.ref.rules.push(rule);
           // The rule also sorts the other waiting lines from the same shop, going the same way.
@@ -86,7 +98,7 @@ export function inboxPage(ctx, rerender) {
   };
 
   return h('div', { class: 'page' },
-    head('Review inbox', waiting.length ? `${waiting.length} line${waiting.length === 1 ? '' : 's'} waiting. They aren't counted in any totals until you approve them.` : 'Nothing to review.'),
+    head('Review inbox', waiting.length ? `${waiting.length} line${waiting.length === 1 ? '' : 's'} waiting. They aren't counted in any totals until you approve them. Don’t know one? Pick “Not sure” and you can change it later from Transactions.` : 'Nothing to review.'),
     ctx.oldIous ? h('section', { class: 'card notice-card' }, h('p', { style: { margin: 0 } }, `Also needs attention: ${ctx.oldIous} IOU${ctx.oldIous === 1 ? '' : 's'} older than 30 days. `, h('a', { href: '#people', class: 'tap' }, 'See who owes you'))) : null,
     h('section', { class: 'card', 'aria-label': 'Lines to review' },
       current.length ? current.map(card) : h('p', { class: 'muted', style: { margin: 0 } }, older.length ? 'Nothing new from your latest imports.' : 'The inbox is clear. Import new statements and anything Money HQ isn’t sure about lands here.')),
