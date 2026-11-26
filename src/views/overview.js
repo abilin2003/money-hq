@@ -7,17 +7,17 @@
 //           bills, the chart, recent lines, then the insight.
 import { h } from '../ui/dom.js';
 import { formatPence } from '../lib/money.js';
-import { pace, cycleList } from '../lib/cycles.js';
+import { pace } from '../lib/cycles.js';
 import { addDays } from '../lib/dates.js';
 import { upcomingBills } from '../lib/budget.js';
-import { summarise } from '../lib/summary.js';
-import { dailySpend, cumulative, insights, netWorth } from '../lib/analytics.js';
-import { head, shortDay, dayLabel, pounds, bar, inCycle, txRow } from '../ui/parts.js';
+import { dailySpend, cumulative, netWorth } from '../lib/analytics.js';
+import { resolvePeriod } from '../lib/period.js';
+import { head, shortDay, dayLabel, pounds, bar, txRow } from '../ui/parts.js';
 import { paceChart } from '../ui/charts.js';
-import { cycleState, cycleFigures, paydaysOf, usualDay } from './state.js';
-import { historyRows } from './history.js';
+import { cycleState, cycleFigures, currentCycle } from './state.js';
+import { periodInfo, stateHref } from './explorer.js';
+import { insightsFor, insightCard } from './insights.js';
 
-const LEVEL = { good: 'var(--good)', watch: 'var(--warning)', act: 'var(--over)', info: 'var(--accent)' };
 
 const heroAmount = (pence) => {
   const [whole, frac] = formatPence(pence).split('.');
@@ -141,16 +141,12 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
       h('div', null, h('p', { style: { margin: 0, fontWeight: 500 } }, title), h('p', { class: 'muted small', style: { margin: '2px 0 0' } }, body), h('a', { href, class: 'tap small' }, link))))
       : h('p', { class: 'muted', style: { margin: 0 } }, 'Nothing needs you right now.'));
 
-  // ---- one insight (the rest are on Trends)
-  const rows = historyRows(ctx.all);
-  const first = rows.map((t) => t.date).sort()[0] || ctx.today;
-  const recent = cycleList(paydaysOf(ctx), first, c.end < ctx.today ? c.end : ctx.today, usualDay(ctx)).slice(0, 6);
-  const sums = recent.map((x) => summarise(rows.filter((t) => inCycle(t, x)), ctx.splitMap, ctx.settled));
-  const avg = sums.length > 1 ? { netSpent: Math.round(sums.slice(1).reduce((a, x) => a + x.netSpent, 0) / (sums.length - 1)) } : null;
-  const top = insights({ now: s, before: st.prevS.count ? st.prevS : null, avg, rows: st.txs, cycle: c, budgets: st.effTotals, safe: finished ? null : safe, funds: ctx.ref.funds })[0];
-  const insight = top ? h('section', { class: 'card insight ov-insight', style: { borderLeftColor: LEVEL[top.level] }, 'aria-label': 'Insight' },
-    h('p', { style: { margin: 0, fontWeight: 600 } }, top.title), h('p', { class: 'muted small', style: { margin: '6px 0 0' } }, top.body),
-    h('p', { style: { margin: '8px 0 0' } }, h('a', { href: '#trends', class: 'tap small' }, 'More in Trends'))) : null;
+  // ---- one insight, the most important for this cycle (all of them are on Analytics → Insights)
+  const info = periodInfo(ctx);
+  const per = resolvePeriod(c.start === currentCycle(ctx).start ? { kind: 'current' } : { kind: 'cycle', start: c.start }, info);
+  const top = insightsFor(ctx, per, info)[0];
+  const insight = top ? h('div', { class: 'ov-insight' }, insightCard(top, stateHref('spending', per.sel, top.filter), { compact: true }),
+    h('p', { class: 'small', style: { margin: '6px 0 0 4px' } }, h('a', { href: stateHref('insights', per.sel), class: 'tap' }, 'All insights'))) : null;
 
   // ---- recent transactions
   const latest = [...st.txs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);

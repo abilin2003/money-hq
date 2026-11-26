@@ -1,6 +1,6 @@
-// Charts, insights, IOUs, goals and net worth. All data here is made up.
+// Charts, IOUs, goals and net worth (insights have their own tests). All data here is made up.
 import { describe, it, expect } from 'vitest';
-import { dailySpend, cumulative, categoryChanges, bridgeSteps, insights, splitTotals, equalShares, peopleBalances, suggestIouMatches, projectGoal, neededMonthly, netWorth, netWorthSeries } from '../../src/lib/analytics.js';
+import { dailySpend, cumulative, categoryChanges, bridgeSteps, splitTotals, equalShares, peopleBalances, suggestIouMatches, projectGoal, neededMonthly, netWorth, netWorthSeries } from '../../src/lib/analytics.js';
 import { summarise } from '../../src/lib/summary.js';
 
 const tx = (id, date, amount_pence, more = {}) => ({ id, date, amount_pence, kind: 'spend', status: 'reviewed', bucket: 'Fun', category: 'Going out', raw_description: 'Test', ...more });
@@ -53,17 +53,6 @@ describe('charts', () => {
     expect(categoryChanges(now, before)).toEqual([{ name: 'Going out', now: 5000, before: 3000, change: 2000 }, { name: 'Groceries', now: 0, before: 1000, change: -1000 }]);
     expect(bridgeSteps(before, now)).toEqual([{ name: 'Fun', delta: 2000 }, { name: 'Groceries', delta: -1000 }]);
   });
-  it('insights never invent reassurance with no spending', () => {
-    const out = insights({ now: summarise([]), before: null, rows: [], cycle, budgets: {} });
-    expect(out[0].body).toMatch(/No spending yet/);
-  });
-  it('insights flag a bucket over budget with the real numbers', () => {
-    const now = summarise([tx('a', '2026-11-01', -20000)]);
-    expect(insights({ now, before: null, rows: [], cycle, budgets: { Fun: 11500 } }).some((i) => i.title === 'Fun is £85 over')).toBe(true);
-  });
-});
-
-describe('goals and net worth', () => {
   it('projects when a goal is reached, and growth is an assumption that shortens it', () => {
     expect(projectGoal({ target: 100000, saved: 40000, monthly: 10000 }, '2026-11-25')).toMatchObject({ months: 6, date: '2027-05-25' });
     expect(projectGoal({ target: 100000, saved: 0, monthly: 0 }, '2026-11-25').months).toBeNull();

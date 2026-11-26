@@ -2,15 +2,17 @@
 // cycles (rule 10); history from your old dashboard counts, so these work straight away.
 import { h } from '../ui/dom.js';
 import { cycleList, cycleName } from '../lib/cycles.js';
-import { summarise, ranked } from '../lib/summary.js';
-import { categoryChanges, bridgeSteps, insights, netWorthSeries } from '../lib/analytics.js';
+import { summarise } from '../lib/summary.js';
+import { categoryChanges, bridgeSteps, netWorthSeries } from '../lib/analytics.js';
+import { resolvePeriod } from '../lib/period.js';
+import { periodInfo, stateHref } from './explorer.js';
+import { insightsFor, insightCard } from './insights.js';
 import { normKey } from '../lib/text.js';
 import { head, shortDay, pounds, bar, inCycle } from '../ui/parts.js';
 import { stackedBars, groupedBars, lineChart, bridgeChart } from '../ui/charts.js';
 import { historyRows } from './history.js';
 import { currentCycle, paydaysOf, usualDay } from './state.js';
 
-const LEVEL = { good: 'var(--good)', watch: 'var(--warning)', act: 'var(--over)', info: 'var(--accent)' };
 const NEEDS = 3;
 
 export function trendsPage(ctx, rerender) {
@@ -85,13 +87,12 @@ export function trendsPage(ctx, rerender) {
     nw.length >= 2 ? lineChart({ labels: nw.map((p) => shortDay(p.date)), series: [{ name: 'Net worth', colour: '#8B9CFF', values: nw.map((p) => p.total) }], label: 'Net worth over time' })
       : h('p', { class: 'muted', style: { margin: 0 } }, nw.length ? 'One set of balances so far. Update them on money day and the line starts here.' : 'Enter your balances on the Wealth page and your net worth line starts here.'));
 
-  // 7. Insight cards across the period
-  const avgS = { netSpent: avg };
-  const cards = insights({ now: last.s, before: prev.s, avg: avgS, rows: last.txs, cycle: last.c, budgets: {}, funds: ctx.ref.funds });
-  const biggestBucket = ranked(last.s.byBucket)[0];
-  if (biggestBucket) cards.unshift({ level: 'info', title: `${biggestBucket[0]} was your biggest bucket`, body: `${pounds(biggestBucket[1])} of ${pounds(last.s.netSpent)} in the ${cycleName(last.c)} cycle.` });
-  const ins = h('section', { 'aria-labelledby': 't8' }, h('h2', { id: 't8', class: 'section-h' }, 'Insights'),
-    h('div', { class: 'insights' }, cards.slice(0, 6).map((i) => h('div', { class: 'card insight', style: { borderLeftColor: LEVEL[i.level] } }, h('p', { style: { margin: 0, fontWeight: 600 } }, i.title), h('p', { class: 'muted small', style: { margin: '6px 0 0' } }, i.body)))));
+  // 7. The most important insights across these cycles (the rest are on Analytics → Insights)
+  const info = periodInfo(ctx);
+  const per = resolvePeriod({ kind: 'last', n: [3, 6, 12].includes(n) ? n : 6 }, info);
+  const found = insightsFor(ctx, per, info);
+  const ins = h('section', { 'aria-labelledby': 't8' }, h('div', { class: 'ch' }, h('h2', { id: 't8', class: 'section-h' }, 'Insights'), h('a', { href: stateHref('insights', per.sel), class: 'tap small' }, `All ${found.length}`)),
+    found.length ? h('div', { class: 'ins-grid' }, found.slice(0, 3).map((i) => insightCard(i, stateHref('spending', per.sel, i.filter), { compact: true }))) : h('p', { class: 'muted' }, 'Nothing stands out across these cycles.'));
 
   return h('div', { class: 'page' },
     head('Trends', `The last ${n} complete pay cycles, ${shortDay(cycles[0].start)} to ${shortDay(cycles[cycles.length - 1].end)}.`, toggle),

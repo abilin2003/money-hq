@@ -44,35 +44,6 @@ export function bridgeSteps(before, now) {
     .filter((s) => s.delta !== 0).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
 
-// Insight cards (kept from the old app): a bold headline, two or three sentences with real numbers.
-// level: good | watch | act | info.
-export function insights({ now, before, avg, rows, cycle, budgets, safe, funds = [] }) {
-  const out = [];
-  const gbp = (p) => `£${Math.round(Math.abs(p) / 100).toLocaleString('en-GB')}`;
-  if (before && before.netSpent > 0 && now.count) {
-    const pct = Math.round(((now.netSpent - before.netSpent) / before.netSpent) * 100);
-    if (Math.abs(pct) >= 10) out.push({ level: pct > 0 ? 'watch' : 'good', title: `Spending ${pct > 0 ? 'up' : 'down'} ${Math.abs(pct)}% on last cycle`, body: `${gbp(now.netSpent)} this cycle against ${gbp(before.netSpent)} last cycle.` });
-  }
-  if (before) {
-    const rise = categoryChanges(now, before).filter((c) => c.change >= 2000).sort((a, b) => b.change - a.change)[0];
-    if (rise) out.push({ level: 'watch', title: `${rise.name} rose by ${gbp(rise.change)}`, body: `${gbp(rise.now)} this cycle against ${gbp(rise.before)} last cycle.` });
-  }
-  const small = rows.filter((t) => t.kind === 'spend' && t.status !== 'needs_review' && -t.amount_pence > 0 && -t.amount_pence < 500);
-  if (small.length >= 8) { const tot = small.reduce((a, t) => a - t.amount_pence, 0); out.push({ level: 'info', title: `Small buys add up: ${gbp(tot)}`, body: `${small.length} purchases under £5 in this period. None matters alone; together they're ${gbp(tot)}.` }); }
-  const drinks = rows.filter((t) => t.kind === 'spend' && /energy|monster|red bull|snacks/i.test(t.category || ''));
-  if (drinks.length >= 5) { const tot = drinks.reduce((a, t) => a - t.amount_pence, 0); out.push({ level: 'info', title: `Snacks and energy drinks: ${gbp(tot)}`, body: `${drinks.length} buys. Halving them would free about ${gbp(tot / 2)} a cycle.` }); }
-  for (const [b, budget] of Object.entries(budgets || {})) {
-    const spent = now.byBucket[b] || 0;
-    if (budget && spent > budget) out.push({ level: spent > budget * 1.5 ? 'act' : 'watch', title: `${b} is ${gbp(spent - budget)} over`, body: `${gbp(spent)} spent against a ${gbp(budget)} budget.` });
-  }
-  if (avg && avg.netSpent > 0 && cycle && now.count) out.push({ level: 'info', title: `Your usual cycle: ${gbp(avg.netSpent)}`, body: `That's the average across your recent pay cycles. This one is at ${gbp(now.netSpent)} so far.` });
-  if (safe && safe.total > 0 && cycle) out.push({ level: 'good', title: `${gbp(safe.total)} is safe to spend`, body: `About ${gbp(safe.perDay)} a day until payday, after bills still due.` });
-  const behind = funds.filter((f) => f.target_pence && f.balance_pence < f.target_pence && f.due_date && dayDiff(cycle?.end || f.due_date, f.due_date) < 60);
-  for (const f of behind.slice(0, 2)) out.push({ level: 'watch', title: `${f.name} needs ${gbp(f.target_pence - f.balance_pence)} more`, body: `Due ${f.due_date}.` });
-  if (!out.length) out.push({ level: 'good', title: 'Nothing stands out', body: now.count ? 'Spending looks steady against your budgets.' : 'No spending yet this cycle.' });
-  return out;
-}
-
 // ---------------------------------------------------------------- splits and IOUs (spec Phase 3)
 
 // Others' shares per transaction: { txId: pence owed to you }.

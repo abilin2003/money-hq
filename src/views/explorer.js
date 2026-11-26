@@ -15,8 +15,8 @@ import { historyRows } from './history.js';
 import { paydaysOf, usualDay } from './state.js';
 
 // Address keys for the filters. Booleans are 1/0.
-const KEYS = { b: 'bucket', c: 'category', m: 'merchant', d: 'day', w: 'week', wd: 'weekday', mo: 'month', r: 'recurring', e: 'essential', sm: 'small', sv: 'savings', k: 'kind' };
-const BOOL = new Set(['r', 'e', 'sv']);
+const KEYS = { b: 'bucket', c: 'category', cs: 'cats', m: 'merchant', we: 'weekend', mn: 'min', d: 'day', w: 'week', wd: 'weekday', mo: 'month', r: 'recurring', e: 'essential', sm: 'small', sv: 'savings', k: 'kind' };
+const BOOL = new Set(['r', 'e', 'sv', 'we']);
 export const DEFAULT_ESSENTIAL = ['Essentials', 'Groceries', 'Fuel'];
 
 export function readState(ctx, param) {
@@ -25,7 +25,7 @@ export function readState(ctx, param) {
   const sel = code ? decodePeriod(code) : (ctx.period || { kind: 'current' });
   ctx.period = sel; // remembered, so every Analytics page opens on the same period
   const f = {};
-  for (const [k, name] of Object.entries(KEYS)) if (q.has(k)) f[name] = BOOL.has(k) ? q.get(k) === '1' : k === 'sm' ? +q.get(k) : q.get(k);
+  for (const [k, name] of Object.entries(KEYS)) if (q.has(k)) f[name] = BOOL.has(k) ? q.get(k) === '1' : ['sm', 'mn'].includes(k) ? +q.get(k) : q.get(k);
   return { sel, f, tx: q.get('t'), q };
 }
 
@@ -89,11 +89,14 @@ export function filterLabel(name, v) {
   if (name === 'recurring') return v ? 'Recurring' : 'One-off';
   if (name === 'essential') return v ? 'Essential' : 'Discretionary';
   if (name === 'small') return `Under ${pounds(v)}`;
+  if (name === 'min') return `${pounds(v)} or more`;
+  if (name === 'weekend') return v ? 'Weekends' : 'Weekdays';
+  if (name === 'cats') return String(v).split('|').join(', ');
   if (name === 'savings') return v ? 'Paid from savings' : 'Paid from pay';
   if (name === 'kind') return { income: 'Money in', saved: 'Saved', invested: 'Invested', putaway: 'Saved and invested' }[v] || v;
   return v;
 }
-const ORDER = ['kind', 'savings', 'essential', 'recurring', 'small', 'month', 'week', 'weekday', 'day', 'bucket', 'category', 'merchant'];
+const ORDER = ['kind', 'savings', 'essential', 'recurring', 'small', 'min', 'month', 'week', 'weekend', 'weekday', 'day', 'bucket', 'cats', 'category', 'merchant'];
 
 // One spending line in a panel: date, shop, category, your share. Tapping it opens the transaction.
 export function lineRow(l, href) {

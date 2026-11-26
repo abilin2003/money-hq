@@ -62,11 +62,15 @@ export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const weekdayOf = (iso) => WEEKDAYS[(weekday(iso) + 6) % 7];
 
 // Filters: one place that decides which lines a click means, so a panel's lines always add up to the number clicked.
-// f: { bucket, category, merchant, day, week, weekday, month, recurring: true|false, essential: true|false,
-//      small: pence, savings: true|false }
+// f: { bucket, category, cats: 'A|B', merchant, day, week, weekday, weekend: true|false, month,
+//      recurring: true|false, essential: true|false, small: pence (payments under), min: pence (payments of at least),
+//      savings: true|false }
 export function applyFilter(lines, f = {}, ctx = {}) {
   return lines.filter((l) => (f.bucket === undefined || l.bucket === f.bucket)
     && (f.category === undefined || l.category === f.category)
+    && (f.cats === undefined || String(f.cats).split('|').includes(l.category))
+    && (f.weekend === undefined || ['Sat', 'Sun'].includes(weekdayOf(l.date)) === f.weekend)
+    && (f.min === undefined || (l.kind === 'spend' && l.cost >= f.min))
     && (f.merchant === undefined || l.merchant === f.merchant)
     && (f.day === undefined || l.date === f.day)
     && (f.week === undefined || weekStart(l.date) === f.week)
