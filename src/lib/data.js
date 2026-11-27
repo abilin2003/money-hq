@@ -16,7 +16,7 @@ async function all(build, what) {
   }
 }
 
-const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, tag, kind, status, archived, source, fingerprint, account_id, category_id, transfer_pair_id, from_savings, fund_id, bank, review, legacy';
+const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, tag, kind, status, archived, source, fingerprint, account_id, category_id, transfer_pair_id, from_savings, fund_id, bank, review, import_batch_id, legacy';
 
 // Everything the app needs, loaded once after sign-in. Names are joined in here rather than in every query.
 export async function loadEverything() {
@@ -53,9 +53,16 @@ export function enrich(t, ref) {
 
 // Saves new imported rows (already checked for duplicates) and links transfer pairs.
 // rows: [{ id, account_id, date, amount_pence, raw_description, note, kind, status, category_id, fingerprint, source, pairId }]
-export async function saveImport(rows, batch) {
-  const b = must(await supabase.from('import_batches').insert(batch).select('id').single(), 'save the import');
-  const clean = rows.map(({ pairId, ...r }) => ({ ...r, import_batch_id: b.id }));
+// Every import is kept in the history, even one that added nothing new (it still verified or checked lines).
+const BATCH_COLUMNS = 'id, file_name, imported_at, row_count, new_count, duplicate_count, details';
+export async function createImportBatch(batch) {
+  return must(await supabase.from('import_batches').insert(batch).select(BATCH_COLUMNS).single(), 'save the import');
+}
+export async function loadImportBatches() {
+  return must(await supabase.from('import_batches').select(BATCH_COLUMNS).order('imported_at', { ascending: false }).limit(200), 'load the import history');
+}
+export async function saveImport(rows, batchId) {
+  const clean = rows.map(({ pairId, ...r }) => ({ ...r, import_batch_id: batchId }));
   const saved = [];
   for (let i = 0; i < clean.length; i += 500) {
     saved.push(...must(await supabase.from('transactions').upsert(clean.slice(i, i + 500), { onConflict: 'user_id,fingerprint', ignoreDuplicates: true }).select(TX_COLUMNS), 'save transactions'));

@@ -904,3 +904,16 @@ a.crow:focus-visible, a.crow4:focus-visible, a.bva:focus-visible, a.chg:focus-vi
 .repay-form { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
 .repay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px 10px; }
 .repay-grid .input { width: 100%; }
+
+/* Import: statement coverage and history */
+.cov-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+.cov-row:first-child { border-top: 0; }
+.cov-name { font-weight: 500; }
+.cov-status { text-align: right; }
+.hist > summary, .hist-item > summary { cursor: pointer; padding: 8px 0; }
+.hist-item { border-top: 1px solid var(--border); }
+.hist-item .stats { margin: 4px 0 10px; }
+@media (max-width: 759px) {
+  .cov-row { grid-template-columns: 1fr; }
+  .cov-status { text-align: left; }
+}

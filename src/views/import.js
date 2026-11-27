@@ -4,7 +4,8 @@ import { h } from '../ui/dom.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
 import { buildImportPlan, bankRecord } from '../lib/import/plan.js';
 import { prepareRules } from '../lib/import/classify.js';
-import { saveImport, enrich, updateTransaction } from '../lib/data.js';
+import { saveImport, enrich, updateTransaction, createImportBatch, loadImportBatches } from '../lib/data.js';
+import { accountCoverage, batchSummary } from '../lib/coverage.js';
 
 const BANK_NAME = { ulster: 'Ulster Bank', revolut: 'Revolut statement', 'revolut-app': 'Revolut app export', monzo: 'Monzo', list: 'Your own list' };
 
@@ -30,17 +31,22 @@ export function importPage(ctx, rerender) {
     for (const r of fresh) r.id = crypto.randomUUID();
     const missing = [...new Set(fresh.filter((r) => !accountId[r.account]).map((r) => r.account))];
     if (missing.length) throw new Error(`These accounts aren't set up yet: ${missing.join(', ')}.`);
+    // The import is recorded first (files, the dates each covers, what happened), so every line can point to it.
+    const names = plan.files.filter((f) => !f.error).map((f) => f.name).join(', ');
+    const batch = await createImportBatch({ file_name: names.slice(0, 500) || 'statement', account_id: null, row_count: plan.rows.length, new_count: fresh.length, duplicate_count: plan.counts.duplicates,
+      details: { files: plan.files.filter((f) => !f.error).map((f) => ({ name: f.name, bank: f.bank, account: f.account, from: f.from, to: f.to, period_from: f.period_from || null, period_to: f.period_to || null, rows: f.rows })), counts: plan.counts } });
+    const record = (r) => ({ ...bankRecord(r, r.file, now), batch_id: batch.id });
     const rows = fresh.map((r) => ({
       id: r.id, account_id: accountId[r.account], date: r.date, amount_pence: r.amount_pence, raw_description: r.raw_description,
       note: r.note || null, kind: r.kind, status: r.status, category_id: r.category ? categoryId[r.category] || null : null,
       fingerprint: r.fingerprint, source: `import:${plan.files.find((f) => f.name === r.file)?.bank || 'file'}`, pairId: r.pairWith?.id || null,
-      bank: bankRecord(r, r.file, now), review: r.review, // every new line waits in the inbox, with the bank's own record kept
+      bank: record(r), review: r.review, // every new line waits in the inbox, with the bank's own record kept
     }));
-    const names = plan.files.filter((f) => !f.error).map((f) => f.name).join(', ');
-    const saved = rows.length ? await saveImport(rows, { file_name: names.slice(0, 500), account_id: null, row_count: plan.rows.length, new_count: rows.length, duplicate_count: plan.counts.duplicates }) : [];
+    const saved = rows.length ? await saveImport(rows, batch.id) : [];
+    ctx.importBatches = [batch, ...(ctx.importBatches || [])];
     for (const t of saved) ctx.add(enrich(t, ctx.ref));
     // Lines that clearly match your own entries: the bank's record is attached, nothing else about them changes.
-    for (const l of plan.links) ctx.replace(enrich(await updateTransaction(l.id, { bank: bankRecord(l.row, l.row.file, now) }), ctx.ref));
+    for (const l of plan.links) ctx.replace(enrich(await updateTransaction(l.id, { bank: record(l.row) }), ctx.ref));
     // Your entries the statement doesn't have: asked about in the inbox (your note is left as it is).
     for (const c of plan.checks) ctx.replace(enrich(await updateTransaction(c.id, { status: 'needs_review', review: c.review }), ctx.ref));
     state.done = { added: saved.length, linked: plan.links.length, checked: plan.checks.length };
@@ -90,5 +96,44 @@ export function importPage(ctx, rerender) {
       h('div', { style: { display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' } }, btn,
         h('button', { class: 'btn', type: 'button', onclick: () => { state.plan = null; rerender(); } }, 'Cancel'))));
   }
+  out.push(...coverageAndHistory(ctx, rerender));
   return h('div', { class: 'page' }, out);
+}
+
+// ---- Statement coverage (per account) and the import history, below the importer
+const day = (iso) => (iso ? shortDay(iso.slice(0, 10)) : '–');
+function coverageAndHistory(ctx, rerender) {
+  if (ctx.importBatches === undefined) {
+    ctx.importBatches = null; // loading
+    loadImportBatches().then((b) => { ctx.importBatches = b; rerender(); }).catch(() => { ctx.importBatches = []; rerender(); });
+  }
+  const batches = ctx.importBatches || [];
+  const rows = accountCoverage(ctx.ref.accounts.filter((a) => a.is_active !== false && ['current', 'credit_card', 'savings'].includes(a.type)), batches, ctx.transactions);
+  const cov = h('section', { class: 'card', 'aria-labelledby': 'cov' },
+    h('h2', { id: 'cov' }, 'Statement coverage'),
+    h('p', { class: 'muted small', style: { marginTop: 0 } }, 'How far your imported statements reach for each account, next to what you’ve typed. A statement only shows its first to last transaction: days in between aren’t assumed covered.'),
+    rows.length ? h('div', { class: 'cov-list' }, rows.map((r) => h('div', { class: 'cov-row' },
+      h('span', { class: 'cov-name' }, r.name),
+      h('span', { class: 'small' }, r.importedTo ? `Statements reach ${day(r.importedTo)}${r.periodKnown ? '' : ' (latest transaction)'}` : 'No statement imported yet', h('br'),
+        h('span', { class: 'muted' }, `Last import ${r.lastImport ? day(r.lastImport) : '–'} · your latest entry ${day(r.latestManual)}`)),
+      h('span', { class: `small cov-status ${r.status === 'reconciled' ? 'good' : r.pending ? 'warn' : 'muted'}` }, r.pending ? h('a', { href: '#inbox' }, r.status) : r.status))))
+      : h('p', { class: 'muted', style: { margin: 0 } }, ctx.importBatches === null ? 'Loading…' : 'Nothing yet.'));
+  const hist = h('section', { class: 'card', 'aria-labelledby': 'hist' },
+    h('h2', { id: 'hist' }, 'Import history'),
+    !batches.length ? h('p', { class: 'muted', style: { margin: 0 } }, ctx.importBatches === null ? 'Loading…' : 'No imports yet. Each one you make is listed here.')
+      : h('details', { class: 'hist' }, h('summary', null, `${batches.length} import${batches.length === 1 ? '' : 's'}, latest ${day(batches[0].imported_at)}`),
+        batches.map((b) => {
+          const s = batchSummary(b, ctx.all);
+          const files = b.details?.files || [];
+          return h('details', { class: 'hist-item' },
+            h('summary', null, h('span', null, `${day(b.imported_at)} · ${b.file_name}`), h('span', { class: 'muted small' }, ` ${s.matched} matched · ${s.added} added (${s.pending} waiting, ${s.approved} approved) · ${s.duplicates} already had`)),
+            h('div', { class: 'stats' },
+              files.map((f) => h('div', null, h('span', { class: 'muted' }, `${f.name} (${f.account || BANK_NAME[f.bank] || f.bank})`), h('span', null, `${day(f.from)} to ${day(f.to)}, ${f.rows} lines`))),
+              h('div', null, h('span', { class: 'muted' }, 'Matched to your entries (verified)'), h('span', null, String(s.matched))),
+              h('div', null, h('span', { class: 'muted' }, 'Added, still waiting in the inbox'), h('span', null, String(s.pending))),
+              h('div', null, h('span', { class: 'muted' }, 'Added and since approved'), h('span', null, String(s.approved))),
+              h('div', null, h('span', { class: 'muted' }, 'Possible matches when imported'), h('span', null, String(s.uncertain))),
+              h('div', null, h('span', { class: 'muted' }, 'Already in Money HQ (skipped)'), h('span', null, String(s.duplicates)))));
+        })));
+  return [cov, hist];
 }
