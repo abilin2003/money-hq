@@ -10,13 +10,17 @@ const lastSnapshot = (accountId, snapshots) => snapshots.filter((s) => s.account
 
 export function balanceNow(account, snapshots, txs, today) {
   const last = lastSnapshot(account.id, snapshots);
-  if (!last) return { status: 'unknown', pence: null, verifiedPence: null, verifiedDate: null, since: 0 };
-  const after = txs.filter((t) => t.account_id === account.id && t.date > last.date);
+  if (!last) return { status: 'unknown', pence: null, verifiedPence: null, verifiedDate: null, since: 0, pending: { count: 0, pence: 0 } };
+  // Only lines you've approved move the balance, each once. Lines waiting in the inbox are reported apart, so
+  // you can see what they'd do without them being counted.
+  const later = txs.filter((t) => t.account_id === account.id && t.date > last.date && !t.archived);
+  const after = later.filter((t) => t.status !== 'needs_review');
+  const waiting = later.filter((t) => t.status === 'needs_review');
   const delta = after.reduce((a, t) => a + t.amount_pence, 0);
   const isCard = account.type === 'credit_card';
   const pence = isCard ? last.balance_pence - delta : last.balance_pence + delta; // a card balance is what you owe
   const status = !after.length && dayDiff(last.date, today) <= FRESH_DAYS ? 'verified' : 'estimated';
-  return { status, pence, verifiedPence: last.balance_pence, verifiedDate: last.date, since: after.length };
+  return { status, pence, verifiedPence: last.balance_pence, verifiedDate: last.date, since: after.length, pending: { count: waiting.length, pence: (isCard ? -1 : 1) * waiting.reduce((a, t) => a + t.amount_pence, 0) } };
 }
 
 // Cash in your current accounts (the money you actually spend from), minus bills still due and the reserve.
@@ -27,7 +31,8 @@ export function cashPosition({ accounts, snapshots, txs, today, billsDue = 0, re
   const missing = rows.filter((r) => r.status === 'unknown').map((r) => r.account);
   if (!rows.length || missing.length) return { status: 'unknown', rows, missing, total: null, available: null };
   const total = rows.reduce((a, r) => a + r.pence, 0);
-  return { status: rows.every((r) => r.status === 'verified') ? 'verified' : 'estimated', rows, missing, total, available: total - billsDue - reserve, oldest: rows.map((r) => r.verifiedDate).sort()[0] };
+  const pending = rows.reduce((a, r) => ({ count: a.count + r.pending.count, pence: a.pence + r.pending.pence }), { count: 0, pence: 0 });
+  return { status: rows.every((r) => r.status === 'verified') ? 'verified' : 'estimated', rows, missing, total, available: total - billsDue - reserve, oldest: rows.map((r) => r.verifiedDate).sort()[0], pending };
 }
 
 // What you owe on a credit card. With a typed-in balance: that, plus purchases since, minus repayments since.
@@ -37,6 +42,9 @@ export function cardOwed(card, snapshots, txs, today) {
   const key = normKey(card.institution || card.name);
   const isRepayment = (t) => (t.account_id !== card.id && t.amount_pence < 0 && t.kind === 'transfer' && key && ` ${normKey(t.raw_description)} `.includes(` ${key} `))
     || (t.account_id === card.id && t.amount_pence > 0 && t.kind !== 'refund');
+  // Lines still waiting in the inbox don't count until you approve them.
+  const approved = txs.filter((t) => t.status !== 'needs_review' && !t.archived);
+  txs = approved;
   const isPurchase = (t) => t.account_id === card.id && t.amount_pence < 0 && t.status !== 'needs_review';
   const last = lastSnapshot(card.id, snapshots);
   if (last) {

@@ -45,11 +45,14 @@ function allowanceSum(safe) {
   if (parts.length < 2) return null;
   return h('p', { class: 'muted small', style: { margin: '2px 0 0' } }, parts.map((l, i) => `${i ? (l.pence < 0 ? ' − ' : ' + ') : ''}${formatPence(Math.abs(l.pence))} ${i ? l.label.toLowerCase() : 'left in your budgets'}`).join(''));
 }
-function cashLine(cash, safe) {
-  if (cash.status === 'unknown') return h('p', { class: 'pos-check' }, kindTag('not verified'), ' From your budgets. Safe-to-spend cash appears once your current-account balances are entered.');
+// Lines still waiting in the inbox aren't in any of these figures yet: say so, so nothing looks more complete
+// than it is.
+const pendingNote = (count) => (count ? h('p', { class: 'pos-check warn' }, `${count} line${count === 1 ? '' : 's'} waiting in your inbox ${count === 1 ? 'isn’t' : 'aren’t'} counted in these figures yet. `, h('a', { href: '#inbox' }, 'Review')) : null);
+function cashLine(cash, safe, waiting = 0) {
+  if (cash.status === 'unknown') return [h('p', { class: 'pos-check' }, kindTag('not verified'), ' From your budgets. Safe-to-spend cash appears once your current-account balances are entered.'), pendingNote(waiting)];
   const safeCash = Math.max(0, Math.min(safe.total, cash.available));
-  return h('p', { class: `pos-check ${cash.available < safe.total ? 'warn' : ''}` }, kindTag(cash.status), ` Safe-to-spend cash: ${formatPence(safeCash)}`,
-    cash.available < safe.total ? ` (your accounts hold ${formatPence(Math.max(0, cash.available))} after bills, less than the allowance)` : ` (your accounts hold ${formatPence(cash.total)})`);
+  return [h('p', { class: `pos-check ${cash.available < safe.total ? 'warn' : ''}` }, kindTag(cash.status), ` Safe-to-spend cash: ${formatPence(safeCash)}`,
+    cash.available < safe.total ? ` (your accounts hold ${formatPence(Math.max(0, cash.available))} after bills, less than the allowance)` : ` (your accounts hold ${formatPence(cash.total)})`), pendingNote(waiting)];
 }
 
 const metric = (label, tag, value, ...rest) => h('div', { class: 'metric' }, h('p', { class: 'm-label' }, label, tag ? kindTag(tag) : null), h('div', { class: 'm-value' }, value), ...rest);
@@ -98,7 +101,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
       h('div', { class: 'pos-figure display' }, money(safe.total)),
       h('p', { class: 'pos-sub' }, `${formatPence(safe.perDay)} a day for ${safe.daysLeft} day${safe.daysLeft === 1 ? '' : 's'}`, safe.short ? h('span', { class: 'over' }, ` · ${pounds(safe.short)} past safe`) : null),
       allowanceSum(safe),
-      cashLine(f.cash, safe));
+      cashLine(f.cash, safe, ctx.inboxCount || 0));
   const spentMetric = budgetTotal
     ? metric('Spent vs budget', 'actual', [h('span', { class: 'fig' }, pounds(spentBudgeted)), h('span', { class: 'm-of' }, ` / ${pounds(budgetTotal)}`)],
       bar(spentBudgeted / budgetTotal, { tick: finished ? null : today / c.totalDays, over: spentBudgeted > budgetTotal, label: `${pounds(spentBudgeted)} of ${pounds(budgetTotal)}` }),

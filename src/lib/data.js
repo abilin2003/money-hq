@@ -163,6 +163,12 @@ export async function addSplit(split) {
 export async function removeSplit(id) {
   must(await supabase.from('splits').delete().eq('id', id), 'remove the split');
 }
+// A part payment of one IOU: that IOU becomes the part paid (settled by txId) and a new IOU holds the rest.
+export async function settlePartOfSplit(split, txId, paid, rest) {
+  const done = must(await supabase.from('splits').update({ amount_pence: paid, settled_by_transaction_id: txId }).eq('id', split.id).select(SPLIT_COLUMNS).single(), 'record the part payment');
+  const left = must(await supabase.from('splits').insert({ transaction_id: split.transaction_id, person_id: split.person_id, amount_pence: rest }).select(SPLIT_COLUMNS).single(), 'keep what is still owed');
+  return [done, left];
+}
 export async function settleSplit(id, txId) {
   return must(await supabase.from('splits').update({ settled_by_transaction_id: txId }).eq('id', id).select(SPLIT_COLUMNS).single(), 'link the repayment');
 }

@@ -113,8 +113,11 @@ export function wealthPage(ctx, rerender) {
     const now = a.type === 'credit_card' ? cardOwed(a, ctx.ref.snapshots, ctx.all, ctx.today) : balanceNow(a, ctx.ref.snapshots, ctx.transactions, ctx.today);
     const status = a.last ? (now.status === 'verified' ? 'verified' : a.stale ? 'stale' : 'verified') : 'not verified';
     const estimate = now.status === 'estimated' && now.pence !== null && (!a.last || now.pence !== Math.abs(a.last.balance_pence)) ? h('span', { class: 'muted small' }, kindTag('estimated'), ` about ${formatPence(Math.abs(now.pence))} ${a.type === 'credit_card' ? 'owed' : 'now'}${now.since && a.last ? `, after ${now.since} line${now.since === 1 ? '' : 's'} since` : a.type === 'credit_card' && now.since ? ` (purchases since ${shortDay(now.since)})` : ''}`) : null;
+    // Lines for this account still waiting in the inbox: not counted in the balance until you approve them.
+    const waiting = balanceNow(a, ctx.ref.snapshots, ctx.transactions, ctx.today).pending;
+    const pendingLine = waiting.count ? h('span', { class: 'small warn' }, `${waiting.count} line${waiting.count === 1 ? '' : 's'} in your inbox (${waiting.pence < 0 ? '−' : '+'}${formatPence(Math.abs(waiting.pence))}) not counted yet`) : null;
     return h('div', { class: 'acctrow' },
-      h('span', null, h('span', { style: { fontWeight: 500 } }, a.name, kindTag(status)), estimate ? [h('br'), estimate] : null, h('br'),
+      h('span', null, h('span', { style: { fontWeight: 500 } }, a.name, kindTag(status)), estimate ? [h('br'), estimate] : null, pendingLine ? [h('br'), pendingLine] : null, h('br'),
         h('span', { class: `small ${a.stale ? 'warn' : 'muted'}` }, `${TYPE[a.type] || a.type}${a.last ? ` · updated ${shortDay(a.last.date)} ${a.last.date.slice(0, 4)} (${ago(a.last.date, ctx.today)})` : ' · no balance yet'}`)),
       h('span', { class: `r ${a.value < 0 ? 'over' : ''}` }, a.value === null ? '–' : signed(a.value)));
   };
