@@ -7,8 +7,8 @@ export function fundSelect(ctx, { fromSavings = false, fundId = null, label = 'P
   const nameOf = (f) => { const a = mirrors[f.id] && ctx.ref.accounts.find((x) => x.id === mirrors[f.id]); return a ? `${f.name} (${a.name})` : f.name; };
   return h('select', { class: 'input', 'aria-label': label },
     h('option', { value: '' }, 'This cycle’s budget'),
-    (ctx.ref.funds || []).map((f) => h('option', { value: f.id, selected: fromSavings && f.id === fundId }, `Savings: ${nameOf(f)}`)),
-    h('option', { value: 'savings', selected: fromSavings && !fundId }, 'Savings (no particular fund)'));
+    (ctx.ref.funds || []).map((f) => h('option', { value: f.id, selected: Boolean(fromSavings) && f.id === fundId }, `Savings: ${nameOf(f)}`)),
+    h('option', { value: 'savings', selected: Boolean(fromSavings) && !fundId }, 'Savings (no particular fund)'));
 }
 
 // What the picker means for the transaction. allowed: only spending can be paid from savings.

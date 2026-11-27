@@ -874,3 +874,28 @@ a.crow:focus-visible, a.crow4:focus-visible, a.bva:focus-visible, a.chg:focus-vi
 /* Review inbox: a statement line that might be one of your entries */
 .inbox-match { grid-column: 1 / -1; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px; }
 .match-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
+
+/* Review inbox: filters, kinds of line, bulk approval */
+.inbox-filter { margin-bottom: 12px; }
+.ibadge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border); color: var(--muted); }
+.ibadge.b-ready { border-color: #24493A; color: var(--good); }
+.ibadge.b-match { border-color: #3A4A7A; color: var(--accent); }
+.ibadge.b-info { border-color: #5A4A24; color: var(--warning); }
+.inbox-row.later { opacity: 0.7; }
+.inbox-pick { margin-right: 8px; width: 18px; height: 18px; vertical-align: -3px; }
+.inbox-quick { gap: 6px; }
+.bulkbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+.bulk-confirm { margin-bottom: 12px; border-color: var(--accent); }
+.bulk-list { list-style: none; margin: 0; padding: 0; }
+.bulk-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.review-edit { grid-column: 1 / -1; }
+@media (max-width: 759px) {
+  .bulk-list li { grid-template-columns: 1fr auto; }
+  .bulk-list li .muted { grid-column: 1 / -1; order: 3; }
+  .inbox-btns .linkbtn { flex: 0 0 auto; }
+}
+.inbox-row.g-ready .inbox-q { color: var(--muted); }
+@media (max-width: 759px) {
+  .seg.inbox-filter { display: grid; grid-template-columns: 1fr 1fr; border-radius: 16px; gap: 4px; }
+  .seg.inbox-filter button { border-radius: 12px; }
+}
