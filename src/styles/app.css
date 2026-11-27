@@ -870,3 +870,7 @@ a.crow:focus-visible, a.crow4:focus-visible, a.bva:focus-visible, a.chg:focus-vi
   .say-grid .field:nth-child(2), .say-grid .field:last-child { grid-column: 1 / -1; }
 }
 .add-close { gap: 6px; }
+
+/* Review inbox: a statement line that might be one of your entries */
+.inbox-match { grid-column: 1 / -1; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px; }
+.match-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }

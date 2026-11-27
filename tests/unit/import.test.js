@@ -84,7 +84,7 @@ describe('import plan', () => {
   it('a bank line matching an entry from your own list (same account and amount, within 3 days) is not added twice', () => {
     const existing = [{ id: 'a', account: 'Ulster Bank', date: '2026-11-01', amount_pence: -1250, fingerprint: 'x', source: 'csv', archived: false }];
     const plan = buildImportPlan([{ name: 'ulster.csv', text: ULSTER }], rules, existing);
-    expect(plan.rows.find((r) => r.amount_pence === -1250).duplicate).toMatch(/already have/);
+    expect(plan.rows.find((r) => r.amount_pence === -1250).duplicate).toMatch(/matches an entry you recorded/);
   });
   it('every imported row is either sorted or in the inbox', () => {
     const plan = buildImportPlan(files, rules, []);

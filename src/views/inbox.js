@@ -3,8 +3,8 @@
 import { h } from '../ui/dom.js';
 import { formatPence } from '../lib/money.js';
 import { merchantKey, normKey } from '../lib/text.js';
-import { head, dayLabel, alertLine } from '../ui/parts.js';
-import { updateTransaction, addLearnedRule, enrich } from '../lib/data.js';
+import { head, dayLabel, alertLine, shortDay } from '../ui/parts.js';
+import { updateTransaction, addLearnedRule, enrich, deleteTransaction } from '../lib/data.js';
 import { historyRows } from './history.js';
 import { explainPanel } from './explain.js';
 import { vocabFrom } from '../lib/interpret.js';
@@ -94,7 +94,8 @@ export function inboxPage(ctx, rerender) {
     const approve = h('button', { class: 'btn primary', type: 'button', onclick: () => decide(approve, false) }, 'Approve');
     const notSure = h('button', { class: 'btn', type: 'button', title: t.amount_pence < 0 ? 'Counts it as Miscellaneous spending, marked “Not sure what this was”' : 'Not counted as income, marked “Not sure what this was”', onclick: () => decide(notSure, true) }, 'Not sure');
     // A question Money HQ left in the note is shown as the card's question; any other note as a detail.
-    const question = /^Question:/.test(t.note || '') ? t.note.replace(/^Question:\s*/, '') : null;
+    // Why it's here: the import's reason, or a question Money HQ left in the note.
+    const question = t.review?.reason || (/^Question:/.test(t.note || '') ? t.note.replace(/^Question:\s*/, '') : null);
     const ex = explainPanel(ctx, t, { waiting, vocab, rerender });
     return h('div', { class: 'inbox-row' },
       h('div', { class: 'inbox-what' },
@@ -106,6 +107,7 @@ export function inboxPage(ctx, rerender) {
         select,
         key ? h('label', { class: 'check', for: `al-${t.id}` }, always, `Always do this for “${key}”`) : null,
         h('div', { class: 'inbox-btns' }, notSure, approve)),
+      t.review?.group === 'match' ? matchChoices(ctx, t, rerender) : null,
       h('div', { class: 'inbox-explain' }, ex.toggle, ex.panel));
   };
 
@@ -118,4 +120,36 @@ export function inboxPage(ctx, rerender) {
       h('h2', null, `From your older records (${older.length})`),
       h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Lines from before your fresh start that were never decided. Once approved they count in History and Trends.'),
       older.map(card)) : null);
+}
+
+// A statement line that might be one of your own entries. "Same as my entry" attaches the bank's record to your
+// entry (your description, category, notes, splits and funds stay as they are; it's marked verified) and removes
+// this pending copy, so the payment is only counted once. Approve above instead if it's a different payment.
+// If the amounts differ you choose which is right.
+export function matchChoices(ctx, t, rerender) {
+  const entries = (t.review.match_ids || []).map((id) => ctx.all.find((x) => x.id === id)).filter((x) => x && !x.bank);
+  if (!entries.length) return h('p', { class: 'muted small inbox-match' }, 'The entry it might match has since been verified or removed: approve this if it’s a separate payment.');
+  const link = async (btn, entry, useStatement) => {
+    btn.disabled = true;
+    try {
+      const patch = { bank: t.bank || null };
+      if (useStatement) patch.amount_pence = t.amount_pence;
+      if (entry.status === 'needs_review' && entry.review?.reason) { patch.status = 'reviewed'; patch.review = null; }
+      ctx.replace(enrich(await updateTransaction(entry.id, patch), ctx.ref));
+      await deleteTransaction(t.id); // the pending copy: never approved, so nothing was counted
+      ctx.all = ctx.all.filter((x) => x.id !== t.id);
+      ctx.refresh();
+      rerender();
+    } catch (err) { btn.disabled = false; alertLine(btn, err.message); }
+  };
+  return h('div', { class: 'inbox-match' },
+    h('p', { class: 'muted small', style: { margin: '0 0 6px' } }, entries.length === 1 ? 'Your entry it might be:' : 'Your entries it might be:'),
+    entries.map((e) => {
+      const same = e.amount_pence === t.amount_pence;
+      const label = `${e.raw_description} · ${formatPence(Math.abs(e.amount_pence))} · ${e.accountName} · ${shortDay(e.date)}${e.category ? ` · ${e.category}` : ''}`;
+      const keep = h('button', { class: 'btn', type: 'button', onclick: () => link(keep, e, false) }, same ? 'Same as my entry' : `Same, keep ${formatPence(Math.abs(e.amount_pence))}`);
+      const use = same ? null : h('button', { class: 'btn', type: 'button', onclick: () => link(use, e, true) }, `Same, use statement’s ${formatPence(Math.abs(t.amount_pence))}`);
+      return h('div', { class: 'match-row' }, h('span', { class: 'small' }, label), h('div', { class: 'inbox-btns' }, keep, use));
+    }),
+    h('p', { class: 'muted small', style: { margin: '6px 0 0' } }, 'Different payment? Approve it above as new.'));
 }

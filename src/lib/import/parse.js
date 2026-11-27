@@ -57,7 +57,8 @@ export function normAccount(text) {
 }
 
 const amt = (v) => { const p = parsePence(v); return p === null ? 0 : p; };
-const make = (account, date, rawDesc, pence, extra = {}) => ({ account, date, raw_description: cleanName(rawDesc) || 'Unknown', amount_pence: pence, ...extra });
+// bankText: the description exactly as the bank wrote it, kept for the audit record (raw_description is tidied).
+const make = (account, date, rawDesc, pence, extra = {}) => ({ account, date, raw_description: cleanName(rawDesc) || 'Unknown', bankText: String(rawDesc ?? '').trim(), amount_pence: pence, ...extra });
 
 // Returns { bank, account, rows, skipped, unreadable }. Each row: { account, date, amount_pence, raw_description, ... }.
 export function parseBankFile(text) {

@@ -2,7 +2,7 @@
 // then saves the new lines when you say so.
 import { h } from '../ui/dom.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
-import { buildImportPlan } from '../lib/import/plan.js';
+import { buildImportPlan, bankRecord } from '../lib/import/plan.js';
 import { prepareRules } from '../lib/import/classify.js';
 import { saveImport, enrich, updateTransaction } from '../lib/data.js';
 
@@ -15,7 +15,7 @@ export function importPage(ctx, rerender) {
   async function load(files) {
     if (!files.length) return;
     const read = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
-    const existing = ctx.all.map((t) => ({ id: t.id, account: t.account, date: t.date, amount_pence: t.amount_pence, fingerprint: t.fingerprint, source: t.source, archived: t.archived, note: t.note, status: t.status }));
+    const existing = ctx.all.map((t) => ({ id: t.id, account: t.account, date: t.date, amount_pence: t.amount_pence, raw_description: t.raw_description, fingerprint: t.fingerprint, source: t.source, archived: t.archived, note: t.note, status: t.status, bank: t.bank }));
     state.plan = buildImportPlan(read, prepareRules(ctx.ref.rules), existing);
     state.done = null;
     rerender();
@@ -26,6 +26,7 @@ export function importPage(ctx, rerender) {
     const accountId = Object.fromEntries(ctx.ref.accounts.map((a) => [a.name, a.id]));
     const categoryId = Object.fromEntries(ctx.ref.categories.map((c) => [c.name, c.id]));
     const fresh = plan.rows.filter((r) => !r.duplicate);
+    const now = new Date().toISOString();
     for (const r of fresh) r.id = crypto.randomUUID();
     const missing = [...new Set(fresh.filter((r) => !accountId[r.account]).map((r) => r.account))];
     if (missing.length) throw new Error(`These accounts aren't set up yet: ${missing.join(', ')}.`);
@@ -33,13 +34,16 @@ export function importPage(ctx, rerender) {
       id: r.id, account_id: accountId[r.account], date: r.date, amount_pence: r.amount_pence, raw_description: r.raw_description,
       note: r.note || null, kind: r.kind, status: r.status, category_id: r.category ? categoryId[r.category] || null : null,
       fingerprint: r.fingerprint, source: `import:${plan.files.find((f) => f.name === r.file)?.bank || 'file'}`, pairId: r.pairWith?.id || null,
+      bank: bankRecord(r, r.file, now), review: r.review, // every new line waits in the inbox, with the bank's own record kept
     }));
     const names = plan.files.filter((f) => !f.error).map((f) => f.name).join(', ');
     const saved = rows.length ? await saveImport(rows, { file_name: names.slice(0, 500), account_id: null, row_count: plan.rows.length, new_count: rows.length, duplicate_count: plan.counts.duplicates }) : [];
     for (const t of saved) ctx.add(enrich(t, ctx.ref));
-    // What the statement says about the entries you typed: corrected ones and ones it doesn't have go to the inbox.
-    for (const c of plan.checks) ctx.replace(enrich(await updateTransaction(c.id, c.patch), ctx.ref));
-    state.done = { added: saved.length, review: saved.filter((t) => t.status === 'needs_review').length + plan.checks.length, checked: plan.checks.length };
+    // Lines that clearly match your own entries: the bank's record is attached, nothing else about them changes.
+    for (const l of plan.links) ctx.replace(enrich(await updateTransaction(l.id, { bank: bankRecord(l.row, l.row.file, now) }), ctx.ref));
+    // Your entries the statement doesn't have: asked about in the inbox (your note is left as it is).
+    for (const c of plan.checks) ctx.replace(enrich(await updateTransaction(c.id, { status: 'needs_review', review: c.review }), ctx.ref));
+    state.done = { added: saved.length, linked: plan.links.length, checked: plan.checks.length };
     state.plan = null;
     rerender();
   }
@@ -52,37 +56,37 @@ export function importPage(ctx, rerender) {
   h('span', { style: { fontWeight: 600 } }, 'Choose files or drop them here'),
   h('span', { class: 'muted small' }, 'Ulster Bank, Revolut and Monzo CSV files. You can add several at once. Nothing is saved until you press Import.'));
 
-  const out = [head('Import statements', 'Bring in your latest bank files. Duplicates are caught automatically.'), h('section', { class: 'card' }, drop)];
+  const out = [head('Import statements', 'Bring in your latest bank files. Lines that match what you’ve recorded are linked; everything new waits for your approval.'), h('section', { class: 'card' }, drop)];
 
   if (state.done) {
     out.push(h('section', { class: 'card', role: 'status' },
       h('h2', null, 'Imported'),
-      h('p', { style: { margin: 0 } }, `${state.done.added} new transaction${state.done.added === 1 ? '' : 's'} saved.`, state.done.checked ? ` ${state.done.checked} of the entries you typed need a look: the statement corrected them or doesn’t have them.` : ''),
-      state.done.review ? h('p', { style: { margin: '8px 0 0' } }, h('a', { href: '#inbox' }, `${state.done.review} need a quick look in the review inbox`)) : null));
+      h('p', { style: { margin: 0 } }, `${state.done.linked} matched to entries you’d already recorded (now verified). ${state.done.added} new line${state.done.added === 1 ? '' : 's'} waiting for your approval.`, state.done.checked ? ` ${state.done.checked} of your entries aren’t on the statement.` : ''),
+      state.done.added + state.done.checked ? h('p', { style: { margin: '8px 0 0' } }, h('a', { href: '#inbox' }, 'Review them in the inbox')) : null));
   }
 
   const plan = state.plan;
   if (plan) {
     const fileRows = plan.files.map((f) => h('div', null,
       h('span', null, h('span', null, f.name), h('br'), h('span', { class: 'muted small' }, f.error ? f.error : `${BANK_NAME[f.bank] || f.bank}, ${shortDay(f.from)} to ${shortDay(f.to)}, ${f.rows} lines`)),
-      f.error ? h('span', { class: 'over' }, 'Not read') : h('span', null, `${f.rows - f.duplicates} new`)));
-    const todo = plan.counts.new + plan.checks.length;
+      f.error ? h('span', { class: 'over' }, 'Not read') : h('span', null, `${plan.rows.filter((r) => r.file === f.name && !r.duplicate).length} new`)));
+    const todo = plan.counts.new + plan.links.length + plan.checks.length;
     const btn = h('button', { class: 'btn primary', type: 'button', disabled: todo === 0, onclick: async () => {
       btn.disabled = true;
       btn.textContent = 'Saving…';
       try { await save(btn); } catch (err) { btn.disabled = false; btn.textContent = 'Import'; alertLine(btn, err.message); }
-    } }, plan.counts.new ? `Import ${plan.counts.new} new` : plan.checks.length ? 'Save the checks' : 'Nothing new to import');
+    } }, todo ? 'Import' : 'Nothing new to import');
     out.push(h('section', { class: 'card', 'aria-labelledby': 'sum' },
       h('h2', { id: 'sum' }, 'What’s in these files'),
       h('div', { class: 'stats' }, fileRows),
       h('div', { class: 'stats', style: { marginTop: '12px' } },
-        h('div', null, h('span', { class: 'muted' }, 'New lines'), h('span', null, String(plan.counts.new))),
-        h('div', null, h('span', { class: 'muted' }, 'Sorted automatically'), h('span', null, String(plan.counts.sorted))),
-        h('div', null, h('span', { class: 'muted' }, 'Need a quick look (go to the inbox)'), h('span', null, String(plan.counts.needsReview))),
-        h('div', null, h('span', { class: 'muted' }, 'Moves between your accounts (not spending)'), h('span', null, String(plan.counts.transfers))),
+        h('div', null, h('span', { class: 'muted' }, 'Match what you recorded (linked and verified, nothing added)'), h('span', null, String(plan.counts.linked))),
+        h('div', null, h('span', { class: 'muted' }, 'New, ready to approve (inbox)'), h('span', null, String(plan.counts.ready))),
+        h('div', null, h('span', { class: 'muted' }, 'Possible match, to check (inbox)'), h('span', null, String(plan.counts.possibleMatch))),
+        h('div', null, h('span', { class: 'muted' }, 'New, needs information (inbox)'), h('span', null, String(plan.counts.needsInfo))),
         h('div', null, h('span', { class: 'muted' }, 'Already in Money HQ (skipped)'), h('span', null, String(plan.counts.duplicates))),
-        plan.counts.corrected ? h('div', null, h('span', { class: 'muted' }, 'Typed entries the statement corrects (to the inbox)'), h('span', null, String(plan.counts.corrected))) : null,
-        plan.counts.notOnStatement ? h('div', null, h('span', { class: 'muted' }, 'Typed entries not on the statement (to the inbox)'), h('span', null, String(plan.counts.notOnStatement))) : null),
+        plan.counts.notOnStatement ? h('div', null, h('span', { class: 'muted' }, 'Your entries not on the statement (inbox)'), h('span', null, String(plan.counts.notOnStatement))) : null),
+      h('p', { class: 'muted small', style: { margin: '10px 0 0' } }, 'Nothing new is counted until you approve it in the inbox.'),
       h('div', { style: { display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' } }, btn,
         h('button', { class: 'btn', type: 'button', onclick: () => { state.plan = null; rerender(); } }, 'Cancel'))));
   }

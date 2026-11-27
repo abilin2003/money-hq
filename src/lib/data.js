@@ -16,7 +16,7 @@ async function all(build, what) {
   }
 }
 
-const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, tag, kind, status, archived, source, fingerprint, account_id, category_id, transfer_pair_id, from_savings, fund_id, legacy';
+const TX_COLUMNS = 'id, date, cycle_date, amount_pence, raw_description, note, tag, kind, status, archived, source, fingerprint, account_id, category_id, transfer_pair_id, from_savings, fund_id, bank, review, legacy';
 
 // Everything the app needs, loaded once after sign-in. Names are joined in here rather than in every query.
 export async function loadEverything() {
