@@ -83,6 +83,7 @@ export function planPage(ctx, rerender, param) {
       h('span', null, h('span', { style: { fontWeight: 500 } }, f.name, kindTag(fs.status)), h('br'),
         h('span', { class: 'muted small' }, fs.verified ? `Verified ${formatPence(fs.verified.pence)} on ${shortDay(fs.verified.date)}` : 'Balance never typed in', fs.plannedThisPayday ? ` · this payday’s plan puts in ${formatPence(fs.plannedThisPayday)}` : '', fs.planned ? ` · expected ${formatPence(fs.expected)} (not checked)` : ''),
         f.mirrors ? [h('br'), h('span', { class: 'muted small' }, `Same money as your ${f.mirrors.name}: its balance on Wealth is this fund’s balance.`)] : null,
+        spentFrom(ctx, f),
         h('br'), h('span', { class: 'muted small' }, `${f.target_pence ? `Target ${formatPence(f.target_pence)}` : 'No target'}${f.due_date ? ` by ${shortDay(f.due_date)}` : ''}${need !== null ? ` · needs ${formatPence(need)} a payday` : ''}`)),
       h('label', { class: 'field' }, 'In it now', h('input', { class: 'input money', inputmode: 'decimal', value: money(f.balance_pence), 'aria-label': `${f.name} balance`, onchange: async (e) => {
         const p = parsePence(e.target.value);
@@ -199,4 +200,14 @@ function cardNote(it, card, spend, touch) {
   return h('p', { class: 'muted small planstate' },
     `The total of your ${card.name} purchases in the ${range}: ${spend.count} payment${spend.count === 1 ? '' : 's'}, less refunds and anything friends paid onto the card. Add a ${card.name} transaction from those dates and this changes with it. Type an amount here only if you want to override it.`,
     spend.complete ? null : h('span', { class: 'warn' }, ` The last ${card.name} purchase Money HQ has is ${spend.lastImported ? shortDay(spend.lastImported) : 'none yet'}: if you used the card after that, add those purchases.`));
+}
+
+// Purchases you've linked to a fund ("Paid for by" on a transaction), e.g. flights out of the holiday fund.
+// Shown for information: the fund's balance is still what you type in (or its account's, for a mirrored fund),
+// so nothing is taken off twice.
+function spentFrom(ctx, f) {
+  const linked = ctx.transactions.filter((t) => t.fund_id === f.id && t.kind === 'spend' && t.status !== 'needs_review');
+  if (!linked.length) return null;
+  const pence = linked.reduce((a, t) => a - t.amount_pence, 0);
+  return [h('br'), h('span', { class: 'muted small' }, `${formatPence(pence)} spent from it (${linked.length} payment${linked.length === 1 ? '' : 's'}, latest ${shortDay(linked.map((t) => t.date).sort().pop())})`)];
 }

@@ -146,7 +146,10 @@ const CATEGORY_WORDS = [
   ['Household', ['household', 'cleaning', 'washing up liquid', 'kitchen']],
   ['Health', ['pharmacy', 'chemist', 'prescription', 'doctor', 'dentist', 'medicine', 'paracetamol']],
   ['Transport & car', ['parking', 'car wash', 'mot', 'car insurance', 'bus', 'train', 'taxi', 'uber', 'tolls', 'car service']],
-  ['Travel', ['flight', 'flights', 'hotel', 'airbnb', 'travel', 'plane', 'airport']],
+  ['Flights', ['flight', 'flights', 'plane ticket', 'plane tickets', 'ryanair', 'easyjet', 'wizz air', 'british airways', 'aer lingus']],
+  ['Accommodation', ['hotel', 'airbnb', 'hostel', 'accommodation', 'apartment for the holiday', 'booking com', 'villa']],
+  ['Holiday Transport', ['car hire', 'airport transfer', 'airport taxi', 'airport bus', 'airport parking', 'airport shuttle', 'ferry', 'train abroad']],
+  ['Holiday Activities & Spending', ['excursion', 'excursions', 'boat trip', 'theme park', 'water park', 'holiday spending', 'spending money', 'tour', 'activities', 'souvenirs']],
 ];
 const CATEGORY_SHOPS = [
   ['Groceries', ['tesco', 'asda', 'lidl', 'aldi', 'sainsburys', 'sainsbury', 'spar', 'eurospar', 'centra', 'co op', 'coop', 'iceland', 'm and s food', 'dunnes', 'supervalu']],
@@ -166,14 +169,16 @@ export function findCategories(text, vocab, { shop = '' } = {}) {
   const out = new Map();
   const add = (cat, tier, why) => { if (cat && (!out.has(cat.id) || out.get(cat.id).tier < tier)) out.set(cat.id, { category: cat, tier, why }); };
   for (const c of vocab.categories) if (has(text, c.name)) add(c, 3, `you said “${c.name}”`);
-  for (const [name, words] of CATEGORY_WORDS) { const w = words.find((x) => has(text, x)); if (w) add(categoryByName(vocab, name), 2, `“${w}”`); }
+  for (const [name, words] of CATEGORY_WORDS) { const w = words.filter((x) => has(text, x)).sort((x, y) => y.length - x.length)[0]; if (w) add(categoryByName(vocab, name), 2 + w.length / 1000, `“${w}”`); } // a longer phrase wins a tie (“airport taxi” over “taxi”)
+  // The line's own description counts too ("Bulgaria outbound flight" is a flight), below what you said.
+  if (shop) for (const [name, words] of CATEGORY_WORDS) { const w = words.find((x) => has(shop, x)); if (w) add(categoryByName(vocab, name), 1.5, `the line says “${w}”`); }
   const shopKey = normKey(shop);
   const learned = shopKey && vocab.shops?.get(shopKey);
   if (learned) add(vocab.categories.find((c) => c.id === learned), 1, `you used it for ${shop} before`);
   for (const [name, shops] of CATEGORY_SHOPS) { const s = shops.find((x) => has(shop || text, x)); if (s) add(categoryByName(vocab, name), 1, `${s} is usually that`); }
   return [...out.values()].sort((a, b) => b.tier - a.tier);
 }
-// One category, or why not: { category, why } | { choices } | { missing: 'Travel' } | {} (+ bucket if named).
+// One category, or why not: { category, why } | { choices } | { missing: 'Flights' } | {} (+ bucket if named).
 // A kind of spending you named but have no category for is asked about, not swapped for a guess from the shop.
 export function pickCategory(text, vocab, shop = '') {
   const cats = findCategories(text, vocab, { shop });
@@ -197,8 +202,11 @@ export function findBucket(text, vocab) {
 }
 
 const ACCOUNT_WORDS = (a) => [a.name, a.institution, a.type === 'credit_card' ? 'credit card' : null, a.type === 'credit_card' ? 'my card' : null].filter(Boolean);
-export function findAccount(text, vocab) {
-  const scored = vocab.accounts.map((a) => {
+const PAY_TYPES = new Set(['current', 'credit_card']);
+// payOnly: only accounts you pay with (a current account or card), so "money from my Cash ISA" isn't read
+// as the card you paid with.
+export function findAccount(text, vocab, { payOnly = false } = {}) {
+  const scored = vocab.accounts.filter((a) => !payOnly || PAY_TYPES.has(a.type)).map((a) => {
     // 3: you said its whole name ("Revolut" is the Revolut account, not Revolut Pockets); 2: its bank or
     // "credit card"; 1: the first word of its name.
     const named = has(text, a.name);
@@ -218,11 +226,25 @@ export function findAccount(text, vocab) {
 // mention Bulgaria). Ties are returned as ambiguous rather than picked.
 export function findFund(text, vocab) {
   const words = new Set(tokens(text));
-  const scored = vocab.funds.map((f) => ({ f, score: tokens(f.name).filter((w) => words.has(w)).length })).filter((x) => x.score);
+  const scored = vocab.funds.map((f) => ({ f, score: Math.max(...[f.name, ...(f.aliases || [])].map((n) => tokens(n).filter((w) => words.has(w)).length)) })).filter((x) => x.score);
   if (!scored.length) return null;
   const best = Math.max(...scored.map((x) => x.score));
   const top = scored.filter((x) => x.score === best);
   return top.length === 1 ? top[0].f : { ambiguous: top.map((x) => x.f) };
+}
+
+// The fund that paid ("from my Cash ISA", "out of the Bulgaria holiday fund") and the trip or event it was for
+// ("for my Bulgaria holiday") are different things: look for each after its own words.
+const phrases = (text, re) => [...String(text).matchAll(re)].map((m) => m[1]);
+const FROM_PHRASE = /\b(?:from|out of|came out of|covered by|paid for by|assigned to|taken from|took (?:it |the money )?(?:from|out of))\s+((?:[^.,;!?](?!\brather than\b))+)/gi;
+const FOR_PHRASE = /\bfor (?:my |the |our )?((?:[^.,;!?](?!\b(?:but|and i|paid|using|with)\b))+)/gi;
+export function fundFrom(text, vocab) {
+  for (const p of phrases(text, FROM_PHRASE)) { const f = findFund(p, vocab); if (f) return f; }
+  return null;
+}
+export function fundFor(text, vocab) {
+  for (const p of phrases(text, FOR_PHRASE)) { const f = findFund(p, vocab); if (f && !f.ambiguous) return f; }
+  return null;
 }
 
 // Paid from savings? Said with words like "out of my fund", "used my savings", "covered by the pot".
@@ -302,30 +324,39 @@ export function interpretExplanation(text, tx, vocab, others = []) {
     if (pick.bucket && !changes.category_id) understood.push({ field: 'bucket', label: 'Budget', value: pick.bucket, why: `you said your ${pick.bucket} budget` });
   }
 
-  const funding = findFunding(clean);
-  const fund = findFund(clean, vocab);
+  const named = fundFrom(clean, vocab);
+  const funding = findFunding(clean) ?? (named && !named.ambiguous ? true : null);
+  // "my holiday savings" could be two funds: the rest of what you said may settle it ("Bulgaria flights").
+  const settled = named?.ambiguous ? findFund(clean, { funds: named.ambiguous }) : null;
+  const fund = (settled && !settled.ambiguous ? settled : named) || (funding ? findFund(clean, vocab) : null);
   if (sign < 0 && funding === true) {
     changes.from_savings = true;
     if (fund?.ambiguous) questions.push(`Which fund paid for it: ${fund.ambiguous.map((f) => f.name).join(' or ')}?`);
-    understood.push({ field: 'from_savings', label: 'Paid for by', value: fund && !fund.ambiguous ? fund.name : 'your savings', why: 'not counted against this cycle’s budgets' });
+    else if (fund) changes.fund_id = fund.id;
+    understood.push({ field: 'from_savings', label: 'Paid for by', value: fund && !fund.ambiguous ? fund.name : 'your savings', why: 'counts in total spending, not this cycle’s budgets' });
   } else if (funding === false && tx.from_savings) {
     changes.from_savings = false;
     understood.push({ field: 'from_savings', label: 'Paid for by', value: 'this cycle’s budget', why: 'you said it wasn’t from savings' });
   }
-  if (fund && !fund.ambiguous) {
-    changes.tag = fund.name;
-    changes.fund_id = fund.id;
-    understood.push({ field: 'tag', label: 'For', value: fund.name, why: 'tagged, so it shows with that fund' });
+  const purpose = fundFor(clean, vocab);
+  if (purpose || (fund && !fund.ambiguous)) {
+    const what = purpose || fund;
+    changes.tag = what.name;
+    understood.push({ field: 'tag', label: 'For', value: what.name, why: purpose ? 'what it was for' : 'the fund that paid' });
   } else {
     const tag = (vocab.tags || []).find((g) => has(clean, g));
     if (tag) { changes.tag = tag; understood.push({ field: 'tag', label: 'For', value: tag, why: 'an event you’ve tagged before' }); }
   }
 
-  const acc = findAccount(clean, vocab);
+  const acc = findAccount(clean, vocab, { payOnly: true });
   if (acc && !acc.ambiguous) {
     if (acc.id === tx.account_id) understood.push({ field: 'account', label: 'Paid with', value: acc.name, why: 'matches the bank line' });
-    else if (tx.source === 'manual') { changes.account_id = acc.id; understood.push({ field: 'account_id', label: 'Paid with', value: acc.name, why: 'you said so' }); }
-    else questions.push(`This line came from your ${tx.accountName || 'bank'} statement, but you said ${acc.name}. Which is right?`);
+    else {
+      changes.account_id = acc.id;
+      understood.push({ field: 'account_id', label: 'Paid with', value: acc.name, why: 'you said so' });
+      // A line from a bank file belongs to that bank's account: worth a second look before moving it.
+      if (String(tx.source || '').startsWith('import:')) questions.push(`This line came from your ${tx.accountName || 'bank'} statement, but you said ${acc.name}. Check before confirming.`);
+    }
   }
 
   const splits = sign < 0 ? findSplits(clean, vocab, -tx.amount_pence) : [];
@@ -383,7 +414,7 @@ export function parseSpoken(text, vocab, today) {
     const whenSaid = date || pendingDate;
     pendingDate = null;
     if (whenSaid) lastDate = whenSaid;
-    const t = { text: piece, amount_pence: amt.pence, date: lastDate, description: '', category_id: null, account_id: null, kind: 'spend', from_savings: false, tag: null, note: null, splits: [], unsure: [] };
+    const t = { text: piece, amount_pence: amt.pence, date: lastDate, description: '', category_id: null, account_id: null, kind: 'spend', from_savings: false, fund_id: null, tag: null, note: null, splits: [], unsure: [] };
     const lower = piece.toLowerCase();
     const moneyIn = /\b(got|received|paid me|sent me|refund|salary|wages|earned)\b/.test(lower) && !/\bi (spent|paid|bought)\b/.test(lower);
     t.kind = findKind(piece, moneyIn ? 1 : -1) || (moneyIn ? null : 'spend');
@@ -402,14 +433,18 @@ export function parseSpoken(text, vocab, today) {
     const catWord = CATEGORY_WORDS.flatMap(([, w]) => w).find((w) => has(piece, w));
     t.description = where ? where.replace(/(^|\s)(\S)/g, (x, a, c) => a + c.toUpperCase()) : catWord ? catWord.replace(/^\w/, (c) => c.toUpperCase()) : '';
     if (!t.description) t.unsure.push('description');
-    const acc = findAccount(piece, vocab);
+    // Spending is paid from a current account or card; a move or saving can involve any account.
+    const acc = findAccount(piece, vocab, { payOnly: t.kind === 'spend' });
     if (acc && !acc.ambiguous) t.account_id = acc.id; else t.unsure.push('account');
     if (!t.date) t.unsure.push('date');
     if (!t.kind) t.unsure.push('type');
-    const funding = findFunding(piece);
-    const fund = findFund(piece, vocab);
-    if (funding === true && t.amount_pence < 0) t.from_savings = true;
-    if (fund && !fund.ambiguous) t.tag = fund.name;
+    // Which fund paid ("out of my Cash ISA") and what it was for ("for the Bulgaria holiday"), as in explanations.
+    const named = fundFrom(piece, vocab);
+    const funding = findFunding(piece) ?? (named && !named.ambiguous ? true : null);
+    const fund = named || (funding ? findFund(piece, vocab) : null);
+    if (funding === true && t.amount_pence < 0) { t.from_savings = true; t.fund_id = fund && !fund.ambiguous ? fund.id : null; if (!t.fund_id) t.unsure.push('fund'); }
+    const purpose = fundFor(piece, vocab);
+    if (purpose || (fund && !fund.ambiguous)) t.tag = (purpose || fund).name;
     t.splits = t.amount_pence < 0 ? findSplits(piece, vocab, amt.pence).filter((s) => s.pence) : [];
     out.push(t);
   }
@@ -430,7 +465,7 @@ export function vocabFrom(ctx) {
   return {
     categories: ctx.ref.categories.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, bucket: bucketName[c.bucket_id] })),
     accounts: ctx.ref.accounts.filter((a) => a.is_active !== false).map((a) => ({ id: a.id, name: a.name, type: a.type, institution: a.institution })),
-    funds: (ctx.ref.funds || []).map((f) => ({ id: f.id, name: f.name })),
+    funds: (ctx.ref.funds || []).map((f) => { const acc = ctx.ref.settings?.extra?.fund_mirrors?.[f.id]; const a = acc && ctx.ref.accounts.find((x) => x.id === acc); return { id: f.id, name: f.name, aliases: a ? [a.name] : [] }; }),
     people: ctx.ref.people || [],
     tags: [...new Set(ctx.all.map((t) => t.tag).filter(Boolean))],
     shops,

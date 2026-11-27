@@ -212,7 +212,8 @@ const isField = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELE
 document.addEventListener('focusin', (e) => { if (matchMedia(PHONE).matches && isField(e.target)) document.body.classList.add('typing'); });
 document.addEventListener('focusout', () => { setTimeout(() => { if (!isField(document.activeElement)) document.body.classList.remove('typing'); }, 0); });
 
-window.addEventListener('hashchange', () => render());
+// Remember the page you were on, so Add's Close button can take you back to it.
+window.addEventListener('hashchange', (e) => { if (ctx) { const from = new URL(e.oldURL).hash.slice(1); if (from && !from.startsWith('add')) ctx.cameFrom = from; } render(); });
 // Charts are drawn for the screen size, so redraw when it crosses the phone/laptop width.
 // Not when you're typing or have typed something not yet saved (rotating a phone mid-entry mustn't clear it),
 // and only on pages that have charts.

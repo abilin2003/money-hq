@@ -11,9 +11,11 @@ import { sayPanel } from './say.js';
 
 export function addPage(ctx, rerender) {
   const st = ctx.addState || (ctx.addState = { type: 'out', date: ctx.today, saved: null, mode: 'one' });
+  // Leave without adding anything: back to where you came from (or the Overview), forgetting what was typed.
+  const close = h('button', { class: 'btn add-close', type: 'button', 'aria-label': 'Close without adding', onclick: () => { ctx.addState = null; ctx.sayState = null; location.hash = ctx.cameFrom || 'overview'; } }, h('span', { 'aria-hidden': 'true' }, '✕'), ' Close');
   const modeBtn = (id, label) => h('button', { type: 'button', 'aria-pressed': String((st.mode || 'one') === id), onclick: () => { st.mode = id; rerender(); } }, label);
   const modes = h('div', { class: 'seg wide add-mode', role: 'group', 'aria-label': 'How to add' }, modeBtn('one', 'Type one'), modeBtn('say', 'Say several'));
-  if (st.mode === 'say') return h('div', { class: 'page narrow' }, head('Add transactions'), modes, sayPanel(ctx, rerender));
+  if (st.mode === 'say') return h('div', { class: 'page narrow' }, head('Add transactions', null, close), modes, sayPanel(ctx, rerender));
   const account = ctx.ref.accounts.find((a) => a.id === ctx.lastAddAccount) || ctx.ref.accounts.find((a) => a.name === 'Revolut') || ctx.ref.accounts[0];
   // Recent shops (newest first) and the category last used at each; the categories you use most lately.
   const recent = ctx.transactions.filter((t) => t.kind === 'spend' && t.category_id && t.raw_description).slice(0, 400);
@@ -71,7 +73,7 @@ export function addPage(ctx, rerender) {
   const againBtn = h('button', { class: 'btn', type: 'button', onclick: (e) => save(true, e.currentTarget) }, 'Save and add another');
 
   return h('div', { class: 'page narrow' },
-    head('Add a transaction'),
+    head('Add a transaction', null, close),
     modes,
     st.saved ? h('p', { class: 'chip', role: 'status' }, st.saved) : null,
     h('section', { class: 'card add-card' },

@@ -67,7 +67,7 @@ describe('an inbox line explained in your own words', () => {
     expect(r.changes).toMatchObject({ from_savings: true, tag: 'Bulgaria holiday', fund_id: 'bg' });
     expect(r.changes.account_id).toBeUndefined(); // already on Capital One
     expect(r.understood.find((u) => u.field === 'account').value).toBe('Capital One');
-    expect(r.questions.some((q) => /Travel category/.test(q))).toBe(true); // no Travel category: asked, not guessed
+    expect(r.questions.some((q) => /Flights category/.test(q))).toBe(true); // no Flights category here: asked, not guessed
     expect(r.changes.category_id).toBeUndefined();
     expect(r.alsoApply.map((o) => o.id)).toEqual(['f2']); // the return flight too
     expect(r.understood.some((u) => u.field === 'bucket')).toBe(false); // "rather than my Fun budget" is not a choice of Fun
@@ -85,12 +85,27 @@ describe('an inbox line explained in your own words', () => {
     expect(r.changes.category_id).toBe('eat');
     expect(r.splits).toEqual([{ name: 'Ben', pence: 2000 }]);
   });
-  it('on a bank line, a different account is a question, not a change', () => {
+  it('the account you name is proposed; on a line from a bank file it also says to check', () => {
     const line = { id: 'x', amount_pence: -1000, kind: 'spend', account_id: 'ul', accountName: 'Ulster Bank', raw_description: 'Tesco', source: 'import:ulster' };
     const r = interpretExplanation('groceries on my Revolut', line, vocab);
-    expect(r.changes).toMatchObject({ category_id: 'gro' });
-    expect(r.changes.account_id).toBeUndefined();
-    expect(r.questions[0]).toMatch(/Ulster Bank statement, but you said Revolut/);
+    expect(r.changes).toMatchObject({ category_id: 'gro', account_id: 'rev' });
+    expect(r.questions[0]).toMatch(/Ulster Bank statement, but you said Revolut\. Check/);
+    // a line from your own typed list: just changed, no question
+    const typed = { id: 'f', amount_pence: -3375, kind: 'spend', account_id: 'cc', accountName: 'Capital One', raw_description: 'Fuel', source: 'csv' };
+    const t = interpretExplanation('That fuel was paid from Ulster Bank, not the card', typed, vocab);
+    expect(t.changes.account_id).toBe('ul');
+    expect(t.questions).toEqual([]);
+  });
+  it('the card you paid with, the trip it was for and the fund that covered it are three things', () => {
+    const v = { ...vocab,
+      categories: [...vocab.categories, { id: 'fl', name: 'Flights', bucket: 'Holidays & Travel' }],
+      accounts: [...vocab.accounts, { id: 'isa', name: 'Trading 212 Cash ISA', type: 'isa', institution: 'Trading 212' }],
+      funds: [{ id: 'bg', name: 'Bulgaria holiday' }, { id: 'hp', name: 'Holiday Pot' }, { id: 'ef', name: 'Emergency fund', aliases: ['Trading 212 Cash ISA'] }] };
+    const flight = { id: 'f1', amount_pence: -10180, kind: 'spend', account_id: 'cc', accountName: 'Capital One', raw_description: 'Bulgaria outbound flight', source: 'manual' };
+    const r = interpretExplanation('These were for my Bulgaria holiday, paid on my Capital One card, with the money from my Trading 212 Cash ISA.', flight, v);
+    expect(r.changes).toMatchObject({ category_id: 'fl', from_savings: true, fund_id: 'ef', tag: 'Bulgaria holiday' });
+    expect(r.changes.account_id).toBeUndefined(); // the ISA is where the money came from, not the card you paid with
+    expect(r.questions).toEqual([]);
   });
   it('money in from a friend, and words it can’t match', () => {
     const inn = { id: 'i', amount_pence: 1838, kind: 'transfer', account_id: 'rev', raw_description: 'Payment from B', source: 'import:revolut' };

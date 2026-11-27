@@ -7,6 +7,7 @@ import { shortDay, alertLine } from '../ui/parts.js';
 import { addTransaction, enrich, addPerson, addSplit } from '../lib/data.js';
 import { parseSpoken, possibleDuplicates, vocabFrom, findAmounts } from '../lib/interpret.js';
 import { micButton, canListen, VOICE_PRIVACY } from '../ui/voice.js';
+import { fundSelect, readFund } from '../ui/fund-picker.js';
 
 const KINDS = [['spend', 'Spent'], ['refund', 'Refund'], ['repayment', 'Paid back to me'], ['income', 'Income'], ['transfer', 'Move between accounts'], ['saved', 'Saved'], ['invested', 'Invested']];
 const IN_KINDS = new Set(['refund', 'repayment', 'income']);
@@ -61,7 +62,7 @@ export function sayPanel(ctx, rerender) {
     const miss = missingFor(t);
     if (miss.length) throw new Error(`Fill in: ${miss.join(', ')}.`);
     const saved = await addTransaction({ account_id: t.account_id, date: t.date, amount_pence: t.amount_pence, raw_description: t.description.trim(), kind: t.kind,
-      category_id: t.kind === 'spend' || t.kind === 'refund' ? t.category_id : null, note: t.note?.trim() || null, tag: t.tag?.trim() || null, from_savings: t.amount_pence < 0 && Boolean(t.from_savings) });
+      category_id: t.kind === 'spend' || t.kind === 'refund' ? t.category_id : null, note: t.note?.trim() || null, tag: t.tag?.trim() || null, from_savings: t.amount_pence < 0 && Boolean(t.from_savings), fund_id: t.amount_pence < 0 && t.from_savings ? t.fund_id || null : null });
     ctx.add(enrich(saved, ctx.ref));
     for (const s of t.amount_pence < 0 && t.kind === 'spend' ? t.splits : []) {
       const person = ctx.ref.people.find((p) => p.name.toLowerCase() === s.name.toLowerCase()) || await addPerson(s.name);
@@ -84,8 +85,8 @@ export function sayPanel(ctx, rerender) {
     const cat = h('select', { class: 'input', 'aria-label': 'Category', onchange: (e) => { t.category_id = e.target.value || null; rerender(); } }, catOptions(t.category_id));
     const acc = h('select', { class: 'input', 'aria-label': out ? 'Paid with' : 'Into', onchange: (e) => { t.account_id = e.target.value || null; rerender(); } },
       h('option', { value: '' }, 'To confirm'), accounts.map((a) => h('option', { value: a.id, selected: a.id === t.account_id }, a.name)));
-    const fund = h('select', { class: 'input', 'aria-label': 'Paid for by', onchange: (e) => { const f = (ctx.ref.funds || []).find((x) => x.id === e.target.value); t.from_savings = Boolean(e.target.value); if (f) t.tag = f.name; rerender(); } },
-      h('option', { value: '' }, 'This cycle’s budget'), (ctx.ref.funds || []).map((f) => h('option', { value: f.id, selected: t.from_savings && t.tag === f.name }, `Savings: ${f.name}`)), h('option', { value: 'savings', selected: t.from_savings && !(ctx.ref.funds || []).some((f) => f.name === t.tag) }, 'Savings (no particular fund)'));
+    const fund = fundSelect(ctx, { fromSavings: t.from_savings, fundId: t.fund_id });
+    fund.addEventListener('change', () => { Object.assign(t, readFund(fund)); rerender(); });
     const split = h('input', { class: 'input', value: t.splitText || '', placeholder: 'e.g. Ben 20, Dad 12.50', 'aria-label': 'Who owes you', list: 'people-list', onchange: (e) => { t.splitText = e.target.value; t.splits = parseSplitsText(e.target.value); rerender(); } });
     const note = h('input', { class: 'input', value: t.note || '', placeholder: 'Note', 'aria-label': 'Note', onchange: (e) => { t.note = e.target.value; } });
     const dups = possibleDuplicates(t, ctx.all.filter((x) => !x.archived));

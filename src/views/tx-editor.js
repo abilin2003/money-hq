@@ -6,6 +6,7 @@ import { equalShares, suggestIouMatches } from '../lib/analytics.js';
 import { shortDay, alertLine } from '../ui/parts.js';
 import { updateTransaction, enrich, addPerson, addSplit, removeSplit, settleSplit, deleteTransaction } from '../lib/data.js';
 import { decode } from './inbox.js';
+import { fundSelect, readFund } from '../ui/fund-picker.js';
 
 const KINDS_OUT = [['kind:transfer', 'Move between my accounts'], ['kind:invested', 'Invested'], ['kind:saved', 'Saved (sinking fund)']];
 const KINDS_IN = [['kind:repayment', 'A friend paying me back'], ['kind:income', 'Income (salary, freelance, gift)'], ['kind:invested', 'Taken out of an ISA or investments'], ['kind:transfer', 'Move between my accounts']];
@@ -24,19 +25,19 @@ export function txEditor(ctx, t, rerender) {
   const kind = choiceSelect(ctx, t);
   const note = h('input', { class: 'input', value: t.note || '', placeholder: 'Note', 'aria-label': 'Note' });
   const tag = h('input', { class: 'input', value: t.tag || '', placeholder: 'Tag, e.g. Cousins visit', 'aria-label': 'Tag or event' });
-  const savings = h('input', { type: 'checkbox', checked: Boolean(t.from_savings) });
+  const savings = fundSelect(ctx, { fromSavings: t.from_savings, fundId: t.fund_id });
   const save = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
     const choice = kind.value ? decode(kind.value, t.amount_pence) : null;
     save.disabled = true;
     try {
-      const saved = await updateTransaction(t.id, { ...(choice || {}), note: note.value.trim() || null, tag: tag.value.trim() || null, from_savings: t.amount_pence < 0 && savings.checked, status: choice || t.status === 'reviewed' ? 'reviewed' : t.status });
+      const saved = await updateTransaction(t.id, { ...(choice || {}), note: note.value.trim() || null, tag: tag.value.trim() || null, ...readFund(savings, t.amount_pence < 0), status: choice || t.status === 'reviewed' ? 'reviewed' : t.status });
       ctx.replace(enrich(saved, ctx.ref));
       rerender();
     } catch (err) { save.disabled = false; alertLine(save, err.message); }
   } }, 'Save');
 
   const parts = [h('div', { class: 'edit-grid' }, kind, note, tag, save)];
-  if (t.amount_pence < 0) parts.push(h('label', { class: 'check' }, savings, 'Paid from savings or a pot (shown separately, not counted in this cycle)'));
+  if (t.amount_pence < 0) parts.push(h('label', { class: 'field' }, 'Paid for by (savings count in total spending, not this cycle’s budget)', savings));
 
   // ---- split (money out only)
   if (t.amount_pence < 0 && t.kind === 'spend') {
