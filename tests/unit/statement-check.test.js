@@ -48,9 +48,9 @@ describe('anything uncertain waits in the inbox as a possible match', () => {
     expect(p.counts).toMatchObject({ linked: 0, possibleMatch: 2 });
   });
   it('a slightly different amount is asked about, never merged', () => {
-    const p = plan(ulster(out('14/11/2026', 'EUROSPAR', '53.00')), [typed('fuel', '2026-11-14', -5361)]);
+    const p = plan(ulster(out('14/11/2026', 'EUROSPAR', '48.00')), [typed('fuel', '2026-11-14', -4875)]);
     expect(p.counts).toMatchObject({ linked: 0, new: 1, possibleMatch: 1 });
-    expect(p.rows[0].review.reason).toMatch(/You recorded £53\.61 .* statement says £53\.00/);
+    expect(p.rows[0].review.reason).toMatch(/You recorded £48\.75 .* statement says £48\.00/);
   });
 });
 

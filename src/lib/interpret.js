@@ -271,7 +271,7 @@ export function findKind(text, amountSign = -1) {
   return amountSign < 0 ? 'spend' : null;
 }
 
-// Who owes you what: "Ben owes me £10", "split it with Ben and Alton", "half of it was for Dad".
+// Who owes you what: "Ben owes me £10", "split it with Ben and Sam", "half of it was for Dad".
 export function findSplits(text, vocab, totalPence) {
   const out = [];
   const known = (name) => vocab.people.find((p) => normKey(p.name) === normKey(name));

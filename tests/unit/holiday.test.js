@@ -7,23 +7,23 @@ import { readFund } from '../../src/ui/fund-picker.js';
 
 const t = (id, pence, kind, more = {}) => ({ id, date: '2026-11-20', amount_pence: pence, kind, status: 'reviewed', bucket: null, category: null, raw_description: id, ...more });
 const lines = [
-  t('flight out', -10180, 'spend', { bucket: 'Holidays & Travel', category: 'Flights', from_savings: true, fund_id: 'ef', account_id: 'cc' }),
-  t('flight back', -4200, 'spend', { bucket: 'Holidays & Travel', category: 'Flights', from_savings: true, fund_id: 'ef', account_id: 'cc' }),
+  t('flight out', -9500, 'spend', { bucket: 'Holidays & Travel', category: 'Flights', from_savings: true, fund_id: 'ef', account_id: 'cc' }),
+  t('flight back', -4000, 'spend', { bucket: 'Holidays & Travel', category: 'Flights', from_savings: true, fund_id: 'ef', account_id: 'cc' }),
   t('groceries', -3000, 'spend', { bucket: 'Groceries', category: 'Groceries', account_id: 'ul' }),
-  t('card repayment', -17380, 'transfer', { account_id: 'ul' }), // paying the card off from Ulster Bank
-  t('from the cash isa', 14380, 'transfer', { account_id: 'ul' }), // money taken out of savings to cover it
+  t('card repayment', -16500, 'transfer', { account_id: 'ul' }), // paying the card off from Ulster Bank
+  t('from the cash isa', 13500, 'transfer', { account_id: 'ul' }), // money taken out of savings to cover it
 ];
 
 describe('holiday paid from savings', () => {
   const s = summarise(lines);
   it('counts in total spending, but not in the everyday (budget) spending', () => {
-    expect(s.fromSavings).toBe(14380);
+    expect(s.fromSavings).toBe(13500);
     expect(s.netSpent).toBe(3000);
-    expect(s.totalSpent).toBe(3000 + 14380);
+    expect(s.totalSpent).toBe(3000 + 13500);
     expect(s.byBucket['Holidays & Travel'] || 0).toBe(0); // budgets never see it
   });
   it('the card repayment and the money out of savings are moves, not more spending', () => {
-    expect(s.totalSpent).toBe(17380); // flights + groceries once, nothing for the repayment
+    expect(s.totalSpent).toBe(16500); // flights + groceries once, nothing for the repayment
     expect(s.income).toBe(0);
   });
   it('the analysis lines add up to the same total', () => {

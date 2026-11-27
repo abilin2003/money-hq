@@ -198,7 +198,9 @@ export async function deleteGoal(id) {
 }
 
 // Backups: every table, as JSON. Restore adds back anything missing (by id) and never deletes.
-export const BACKUP_TABLES = ['accounts', 'buckets', 'categories', 'merchants', 'people', 'import_batches', 'cycles', 'budgets', 'cycle_summaries', 'transactions', 'splits', 'rules', 'recurring', 'sinking_funds', 'balance_snapshots', 'goals', 'settings'];
+// Restored in this order, so every row comes after the rows it points to (a transaction can point to the sinking
+// fund that paid for it, so funds come first).
+export const BACKUP_TABLES = ['accounts', 'buckets', 'categories', 'merchants', 'people', 'import_batches', 'cycles', 'budgets', 'cycle_summaries', 'sinking_funds', 'transactions', 'splits', 'rules', 'recurring', 'balance_snapshots', 'goals', 'settings'];
 export async function exportAll() {
   const out = { app: 'money-hq', version: 2, exported: new Date().toISOString(), tables: {} };
   for (const t of BACKUP_TABLES) out.tables[t] = await all(() => supabase.from(t).select('*').order('id'), `back up ${t}`);

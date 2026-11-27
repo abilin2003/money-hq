@@ -42,7 +42,7 @@ export function sayPanel(ctx, rerender) {
 
 Or paste a list, one per line:
 25 Nov Lidl £5.97 Revolut
-26 Nov Pepe’s £11.35`, oninput: (e) => { st.text = e.target.value; } });
+26 Nov Rosa’s £12.10`, oninput: (e) => { st.text = e.target.value; } });
   box.value = st.text;
   const read = () => { st.text = box.value; st.items = parseAny(st.text, vocab, ctx.today).map((t, i) => ({ ...t, key: `${Date.now()}-${i}`, splitText: splitsText(t.splits) })); rerender(); };
   const mic = micButton(box, { onStop: () => { st.text = box.value; if (box.value.trim()) read(); } });

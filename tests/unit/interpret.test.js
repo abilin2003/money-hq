@@ -60,8 +60,8 @@ describe('dates, in Europe/London days', () => {
 });
 
 describe('an inbox line explained in your own words', () => {
-  const flight = { id: 'f1', amount_pence: -10180, kind: 'spend', account_id: 'cc', accountName: 'Capital One', raw_description: 'Bulgaria outbound flight', source: 'manual', from_savings: false };
-  const back = { id: 'f2', amount_pence: -4200, kind: 'spend', account_id: 'cc', raw_description: 'Bulgaria return flight', source: 'manual' };
+  const flight = { id: 'f1', amount_pence: -9500, kind: 'spend', account_id: 'cc', accountName: 'Capital One', raw_description: 'Bulgaria outbound flight', source: 'manual', from_savings: false };
+  const back = { id: 'f2', amount_pence: -4000, kind: 'spend', account_id: 'cc', raw_description: 'Bulgaria return flight', source: 'manual' };
   it('keeps the card, the category and the fund apart', () => {
     const r = interpretExplanation('This flight was for my Bulgaria holiday. I paid using my Capital One credit card, but I want the expense assigned to my Bulgaria holiday fund rather than my normal Fun budget.', flight, vocab, [flight, back]);
     expect(r.changes).toMatchObject({ from_savings: true, tag: 'Bulgaria holiday', fund_id: 'bg' });
@@ -80,7 +80,7 @@ describe('an inbox line explained in your own words', () => {
     expect(vague.questions.some((q) => /Bulgaria holiday or Holiday Pot/.test(q))).toBe(true);
   });
   it('a category, a bucket and who owes you', () => {
-    const meal = { id: 'm', amount_pence: -6000, kind: 'spend', account_id: 'rev', raw_description: 'Cosmo', source: 'import:revolut' };
+    const meal = { id: 'm', amount_pence: -6000, kind: 'spend', account_id: 'rev', raw_description: 'Bistro', source: 'import:revolut' };
     const r = interpretExplanation('Group dinner out. Ben owes me £20.', meal, vocab);
     expect(r.changes.category_id).toBe('eat');
     expect(r.splits).toEqual([{ name: 'Ben', pence: 2000 }]);
@@ -101,14 +101,14 @@ describe('an inbox line explained in your own words', () => {
       categories: [...vocab.categories, { id: 'fl', name: 'Flights', bucket: 'Holidays & Travel' }],
       accounts: [...vocab.accounts, { id: 'isa', name: 'Trading 212 Cash ISA', type: 'isa', institution: 'Trading 212' }],
       funds: [{ id: 'bg', name: 'Bulgaria holiday' }, { id: 'hp', name: 'Holiday Pot' }, { id: 'ef', name: 'Emergency fund', aliases: ['Trading 212 Cash ISA'] }] };
-    const flight = { id: 'f1', amount_pence: -10180, kind: 'spend', account_id: 'cc', accountName: 'Capital One', raw_description: 'Bulgaria outbound flight', source: 'manual' };
+    const flight = { id: 'f1', amount_pence: -9500, kind: 'spend', account_id: 'cc', accountName: 'Capital One', raw_description: 'Bulgaria outbound flight', source: 'manual' };
     const r = interpretExplanation('These were for my Bulgaria holiday, paid on my Capital One card, with the money from my Trading 212 Cash ISA.', flight, v);
     expect(r.changes).toMatchObject({ category_id: 'fl', from_savings: true, fund_id: 'ef', tag: 'Bulgaria holiday' });
     expect(r.changes.account_id).toBeUndefined(); // the ISA is where the money came from, not the card you paid with
     expect(r.questions).toEqual([]);
   });
   it('money in from a friend, and words it can’t match', () => {
-    const inn = { id: 'i', amount_pence: 1838, kind: 'transfer', account_id: 'rev', raw_description: 'Payment from B', source: 'import:revolut' };
+    const inn = { id: 'i', amount_pence: 1750, kind: 'transfer', account_id: 'rev', raw_description: 'Payment from B', source: 'import:revolut' };
     expect(interpretExplanation('Ben paid me back for the buffet', inn, vocab).changes.kind).toBe('repayment');
     const r = interpretExplanation('no idea honestly', { ...flight, raw_description: 'XYZ' }, vocab);
     expect(r.changes).toEqual({});
@@ -146,8 +146,8 @@ describe('transactions said out loud', () => {
     expect(parseSpoken('hello there', vocab, today)).toEqual([]);
   });
   it('money in, savings and splits', () => {
-    const [a, b] = parseSpoken('Yesterday Ben paid me back £18.38 on Revolut. Then £60 dinner on Capital One, split with Ben and Dad.', vocab, today);
-    expect(a).toMatchObject({ amount_pence: 1838, kind: 'repayment', account_id: 'rev' });
+    const [a, b] = parseSpoken('Yesterday Ben paid me back £17.50 on Revolut. Then £60 dinner on Capital One, split with Ben and Dad.', vocab, today);
+    expect(a).toMatchObject({ amount_pence: 1750, kind: 'repayment', account_id: 'rev' });
     expect(b.splits).toEqual([{ name: 'Ben', pence: 2000 }, { name: 'Dad', pence: 2000 }]);
     const [c] = parseSpoken('£100 hotel out of my Bulgaria holiday fund yesterday on my credit card', vocab, today);
     expect(c).toMatchObject({ from_savings: true, tag: 'Bulgaria holiday', account_id: 'cc' });
@@ -164,21 +164,21 @@ describe('pasting several transactions', () => {
       '| Date | Merchant / Description | Amount | Account | Category |',
       '|---|---|---:|---|---|',
       '| 24 Nov | Spar energy drink | £1.75 | Ulster Bank | Groceries |',
-      '| 25 Nov | Lidl groceries | £5.97 | Revolut | Groceries |',
-      '| 26 Nov | Pepe’s restaurant meal | £11.35 | To confirm | Eating out & takeaway |',
-      '| **Total** | | **£19.07** | | |',
+      '| 25 Nov | Lidl groceries | £6.40 | Revolut | Groceries |',
+      '| 26 Nov | Rosa’s restaurant meal | £12.10 | To confirm | Eating out & takeaway |',
+      '| **Total** | | **£20.25** | | |',
     ].join('\n');
     const out = parseAny(table, vocab, today);
     expect(out.map((t) => [t.date, t.description, t.amount_pence, t.account_id, t.category_id])).toEqual([
       ['2026-11-24', 'Spar energy drink', -175, 'ul', 'gro'],
-      ['2026-11-25', 'Lidl groceries', -597, 'rev', 'gro'],
-      ['2026-11-26', 'Pepe’s restaurant meal', -1135, null, 'eat'],
+      ['2026-11-25', 'Lidl groceries', -640, 'rev', 'gro'],
+      ['2026-11-26', 'Rosa’s restaurant meal', -1210, null, 'eat'],
     ]);
     expect(out[2].unsure).toContain('account'); // "To confirm" is never guessed
   });
   it('a plain list: one per line, a date carries on until a new one', () => {
-    const out = parseAny('Yesterday\n- Tesco £12.50 groceries on Revolut\n- £3 petrol on Capital One\n24 Nov Lidl £5.97', vocab, today);
-    expect(out.map((t) => [t.date, t.amount_pence, t.category_id])).toEqual([['2026-11-25', -1250, 'gro'], ['2026-11-25', -300, 'fuel'], ['2026-11-24', -597, 'gro']]);
+    const out = parseAny('Yesterday\n- Tesco £12.50 groceries on Revolut\n- £3 petrol on Capital One\n24 Nov Lidl £6.40', vocab, today);
+    expect(out.map((t) => [t.date, t.amount_pence, t.category_id])).toEqual([['2026-11-25', -1250, 'gro'], ['2026-11-25', -300, 'fuel'], ['2026-11-24', -640, 'gro']]);
   });
   it('one line is still read as sentences', () => {
     expect(parseAny('£2 at Spar and £3 petrol', vocab, today)).toHaveLength(2);

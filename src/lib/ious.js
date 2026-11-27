@@ -5,7 +5,7 @@
 // is lost or counted twice. Paying more than they owe is refused rather than guessed at.
 // open: [{ id, amount_pence, date }] the person's unsettled IOUs; pence: amount received (> 0).
 export function allocateRepayment(open, pence) {
-  if (!Number.isInteger(pence) || pence <= 0) return { error: 'Type the amount they paid, e.g. 18.38.' };
+  if (!Number.isInteger(pence) || pence <= 0) return { error: 'Type the amount they paid, e.g. 20.00.' };
   const owed = open.reduce((a, s) => a + s.amount_pence, 0);
   if (pence > owed) return { error: `That’s more than they owe (£${(owed / 100).toFixed(2)}).` };
   const sorted = [...open].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.amount_pence - b.amount_pence);

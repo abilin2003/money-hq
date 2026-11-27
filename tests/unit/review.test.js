@@ -17,12 +17,12 @@ describe('inbox filters', () => {
 });
 
 describe('approving something different from the bank', () => {
-  const bank = { amount_pence: -5300, account: 'Ulster Bank', date: '2026-11-14' };
+  const bank = { amount_pence: -4800, account: 'Ulster Bank', date: '2026-11-14' };
   it('says so for amount, account and a far-off date; nothing when it matches', () => {
-    expect(bankWarnings(bank, { amount_pence: -5300, accountName: 'Ulster Bank', date: '2026-11-15' })).toEqual([]);
-    const w = bankWarnings(bank, { amount_pence: -5361, accountName: 'Revolut', date: '2026-11-30' });
+    expect(bankWarnings(bank, { amount_pence: -4800, accountName: 'Ulster Bank', date: '2026-11-15' })).toEqual([]);
+    const w = bankWarnings(bank, { amount_pence: -4875, accountName: 'Revolut', date: '2026-11-30' });
     expect(w).toHaveLength(3);
-    expect(w[0]).toMatch(/statement says £53\.00; you’re approving £53\.61/);
+    expect(w[0]).toMatch(/statement says £48\.00; you’re approving £48\.75/);
     expect(w[1]).toMatch(/Ulster Bank statement; you’re putting it on Revolut/);
     expect(bankWarnings(null, { amount_pence: 1 })).toEqual([]);
   });
@@ -40,6 +40,6 @@ describe('saving a reviewed line', () => {
     expect(buildPatch(t, { ...v, from_savings: true, fund_id: 'f' })).toMatchObject({ from_savings: true, fund_id: 'f' });
   });
   it('money in keeps its sign', () => {
-    expect(buildPatch({ ...t, amount_pence: 1838 }, { ...v, kind: 'repayment', pence: 2000 }).amount_pence).toBe(2000);
+    expect(buildPatch({ ...t, amount_pence: 1750 }, { ...v, kind: 'repayment', pence: 2000 }).amount_pence).toBe(2000);
   });
 });
