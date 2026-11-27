@@ -5,7 +5,7 @@ import { h } from '../ui/dom.js';
 import { formatPence, parsePence } from '../lib/money.js';
 import { shortDay, alertLine } from '../ui/parts.js';
 import { addTransaction, enrich, addPerson, addSplit } from '../lib/data.js';
-import { parseSpoken, possibleDuplicates, vocabFrom, findAmounts } from '../lib/interpret.js';
+import { parseAny, possibleDuplicates, vocabFrom, findAmounts } from '../lib/interpret.js';
 import { micButton, canListen, VOICE_PRIVACY } from '../ui/voice.js';
 import { fundSelect, readFund } from '../ui/fund-picker.js';
 
@@ -38,22 +38,26 @@ export function missingFor(t) {
 export function sayPanel(ctx, rerender) {
   const st = ctx.sayState || (ctx.sayState = { text: '', items: null, saved: 0 });
   const vocab = vocabFrom(ctx);
-  const box = h('textarea', { class: 'input', rows: 4, 'aria-label': 'Say or type your transactions', placeholder: 'e.g. Yesterday I spent £12.50 at Tesco on groceries using Revolut. Then £8.20 at McDonald’s from my Fun budget.', oninput: (e) => { st.text = e.target.value; } });
+  const box = h('textarea', { class: 'input', rows: 4, 'aria-label': 'Say, type or paste your transactions', placeholder: `e.g. Yesterday I spent £12.50 at Tesco on groceries using Revolut. Then £8.20 at McDonald’s from my Fun budget.
+
+Or paste a list, one per line:
+25 Nov Lidl £5.97 Revolut
+26 Nov Pepe’s £11.35`, oninput: (e) => { st.text = e.target.value; } });
   box.value = st.text;
-  const read = () => { st.text = box.value; st.items = parseSpoken(st.text, vocab, ctx.today).map((t, i) => ({ ...t, key: `${Date.now()}-${i}`, splitText: splitsText(t.splits) })); rerender(); };
+  const read = () => { st.text = box.value; st.items = parseAny(st.text, vocab, ctx.today).map((t, i) => ({ ...t, key: `${Date.now()}-${i}`, splitText: splitsText(t.splits) })); rerender(); };
   const mic = micButton(box, { onStop: () => { st.text = box.value; if (box.value.trim()) read(); } });
   const readBtn = h('button', { class: 'btn primary', type: 'button', onclick: read }, 'Read it');
 
   const intro = h('section', { class: 'card say-card' },
-    h('h2', { style: { marginTop: 0 } }, 'Say several at once'),
-    h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Say each purchase with its amount, where, what it was and what you paid with. Anything you don’t say is left for you to fill in.'),
+    h('h2', { style: { marginTop: 0 } }, 'Say or paste several at once'),
+    h('p', { class: 'muted small', style: { marginTop: 0 } }, 'Speak, type or paste: sentences, a list (one per line) or a table copied from your notes. Each needs an amount; anything not given is left for you to fill in.'),
     box,
     h('div', { class: 'explain-btns' }, mic?.button, readBtn, st.items ? h('button', { class: 'linkbtn', type: 'button', onclick: () => { st.text = ''; st.items = null; rerender(); } }, 'Start again') : null),
     mic ? mic.status : null,
     h('p', { class: 'muted small', style: { margin: '8px 0 0' } }, mic ? VOICE_PRIVACY : canListen() ? '' : 'Speaking needs Chrome, Edge or Safari. You can type the same sentence here instead.'),
     st.saved ? h('p', { class: 'chip', role: 'status', style: { marginTop: '10px' } }, `Saved ${st.saved}.`) : null);
   if (!st.items) return intro;
-  if (!st.items.length) return [intro, h('section', { class: 'card' }, h('p', { class: 'muted', style: { margin: 0 } }, 'I couldn’t find an amount in that. Say it like “£12.50 at Tesco”.'))];
+  if (!st.items.length) return [intro, h('section', { class: 'card' }, h('p', { class: 'muted', style: { margin: 0 } }, 'I couldn’t find an amount in that. Write it like “£12.50 at Tesco”, one per line for a list.'))];
 
   const catOptions = (sel) => [h('option', { value: '' }, 'To confirm'), ...ctx.ref.buckets.map((b) => h('optgroup', { label: b.name }, ctx.ref.categories.filter((c) => c.is_active && c.bucket_id === b.id).map((c) => h('option', { value: c.id, selected: c.id === sel }, c.name))))];
   const accounts = ctx.ref.accounts.filter((a) => a.is_active !== false);

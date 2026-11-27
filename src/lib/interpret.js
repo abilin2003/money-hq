@@ -451,6 +451,40 @@ export function parseSpoken(text, vocab, today) {
   return out;
 }
 
+// ---------------------------------------------------------------- pasted lists and tables
+// Several lines pasted at once (a list from your notes, a table from a chat or a spreadsheet): each line with an
+// amount is one transaction. Table bars, bullets and bold marks are ignored; header, separator and "Total" lines
+// are skipped. A date carries on to the following lines until a new one is given. In a table, the description
+// is the cell that isn't the date, the amount, an account or a category.
+const cellsOf = (line) => line.replace(/\*\*/g, '').split(/\s*\|\s*|\t/).map((c) => c.trim()).filter(Boolean);
+export function parsePasted(text, vocab, today) {
+  const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const out = [];
+  let lastDate = null;
+  for (const raw of lines) {
+    if (/^\|?\s*:?-{3,}/.test(raw)) continue; // | --- | --- |
+    const line = raw.replace(/^[-*•·]\s+/, '').replace(/^\d+[.)]\s+/, '');
+    const cells = cellsOf(line);
+    const flat = cells.join(', ');
+    if (/^(total|subtotal|sum)\b/i.test(cells[0] || '') || /\btotal\b/i.test(flat) && cells.length <= 3) continue;
+    const found = parseSpoken(flat, vocab, today);
+    if (!found.length) { const d = findDate(flat, today); if (d) lastDate = d; continue; } // a heading like "24 Nov"
+    // One line, one transaction: if the line held several amounts, the first is it (the rest are usually totals).
+    const t = found[0];
+    if (t.date) lastDate = t.date;
+    else if (lastDate) { t.date = lastDate; t.unsure = t.unsure.filter((u) => u !== 'date'); }
+    if (cells.length > 1) { // a table row: its description cell beats any guess from the other cells
+      const cell = cells.find((c) => !findAmounts(c).length && !findDate(c, today) && !findAccount(c, vocab) && !c.includes('→') && !vocab.categories.some((k) => normKey(c) === normKey(k.name) || normKey(c) === normKey(k.bucket)) && !/^to confirm$/i.test(c));
+      if (cell) { t.description = cell.replace(/\s+[—–-]\s+.*$/, '').trim() || cell; t.unsure = t.unsure.filter((u) => u !== 'description'); if (cell !== t.description) t.note = t.note || cell; }
+    }
+    t.text = raw;
+    out.push(t);
+  }
+  return out;
+}
+// Typed or spoken sentences, or a pasted list: whichever this looks like.
+export const parseAny = (text, vocab, today) => (String(text || '').trim().split(/\r?\n/).filter((l) => l.trim()).length > 1 ? parsePasted(text, vocab, today) : parseSpoken(text, vocab, today));
+
 // Lines you already have that look like the same payment: same account (if known) and amount, within 3 days.
 export function possibleDuplicates(t, existing) {
   if (!t.date || !t.amount_pence) return [];

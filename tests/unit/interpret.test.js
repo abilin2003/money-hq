@@ -1,6 +1,6 @@
 // Reading explanations and spoken transactions with fixed rules. Made-up names and amounts.
 import { describe, it, expect } from 'vitest';
-import { findAmounts, findDate, wordsToDigits, interpretExplanation, parseSpoken, findFunding, findFund, possibleDuplicates } from '../../src/lib/interpret.js';
+import { findAmounts, findDate, wordsToDigits, interpretExplanation, parseSpoken, parseAny, findFunding, findFund, possibleDuplicates } from '../../src/lib/interpret.js';
 
 const vocab = {
   categories: [
@@ -155,5 +155,32 @@ describe('transactions said out loud', () => {
   it('spots a payment you already have', () => {
     const t = { date: '2026-11-25', amount_pence: -1250, account_id: 'rev' };
     expect(possibleDuplicates(t, [{ id: 'a', date: '2026-11-24', amount_pence: -1250, account_id: 'rev' }, { id: 'b', date: '2026-11-24', amount_pence: -1250, account_id: 'ul' }]).map((x) => x.id)).toEqual(['a']);
+  });
+});
+
+describe('pasting several transactions', () => {
+  it('a table from a chat or notes: one per row, headers and totals skipped, the description found', () => {
+    const table = [
+      '| Date | Merchant / Description | Amount | Account | Category |',
+      '|---|---|---:|---|---|',
+      '| 24 Nov | Spar energy drink | £1.75 | Ulster Bank | Groceries |',
+      '| 25 Nov | Lidl groceries | £5.97 | Revolut | Groceries |',
+      '| 26 Nov | Pepe’s restaurant meal | £11.35 | To confirm | Eating out & takeaway |',
+      '| **Total** | | **£19.07** | | |',
+    ].join('\n');
+    const out = parseAny(table, vocab, today);
+    expect(out.map((t) => [t.date, t.description, t.amount_pence, t.account_id, t.category_id])).toEqual([
+      ['2026-11-24', 'Spar energy drink', -175, 'ul', 'gro'],
+      ['2026-11-25', 'Lidl groceries', -597, 'rev', 'gro'],
+      ['2026-11-26', 'Pepe’s restaurant meal', -1135, null, 'eat'],
+    ]);
+    expect(out[2].unsure).toContain('account'); // "To confirm" is never guessed
+  });
+  it('a plain list: one per line, a date carries on until a new one', () => {
+    const out = parseAny('Yesterday\n- Tesco £12.50 groceries on Revolut\n- £3 petrol on Capital One\n24 Nov Lidl £5.97', vocab, today);
+    expect(out.map((t) => [t.date, t.amount_pence, t.category_id])).toEqual([['2026-11-25', -1250, 'gro'], ['2026-11-25', -300, 'fuel'], ['2026-11-24', -597, 'gro']]);
+  });
+  it('one line is still read as sentences', () => {
+    expect(parseAny('£2 at Spar and £3 petrol', vocab, today)).toHaveLength(2);
   });
 });

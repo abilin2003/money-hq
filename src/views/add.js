@@ -8,29 +8,34 @@ import { equalShares } from '../lib/analytics.js';
 import { head, alertLine } from '../ui/parts.js';
 import { addTransaction, enrich, addPerson, addSplit } from '../lib/data.js';
 import { sayPanel } from './say.js';
+import { possibleDuplicates } from '../lib/interpret.js';
+import { formatPence } from '../lib/money.js';
+import { shortDay } from '../ui/parts.js';
 
 export function addPage(ctx, rerender) {
   const st = ctx.addState || (ctx.addState = { type: 'out', date: ctx.today, saved: null, mode: 'one' });
   // Leave without adding anything: back to where you came from (or the Overview), forgetting what was typed.
   const close = h('button', { class: 'btn add-close', type: 'button', 'aria-label': 'Close without adding', onclick: () => { ctx.addState = null; ctx.sayState = null; location.hash = ctx.cameFrom || 'overview'; } }, h('span', { 'aria-hidden': 'true' }, '✕'), ' Close');
   const modeBtn = (id, label) => h('button', { type: 'button', 'aria-pressed': String((st.mode || 'one') === id), onclick: () => { st.mode = id; rerender(); } }, label);
-  const modes = h('div', { class: 'seg wide add-mode', role: 'group', 'aria-label': 'How to add' }, modeBtn('one', 'Type one'), modeBtn('say', 'Say several'));
+  const modes = h('div', { class: 'seg wide add-mode', role: 'group', 'aria-label': 'How to add' }, modeBtn('one', 'Type one'), modeBtn('say', 'Say or paste'));
   if (st.mode === 'say') return h('div', { class: 'page narrow' }, head('Add transactions', null, close), modes, sayPanel(ctx, rerender));
   const account = ctx.ref.accounts.find((a) => a.id === ctx.lastAddAccount) || ctx.ref.accounts.find((a) => a.name === 'Revolut') || ctx.ref.accounts[0];
   // Recent shops (newest first) and the category last used at each; the categories you use most lately.
   const recent = ctx.transactions.filter((t) => t.kind === 'spend' && t.category_id && t.raw_description).slice(0, 400);
   const lastCat = new Map();
-  for (const t of recent) if (!lastCat.has(t.raw_description.toLowerCase())) lastCat.set(t.raw_description.toLowerCase(), t.category_id);
+  const lastAcc = new Map(); // the account you paid with last time at each shop
+  for (const t of recent) { const k = t.raw_description.toLowerCase(); if (!lastCat.has(k)) lastCat.set(k, t.category_id); if (!lastAcc.has(k) && t.account_id) lastAcc.set(k, t.account_id); }
   const counts = new Map();
   for (const t of recent.slice(0, 150)) counts.set(t.category_id, (counts.get(t.category_id) || 0) + 1);
   const topCats = [...counts].sort((a, b) => b[1] - a[1]).map(([id]) => ctx.ref.categories.find((c) => c.id === id && c.is_active)).filter(Boolean).slice(0, 6);
   const amount = h('input', { class: 'input money big-input', inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Amount', autofocus: true, enterkeyhint: 'next' });
   const where = h('input', { class: 'input', placeholder: st.type === 'in' ? 'Who from, e.g. Kevin' : 'Where, e.g. Tesco', 'aria-label': 'Where', list: st.type === 'out' ? 'shop-list' : null, autocomplete: 'off', enterkeyhint: 'next',
-    onchange: () => { const c = lastCat.get(where.value.trim().toLowerCase()); if (st.type === 'out' && c && !cat.value) { cat.value = c; markChips(); } } });
+    onchange: () => { const k = where.value.trim().toLowerCase(); const c = lastCat.get(k); if (st.type === 'out' && c && !cat.value) { cat.value = c; markChips(); } const a = lastAcc.get(k); if (a && paidTouched === false) { paid.value = a; } } });
+  let paidTouched = false;
   const cat = h('select', { class: 'input', id: 'add-cat', 'aria-label': 'Category' }, h('option', { value: '' }, st.type === 'out' ? 'Category…' : 'What is it?'),
     st.type === 'out' ? ctx.ref.buckets.map((b) => h('optgroup', { label: b.name }, ctx.ref.categories.filter((c) => c.is_active && c.bucket_id === b.id).map((c) => h('option', { value: c.id }, c.name))))
       : st.type === 'in' ? [['repayment', 'A friend paying me back'], ['income', 'Income'], ['refund', 'Refund']].map(([v, l]) => h('option', { value: v }, l)) : null);
-  const paid = h('select', { class: 'input', 'aria-label': 'Paid with', onchange: (e) => { ctx.lastAddAccount = e.target.value; } }, ctx.ref.accounts.filter((a) => a.is_active !== false).map((a) => h('option', { value: a.id, selected: a.id === account?.id }, a.name)));
+  const paid = h('select', { class: 'input', 'aria-label': 'Paid with', onchange: (e) => { ctx.lastAddAccount = e.target.value; paidTouched = true; } }, ctx.ref.accounts.filter((a) => a.is_active !== false).map((a) => h('option', { value: a.id, selected: a.id === account?.id }, a.name)));
   const date = h('input', { class: 'input', type: 'date', value: st.date, 'aria-label': 'Date', onchange: (e) => { st.date = e.target.value; } });
   const split = h('input', { class: 'input', placeholder: 'Split with (names, commas)', 'aria-label': 'Split with', list: 'people-list' });
   const note = h('input', { class: 'input', placeholder: 'Note (optional)', 'aria-label': 'Note' });
@@ -51,6 +56,14 @@ export function addPage(ctx, rerender) {
     if (st.type === 'out') { if (!cat.value) { alertLine(btn, 'Choose a category.'); return; } category_id = cat.value; }
     else if (st.type === 'in') { if (!cat.value) { alertLine(btn, 'Choose what it is.'); return; } kind = cat.value; }
     else kind = 'transfer';
+    const signed = out ? -p : p;
+    const dupKey = `${paid.value}|${st.date}|${signed}`;
+    const dups = possibleDuplicates({ date: st.date, amount_pence: signed, account_id: paid.value }, ctx.all.filter((t) => !t.archived));
+    if (dups.length && st.dupOk !== dupKey) {
+      st.dupOk = dupKey;
+      alertLine(btn, `You already have ${dups.map((d) => `${d.raw_description} ${formatPence(Math.abs(d.amount_pence))} on ${shortDay(d.date)}`).join('; ')} on this account. Press Save again to add this one too.`);
+      return;
+    }
     btn.disabled = true;
     try {
       const saved = await addTransaction({ account_id: paid.value, date: st.date, amount_pence: out ? -p : p, raw_description: where.value.trim(), kind, category_id, note: note.value.trim() || null });
@@ -82,7 +95,7 @@ export function addPage(ctx, rerender) {
       h('label', { class: 'field' }, st.type === 'in' ? 'From' : 'Where', where),
       st.type !== 'move' ? h('div', { class: 'field' }, h('label', { for: 'add-cat' }, st.type === 'out' ? 'Category' : 'What is it?'), chips, cat) : null,
       h('label', { class: 'field' }, st.type === 'in' ? 'Into' : 'Paid with', paid),
-      h('div', { class: 'field' }, 'When', h('div', { class: 'chips' }, dayBtn(ctx.today, 'Today'), dayBtn(addDays(ctx.today, -1), 'Yesterday'), date)),
+      h('div', { class: 'field' }, 'When', h('div', { class: 'chips' }, dayBtn(ctx.today, 'Today'), dayBtn(addDays(ctx.today, -1), 'Yesterday'), dayBtn(addDays(ctx.today, -2), new Date(`${addDays(ctx.today, -2)}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })), date)),
       st.type === 'out' ? h('label', { class: 'field' }, 'Split equally with', split) : null,
       h('label', { class: 'field' }, 'Note', note),
       h('datalist', { id: 'people-list' }, ctx.ref.people.map((p) => h('option', { value: p.name }))),
