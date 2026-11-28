@@ -135,6 +135,12 @@ export async function saveReviewed(ctx, t, v, { note } = {}) {
   const patch = buildPatch(t, { ...v, note: note ?? v.note });
   const saved = enrich(await updateTransaction(t.id, patch), ctx.ref);
   ctx.replace(saved);
+  if (t.transfer_pair_id && (patch.amount_pence !== undefined || patch.date)) {
+    const mirror = {};
+    if (patch.amount_pence !== undefined) mirror.amount_pence = -patch.amount_pence;
+    if (patch.date) mirror.date = patch.date;
+    ctx.replace(enrich(await updateTransaction(t.transfer_pair_id, mirror), ctx.ref));
+  }
   for (const s of v.kind === 'spend' ? v.splits : []) {
     const person = ctx.ref.people.find((p) => p.name.toLowerCase() === s.name.toLowerCase()) || await addPerson(s.name);
     if (!ctx.ref.people.some((p) => p.id === person.id)) ctx.ref.people.push(person);

@@ -919,3 +919,35 @@ a.crow:focus-visible, a.crow4:focus-visible, a.bva:focus-visible, a.chg:focus-vi
 }
 /* A picker in a card header (e.g. Wealth's account history) can shrink on a phone instead of overflowing */
 .ch > select.input { min-width: 0; flex: 0 1 auto; max-width: 62%; text-overflow: ellipsis; }
+
+/* My accounts: a row of tiles on a laptop, a swipeable strip on a phone (same figures everywhere) */
+.ov-accounts { margin: 0 0 20px; }
+.ov-accounts .ch { margin-bottom: 10px; }
+.acct-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(176px, 1fr); gap: 12px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 6px; scrollbar-width: thin; }
+.acct-strip .acct-tile { scroll-snap-align: start; }
+.acct-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.acct-tile:hover, .acct-tile:focus-visible { border-color: var(--accent); }
+.at-name { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-bal { font-size: 22px; font-weight: 600; white-space: nowrap; }
+.acct-tile.debt .at-bal { color: var(--over); }
+.acct-tile.unset .at-bal { font-size: 16px; color: var(--muted); }
+.at-sub { font-size: 12px; color: var(--muted); }
+.at-pend { font-size: 12px; color: var(--warning); }
+@media (max-width: 759px) {
+  .acct-strip { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; gap: 10px; margin: 0 -16px; padding: 0 16px 6px; scrollbar-width: none; }
+  .acct-strip::-webkit-scrollbar { display: none; }
+  .acct-tile { flex: 0 0 66%; max-width: 240px; scroll-snap-align: start; }
+}
+/* Account page */
+.acct-head .pos-figure { margin: 4px 0; }
+.alloc-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 1fr 1fr auto; gap: 8px 10px; align-items: end; padding: 10px 0; border-top: 1px solid var(--border); }
+.alloc-row .input { width: 100%; }
+.alloc-name { align-self: center; font-weight: 500; }
+.acct-line { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.acct-line:first-child { border-top: 0; }
+@media (max-width: 759px) { .alloc-row { grid-template-columns: 1fr 1fr; } .alloc-name { grid-column: 1 / -1; } }
+.acct-link { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted); }
+/* Phone Overview: the spending chart is too cramped to read at this size, so it's left to laptops and Analytics */
+@media (max-width: 759px) {
+  .ov2 .ov-perf { display: none; }
+}

@@ -14,6 +14,8 @@ import { lineChart } from '../ui/charts.js';
 import { addSnapshot } from '../lib/data.js';
 import { balanceNow, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
+import { balancesOf } from './accounts.js';
+import { trackedNetWorth } from '../lib/balances.js';
 import { historyRows } from './history.js';
 import { fundsOf } from './state.js';
 
@@ -32,8 +34,10 @@ export function wealthPage(ctx, rerender) {
 
   // ---- summary tiles
   const tile = (label, value, sub, cls = '') => h('div', { class: 'card tile' }, h('span', { class: 'muted small' }, label), h('span', { class: `tile-v display ${cls}` }, value), h('span', { class: 'muted small' }, sub));
+  // The live figure (typed-in balances plus what's happened since), from the same calculation as the Overview.
+  const live = trackedNetWorth(balancesOf(ctx));
   const tiles = h('div', { class: 'tiles' },
-    tile('Net worth', nw.known ? signed(nw.total) : 'Not verified', nw.known ? when(lastOf(Object.keys(TYPE))) : 'needs your balances', nw.known ? '' : 'unset'),
+    tile('Net worth now', live.status === 'unknown' ? 'Not verified' : signed(live.total), live.status === 'verified' ? 'your typed-in balances' : live.status === 'estimated' ? `${nw.known ? `verified ${signed(nw.total)}` : 'typed-in balances'} + since` : 'needs your balances', live.status === 'unknown' ? 'unset' : ''),
     tile('Assets', nw.known ? formatPence(latest.assets) : 'Not entered', 'everything you own', nw.known ? '' : 'unset'),
     tile('Liabilities', lastOf(['credit_card']) ? formatPence(latest.liabilities) : 'Not entered', when(lastOf(['credit_card'])), lastOf(['credit_card']) ? (latest.liabilities ? 'over' : '') : 'unset'),
     tile('Cash and savings', lastOf(['current', 'savings', 'cash']) ? formatPence(latest.cash) : 'Not entered', when(lastOf(['current', 'savings', 'cash'])), lastOf(['current', 'savings', 'cash']) ? '' : 'unset'),
@@ -117,7 +121,7 @@ export function wealthPage(ctx, rerender) {
     const waiting = balanceNow(a, ctx.ref.snapshots, ctx.transactions, ctx.today).pending;
     const pendingLine = waiting.count ? h('span', { class: 'small warn' }, `${waiting.count} line${waiting.count === 1 ? '' : 's'} in your inbox (${waiting.pence < 0 ? '−' : '+'}${formatPence(Math.abs(waiting.pence))}) not counted yet`) : null;
     return h('div', { class: 'acctrow' },
-      h('span', null, h('span', { style: { fontWeight: 500 } }, a.name, kindTag(status)), estimate ? [h('br'), estimate] : null, pendingLine ? [h('br'), pendingLine] : null, h('br'),
+      h('span', null, h('span', { style: { fontWeight: 500 } }, h('a', { href: `#account/${a.id}`, class: 'acct-link' }, a.name), kindTag(status)), estimate ? [h('br'), estimate] : null, pendingLine ? [h('br'), pendingLine] : null, h('br'),
         h('span', { class: `small ${a.stale ? 'warn' : 'muted'}` }, `${TYPE[a.type] || a.type}${a.last ? ` · updated ${shortDay(a.last.date)} ${a.last.date.slice(0, 4)} (${ago(a.last.date, ctx.today)})` : ' · no balance yet'}`)),
       h('span', { class: `r ${a.value < 0 ? 'over' : ''}` }, a.value === null ? '–' : signed(a.value)));
   };

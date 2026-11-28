@@ -40,7 +40,9 @@ export function cashPosition({ accounts, snapshots, txs, today, billsDue = 0, re
 // A repayment is money out of another account that names the card (e.g. "CAPITAL ONE"), or money into the card.
 export function cardOwed(card, snapshots, txs, today) {
   const key = normKey(card.institution || card.name);
-  const isRepayment = (t) => (t.account_id !== card.id && t.amount_pence < 0 && t.kind === 'transfer' && key && ` ${normKey(t.raw_description)} `.includes(` ${key} `))
+  // A bank-side repayment counts only when the card side wasn't recorded too (a paired move has both halves:
+  // the card side is the one counted, so the payment is never taken off twice).
+  const isRepayment = (t) => (t.account_id !== card.id && t.amount_pence < 0 && t.kind === 'transfer' && !t.transfer_pair_id && key && ` ${normKey(t.raw_description)} `.includes(` ${key} `))
     || (t.account_id === card.id && t.amount_pence > 0 && t.kind !== 'refund');
   // Lines still waiting in the inbox don't count until you approve them.
   const approved = txs.filter((t) => t.status !== 'needs_review' && !t.archived);

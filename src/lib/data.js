@@ -157,6 +157,20 @@ export async function addTransaction(t) {
   const id = crypto.randomUUID();
   return must(await supabase.from('transactions').insert({ id, status: 'reviewed', source: 'manual', fingerprint: `manual|${id}`, ...t }).select(TX_COLUMNS).single(), 'save the transaction');
 }
+// A move between your own accounts, recorded as both halves (money out of one, into the other) linked together,
+// so both balances change and net worth doesn't. t: { from, to, date, amount_pence (> 0), raw_description, note }.
+export async function addTransfer(t) {
+  const outId = crypto.randomUUID(); const inId = crypto.randomUUID();
+  const base = { kind: 'transfer', status: 'reviewed', source: 'manual', date: t.date, raw_description: t.raw_description, note: t.note || null };
+  const rows = [
+    { ...base, id: outId, account_id: t.from, amount_pence: -t.amount_pence, fingerprint: `manual|${outId}` },
+    { ...base, id: inId, account_id: t.to, amount_pence: t.amount_pence, fingerprint: `manual|${inId}` },
+  ];
+  const saved = must(await supabase.from('transactions').insert(rows).select(TX_COLUMNS), 'save the move');
+  must(await supabase.from('transactions').update({ transfer_pair_id: inId }).eq('id', outId), 'link the move');
+  must(await supabase.from('transactions').update({ transfer_pair_id: outId }).eq('id', inId), 'link the move');
+  return saved.map((x) => ({ ...x, transfer_pair_id: x.id === outId ? inId : outId }));
+}
 export async function deleteTransaction(id) {
   must(await supabase.from('transactions').delete().eq('id', id), 'delete the transaction');
 }

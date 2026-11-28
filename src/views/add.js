@@ -6,7 +6,7 @@ import { parsePence } from '../lib/money.js';
 import { addDays } from '../lib/dates.js';
 import { equalShares } from '../lib/analytics.js';
 import { head, alertLine } from '../ui/parts.js';
-import { addTransaction, enrich, addPerson, addSplit } from '../lib/data.js';
+import { addTransaction, addTransfer, enrich, addPerson, addSplit } from '../lib/data.js';
 import { sayPanel } from './say.js';
 import { possibleDuplicates } from '../lib/interpret.js';
 import { formatPence } from '../lib/money.js';
@@ -36,6 +36,9 @@ export function addPage(ctx, rerender) {
     st.type === 'out' ? ctx.ref.buckets.map((b) => h('optgroup', { label: b.name }, ctx.ref.categories.filter((c) => c.is_active && c.bucket_id === b.id).map((c) => h('option', { value: c.id }, c.name))))
       : st.type === 'in' ? [['repayment', 'A friend paying me back'], ['income', 'Income'], ['refund', 'Refund']].map(([v, l]) => h('option', { value: v }, l)) : null);
   const paid = h('select', { class: 'input', 'aria-label': 'Paid with', onchange: (e) => { ctx.lastAddAccount = e.target.value; paidTouched = true; } }, ctx.ref.accounts.filter((a) => a.is_active !== false).map((a) => h('option', { value: a.id, selected: a.id === account?.id }, a.name)));
+  const others = ctx.ref.accounts.filter((a) => a.is_active !== false);
+  const toAcc = h('select', { class: 'input', 'aria-label': 'To account' }, h('option', { value: '' }, 'Choose the account…'), others.map((a) => h('option', { value: a.id, selected: a.id === st.moveTo }, a.name)));
+  toAcc.addEventListener('change', () => { st.moveTo = toAcc.value; });
   const date = h('input', { class: 'input', type: 'date', value: st.date, 'aria-label': 'Date', onchange: (e) => { st.date = e.target.value; } });
   const split = h('input', { class: 'input', placeholder: 'Split with (names, commas)', 'aria-label': 'Split with', list: 'people-list' });
   const note = h('input', { class: 'input', placeholder: 'Note (optional)', 'aria-label': 'Note' });
@@ -50,7 +53,9 @@ export function addPage(ctx, rerender) {
   async function save(another, btn) {
     const p = parsePence(amount.value);
     if (!p || p <= 0) { alertLine(btn, 'Type the amount, e.g. 4.50.'); amount.focus(); return; }
+    if (st.type === 'move' && !where.value.trim()) where.value = 'Move between my accounts';
     if (!where.value.trim()) { alertLine(btn, 'Say where (or who from).'); where.focus(); return; }
+    if (st.type === 'move' && (!toAcc.value || toAcc.value === paid.value)) { alertLine(btn, 'Choose the account the money went to (a different one).'); return; }
     const out = st.type !== 'in';
     let kind = 'spend'; let category_id = null;
     if (st.type === 'out') { if (!cat.value) { alertLine(btn, 'Choose a category.'); return; } category_id = cat.value; }
@@ -65,6 +70,16 @@ export function addPage(ctx, rerender) {
       return;
     }
     btn.disabled = true;
+    // A move is saved as both halves, linked: out of one account, into the other.
+    if (st.type === 'move') {
+      try {
+        const both = await addTransfer({ from: paid.value, to: toAcc.value, date: st.date, amount_pence: p, raw_description: where.value.trim(), note: note.value.trim() || null });
+        for (const t of both) ctx.add(enrich(t, ctx.ref));
+        st.saved = `Moved ${formatPence(p)}.`;
+        if (another) rerender(); else { ctx.addState = null; location.hash = 'overview'; }
+      } catch (err) { btn.disabled = false; alertLine(btn, err.message); }
+      return;
+    }
     try {
       const saved = await addTransaction({ account_id: paid.value, date: st.date, amount_pence: out ? -p : p, raw_description: where.value.trim(), kind, category_id, note: note.value.trim() || null });
       ctx.add(enrich(saved, ctx.ref));
@@ -92,9 +107,10 @@ export function addPage(ctx, rerender) {
     h('section', { class: 'card add-card' },
       h('div', { class: 'seg wide', role: 'group', 'aria-label': 'Type' }, typeBtn('out', 'Spent'), typeBtn('in', 'Money in'), typeBtn('move', 'Move')),
       amount,
-      h('label', { class: 'field' }, st.type === 'in' ? 'From' : 'Where', where),
+      h('label', { class: 'field' }, st.type === 'in' ? 'From' : st.type === 'move' ? 'What for (optional)' : 'Where', where),
       st.type !== 'move' ? h('div', { class: 'field' }, h('label', { for: 'add-cat' }, st.type === 'out' ? 'Category' : 'What is it?'), chips, cat) : null,
-      h('label', { class: 'field' }, st.type === 'in' ? 'Into' : 'Paid with', paid),
+      h('label', { class: 'field' }, st.type === 'in' ? 'Into' : st.type === 'move' ? 'From account' : 'Paid with', paid),
+      st.type === 'move' ? h('label', { class: 'field' }, 'To account', toAcc) : null,
       h('div', { class: 'field' }, 'When', h('div', { class: 'chips' }, dayBtn(ctx.today, 'Today'), dayBtn(addDays(ctx.today, -1), 'Yesterday'), dayBtn(addDays(ctx.today, -2), new Date(`${addDays(ctx.today, -2)}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })), date)),
       st.type === 'out' ? h('label', { class: 'field' }, 'Split equally with', split) : null,
       h('label', { class: 'field' }, 'Note', note),

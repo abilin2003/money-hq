@@ -5,7 +5,7 @@ export const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: 'overview', pages: [['overview', 'Overview']] },
   { id: 'analytics', label: 'Analytics', icon: 'trends', pages: [['spending', 'Spending'], ['insights', 'Insights'], ['compare', 'Compare'], ['reports', 'Reports', ['review']], ['trends', 'Trends'], ['history', 'History'], ['transactions', 'Transactions']] },
   { id: 'planning', label: 'Planning', icon: 'plan', pages: [['plan', 'Payday plan'], ['moneyday', 'Money day'], ['budgets', 'Budgets'], ['goals', 'Goals'], ['manage', 'Manage', ['bills']]] },
-  { id: 'wealth', label: 'Wealth', icon: 'wealth', pages: [['wealth', 'Wealth']] },
+  { id: 'wealth', label: 'Wealth', icon: 'wealth', pages: [['wealth', 'Wealth', ['account']]] },
   { id: 'activity', label: 'Activity', icon: 'activity', pages: [['inbox', 'Review inbox'], ['people', 'IOUs'], ['import', 'Import']] },
 ];
 export const OUTSIDE = [['add', 'Add a transaction'], ['settings', 'Settings'], ['bills', 'Bills'], ['review', 'Cycle review']];

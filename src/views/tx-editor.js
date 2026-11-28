@@ -26,17 +26,42 @@ export function txEditor(ctx, t, rerender) {
   const note = h('input', { class: 'input', value: t.note || '', placeholder: 'Note', 'aria-label': 'Note' });
   const tag = h('input', { class: 'input', value: t.tag || '', placeholder: 'Tag, e.g. Cousins visit', 'aria-label': 'Tag or event' });
   const savings = fundSelect(ctx, { fromSavings: t.from_savings, fundId: t.fund_id });
+  // Your own entries: the amount, date and account can be corrected too. Balances are always worked out from
+  // the lines, so they follow straight away; the other half of a move is kept in step.
+  const own = t.source === 'manual' || !String(t.source || '').startsWith('import:');
+  const amountIn = own ? h('input', { class: 'input money', inputmode: 'decimal', value: (Math.abs(t.amount_pence) / 100).toFixed(2), 'aria-label': 'Amount' }) : null;
+  const dateIn = own ? h('input', { class: 'input', type: 'date', value: t.date, 'aria-label': 'Date' }) : null;
+  const accIn = own ? h('select', { class: 'input', 'aria-label': t.amount_pence < 0 ? 'Paid with' : 'Into' }, ctx.ref.accounts.filter((a) => a.is_active !== false || a.id === t.account_id).map((a) => h('option', { value: a.id, selected: a.id === t.account_id }, a.name))) : null;
+  const pair = t.transfer_pair_id ? txById[t.transfer_pair_id] : null;
   const save = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
     const choice = kind.value ? decode(kind.value, t.amount_pence) : null;
+    const line = {};
+    if (own) {
+      const p = parsePence(amountIn.value);
+      if (!p || p <= 0) { alertLine(save, 'Type the amount, e.g. 4.50.'); return; }
+      if (!dateIn.value) { alertLine(save, 'Choose the date.'); return; }
+      if (p !== Math.abs(t.amount_pence)) line.amount_pence = t.amount_pence < 0 ? -p : p;
+      if (dateIn.value !== t.date) line.date = dateIn.value;
+      if (accIn.value !== t.account_id) {
+        if (pair && accIn.value === pair.account_id) { alertLine(save, 'A move needs two different accounts.'); return; }
+        line.account_id = accIn.value;
+      }
+    }
     save.disabled = true;
     try {
-      const saved = await updateTransaction(t.id, { ...(choice || {}), note: note.value.trim() || null, tag: tag.value.trim() || null, ...readFund(savings, t.amount_pence < 0), status: choice || t.status === 'reviewed' ? 'reviewed' : t.status });
+      const saved = await updateTransaction(t.id, { ...(choice || {}), ...line, note: note.value.trim() || null, tag: tag.value.trim() || null, ...readFund(savings, t.amount_pence < 0), status: choice || t.status === 'reviewed' ? 'reviewed' : t.status });
       ctx.replace(enrich(saved, ctx.ref));
+      if (pair && (line.amount_pence !== undefined || line.date)) {
+        const mirror = {};
+        if (line.amount_pence !== undefined) mirror.amount_pence = -line.amount_pence;
+        if (line.date) mirror.date = line.date;
+        ctx.replace(enrich(await updateTransaction(pair.id, mirror), ctx.ref));
+      }
       rerender();
     } catch (err) { save.disabled = false; alertLine(save, err.message); }
   } }, 'Save');
 
-  const parts = [h('div', { class: 'edit-grid' }, kind, note, tag, save)];
+  const parts = [own ? h('div', { class: 'edit-grid' }, amountIn, dateIn, accIn) : null, h('div', { class: 'edit-grid' }, kind, note, tag, save), pair ? h('p', { class: 'muted small', style: { margin: 0 } }, `A move: the other half is ${formatPence(Math.abs(pair.amount_pence))} ${pair.amount_pence > 0 ? 'into' : 'out of'} ${pair.accountName}. Changing the amount or date here changes both.`) : null].filter(Boolean);
   if (t.amount_pence < 0) parts.push(h('label', { class: 'field' }, 'Paid for by (savings count in total spending, not this cycle’s budget)', savings));
 
   // ---- split (money out only)
@@ -94,7 +119,8 @@ export function txEditor(ctx, t, rerender) {
   if (t.source === 'manual') {
     const del = h('button', { class: 'linkbtn', type: 'button', onclick: async () => {
       if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = 'Tap again to delete'; return; }
-      try { await deleteTransaction(t.id); ctx.all = ctx.all.filter((x) => x.id !== t.id); ctx.refresh(); rerender(); } catch (err) { alertLine(del, err.message); }
+      // Deleting a move deletes both halves, so neither account is left with half of it.
+      try { const gone = [t.id, pair?.source === 'manual' ? pair.id : null].filter(Boolean); for (const id of gone) await deleteTransaction(id); ctx.all = ctx.all.filter((x) => !gone.includes(x.id)); ctx.refresh(); rerender(); } catch (err) { alertLine(del, err.message); }
     } }, 'Delete this entry');
     parts.push(del);
   }

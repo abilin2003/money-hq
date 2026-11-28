@@ -26,6 +26,7 @@ import { peoplePage } from './views/people.js';
 import { addPage } from './views/add.js';
 import { goalsPage } from './views/goals.js';
 import { wealthPage } from './views/wealth.js';
+import { accountPage } from './views/accounts.js';
 import { moneydayPage } from './views/moneyday.js';
 import { settingsPage } from './views/settings.js';
 
@@ -104,6 +105,7 @@ function render() {
     : route === 'add' ? addPage(ctx, render)
     : route === 'goals' ? goalsPage(ctx, render)
     : route === 'wealth' ? wealthPage(ctx, render)
+    : route === 'account' ? accountPage(ctx, render, param)
     : route === 'moneyday' ? moneydayPage(ctx, render)
     : route === 'settings' ? settingsPage(ctx, render)
     : route === 'inbox' ? inboxPage(ctx, render)

@@ -21,6 +21,8 @@ import { shortDay, dayLabel, pounds, bar, inCycle } from '../ui/parts.js';
 import { paceChart } from '../ui/charts.js';
 import { cycleState, cycleFigures, currentCycle, budgetsFor } from './state.js';
 import { MIN_DAYS_TO_PROJECT, alignToCycle } from '../lib/planning.js';
+import { myAccounts, balancesOf } from './accounts.js';
+import { trackedNetWorth } from '../lib/balances.js';
 import { historyRows } from './history.js';
 import { periodInfo, stateHref } from './explorer.js';
 import { insightsFor } from './insights.js';
@@ -113,8 +115,9 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
   const savedMetric = metric('Saved and invested', 'actual', h('span', { class: 'fig' }, signed(putAway)),
     plannedAway ? bar(Math.max(0, putAway) / plannedAway, { colour: 'var(--good)', label: `${pounds(putAway)} of ${pounds(plannedAway)} planned` }) : null,
     h('p', { class: 'm-sub' }, `Cash savings ${signed(s.saved)} · investments ${signed(s.invested)}${plannedAway ? ` · ${pounds(plannedAway)} planned` : ''}`));
-  const worthMetric = metric('Net worth', nw.known ? 'verified' : null, nw.known ? h('span', { class: 'fig' }, signed(nw.total)) : h('span', { class: 'fig muted-fig' }, 'Not verified'),
-    h('p', { class: 'm-sub' }, nw.known ? 'From your typed-in balances. ' : 'Appears once balances are entered. ', h('a', { href: '#wealth' }, 'Wealth')));
+  const live = trackedNetWorth(balancesOf(ctx));
+  const worthMetric = metric('Net worth', live.status === 'unknown' ? null : live.status, live.status !== 'unknown' ? h('span', { class: 'fig' }, signed(live.total)) : h('span', { class: 'fig muted-fig' }, 'Not verified'),
+    h('p', { class: 'm-sub' }, live.status === 'unknown' ? 'Appears once balances are entered. ' : live.status === 'verified' ? 'Your typed-in balances. ' : `Typed-in balances plus what’s happened since${live.unknown.length ? ` (${live.unknown.join(', ')} not entered)` : ''}. `, h('a', { href: '#wealth' }, 'Wealth')));
   const position = h('section', { class: 'ov-position', 'aria-label': 'Financial position' }, primary, h('div', { class: 'pos-metrics' }, spentMetric, savedMetric, worthMetric));
 
   // ---- 3. spending performance
@@ -230,6 +233,7 @@ export function overviewView(ctx, c, { finished = false, actions = [], notice = 
 
   return h('div', { class: 'page ov2' },
     header, notice, position,
+    myAccounts(ctx),
     h('div', { class: 'ov-row' }, perf, payday),
     control, insightsSec);
 }
