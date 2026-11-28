@@ -4,9 +4,9 @@
 import { h } from '../ui/dom.js';
 import { parsePence } from '../lib/money.js';
 import { addDays } from '../lib/dates.js';
-import { equalShares } from '../lib/analytics.js';
 import { head, alertLine } from '../ui/parts.js';
-import { addTransaction, addTransfer, enrich, addPerson, addSplit } from '../lib/data.js';
+import { addTransaction, addTransfer, enrich, addPurchaseWithIous } from '../lib/data.js';
+import { forPanel } from './add-for.js';
 import { sayPanel } from './say.js';
 import { possibleDuplicates } from '../lib/interpret.js';
 import { formatPence } from '../lib/money.js';
@@ -40,7 +40,9 @@ export function addPage(ctx, rerender) {
   const toAcc = h('select', { class: 'input', 'aria-label': 'To account' }, h('option', { value: '' }, 'Choose the account…'), others.map((a) => h('option', { value: a.id, selected: a.id === st.moveTo }, a.name)));
   toAcc.addEventListener('change', () => { st.moveTo = toAcc.value; });
   const date = h('input', { class: 'input', type: 'date', value: st.date, 'aria-label': 'Date', onchange: (e) => { st.date = e.target.value; } });
-  const split = h('input', { class: 'input', placeholder: 'Split with (names, commas)', 'aria-label': 'Split with', list: 'people-list' });
+  // Who is this purchase for? (spending only): mine, someone paying me back, or split with others.
+  const whoFor = st.type === 'out' ? forPanel(ctx, st, () => parsePence(amount.value) || 0) : null;
+  amount.addEventListener('input', () => whoFor?.update());
   const note = h('input', { class: 'input', placeholder: 'Note (optional)', 'aria-label': 'Note' });
 
   const chips = st.type === 'out' && topCats.length ? h('div', { class: 'chips quickcats', role: 'group', 'aria-label': 'Your most-used categories' },
@@ -58,7 +60,11 @@ export function addPage(ctx, rerender) {
     if (st.type === 'move' && (!toAcc.value || toAcc.value === paid.value)) { alertLine(btn, 'Choose the account the money went to (a different one).'); return; }
     const out = st.type !== 'in';
     let kind = 'spend'; let category_id = null;
-    if (st.type === 'out') { if (!cat.value) { alertLine(btn, 'Choose a category.'); return; } category_id = cat.value; }
+    // What others owe (if anyone): checked before anything is saved.
+    const shares = whoFor ? whoFor.read() : null;
+    if (shares?.error) { alertLine(btn, shares.error); return; }
+    // A category is needed for your share; when all of it is someone else's, it's optional.
+    if (st.type === 'out') { if (!cat.value && shares.myShare > 0) { alertLine(btn, 'Choose a category.'); return; } category_id = cat.value || null; }
     else if (st.type === 'in') { if (!cat.value) { alertLine(btn, 'Choose what it is.'); return; } kind = cat.value; }
     else kind = 'transfer';
     const signed = out ? -p : p;
@@ -81,19 +87,20 @@ export function addPage(ctx, rerender) {
       return;
     }
     try {
-      const saved = await addTransaction({ account_id: paid.value, date: st.date, amount_pence: out ? -p : p, raw_description: where.value.trim(), kind, category_id, note: note.value.trim() || null });
-      ctx.add(enrich(saved, ctx.ref));
-      const names = split.value.split(',').map((x) => x.trim()).filter(Boolean);
-      if (names.length && kind === 'spend') {
-        const each = equalShares(-p, names.length)[0];
-        for (const name of names) {
-          const person = ctx.ref.people.find((x) => x.name.toLowerCase() === name.toLowerCase()) || await addPerson(name);
-          if (!ctx.ref.people.some((x) => x.id === person.id)) ctx.ref.people.push(person);
-          ctx.ref.splits.push(await addSplit({ transaction_id: saved.id, person_id: person.id, amount_pence: each }));
-        }
-        ctx.refresh();
+      if (shares?.ious.length) {
+        // The purchase and its IOUs are saved together, all or nothing. Names match the people you already have.
+        const ious = shares.ious.map((i) => ({ ...i, name: ctx.ref.people.find((x) => x.name.toLowerCase() === i.name.toLowerCase())?.name || i.name }));
+        const res = await addPurchaseWithIous({ account_id: paid.value, date: st.date, amount_pence: -p, raw_description: where.value.trim(), category_id, note: note.value.trim() || null }, ious);
+        ctx.ref.people = res.people;
+        ctx.ref.splits = [...ctx.ref.splits, ...res.splits];
+        ctx.add(enrich(res.saved, ctx.ref));
+        st.saved = `Saved ${where.value.trim()}: ${ious.map((i) => `${i.name} owes you ${formatPence(i.amount_pence)}`).join(', ')}${shares.myShare ? `; your share ${formatPence(shares.myShare)}` : ''}.`;
+      } else {
+        const saved = await addTransaction({ account_id: paid.value, date: st.date, amount_pence: out ? -p : p, raw_description: where.value.trim(), kind, category_id, note: note.value.trim() || null });
+        ctx.add(enrich(saved, ctx.ref));
+        st.saved = `Saved ${where.value.trim()}.`;
       }
-      st.saved = `Saved ${where.value.trim()}.`;
+      if (another) st.for = 'mine';
       if (another) rerender(); else { ctx.addState = null; location.hash = 'overview'; }
     } catch (err) { btn.disabled = false; alertLine(btn, err.message); }
   }
@@ -112,7 +119,7 @@ export function addPage(ctx, rerender) {
       h('label', { class: 'field' }, st.type === 'in' ? 'Into' : st.type === 'move' ? 'From account' : 'Paid with', paid),
       st.type === 'move' ? h('label', { class: 'field' }, 'To account', toAcc) : null,
       h('div', { class: 'field' }, 'When', h('div', { class: 'chips' }, dayBtn(ctx.today, 'Today'), dayBtn(addDays(ctx.today, -1), 'Yesterday'), dayBtn(addDays(ctx.today, -2), new Date(`${addDays(ctx.today, -2)}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })), date)),
-      st.type === 'out' ? h('label', { class: 'field' }, 'Split equally with', split) : null,
+      whoFor?.el,
       h('label', { class: 'field' }, 'Note', note),
       h('datalist', { id: 'people-list' }, ctx.ref.people.map((p) => h('option', { value: p.name }))),
       h('datalist', { id: 'shop-list' }, [...lastCat.keys()].slice(0, 40).map((k) => h('option', { value: recent.find((t) => t.raw_description.toLowerCase() === k).raw_description }))),

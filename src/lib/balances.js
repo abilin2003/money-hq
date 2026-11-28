@@ -25,11 +25,14 @@ export function allBalances(accounts, snapshots, txs, today) {
 
 // Net worth from the tracked balances. Verified only when every balance is; unknown accounts are named, not
 // guessed. Moves between your own accounts cancel out, so they never change it.
-export function trackedNetWorth(rows) {
+// owedToYou: open IOUs, an asset: paying for someone moves money from your bank to "owed to you", and their
+// repayment moves it back, so neither changes your net worth.
+export function trackedNetWorth(rows, owedToYou = 0) {
   const known = rows.filter((r) => r.value !== null);
   const unknown = rows.filter((r) => r.value === null).map((r) => r.account.name);
   return {
-    total: known.reduce((a, r) => a + r.value, 0),
+    total: known.reduce((a, r) => a + r.value, 0) + owedToYou,
+    owedToYou,
     status: !known.length ? 'unknown' : known.every((r) => r.status === 'verified') && !unknown.length ? 'verified' : 'estimated',
     unknown,
   };

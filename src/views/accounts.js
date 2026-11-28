@@ -20,12 +20,14 @@ const subOf = (b, today) => (b.status === 'unknown' ? 'Type a balance to start'
     : b.verifiedDate ? `From ${shortDay(b.verifiedDate)} + ${b.since} line${b.since === 1 ? '' : 's'}` : 'From purchases since the last repayment');
 
 export const balancesOf = (ctx) => allBalances(ctx.ref.accounts, ctx.ref.snapshots || [], ctx.transactions, ctx.today);
+// Open IOUs: money owed to you, counted in net worth as something you own.
+export const owedToYou = (ctx) => (ctx.ref.splits || []).filter((s) => !s.settled_by_transaction_id).reduce((a, s) => a + s.amount_pence, 0);
 
 // ---- the Overview section
 export function myAccounts(ctx) {
   const rows = balancesOf(ctx);
   if (!rows.length) return null;
-  const nw = trackedNetWorth(rows);
+  const nw = trackedNetWorth(rows, owedToYou(ctx));
   return h('section', { class: 'ov-accounts', 'aria-labelledby': 'oa-h' },
     h('div', { class: 'ch' }, h('h2', { id: 'oa-h' }, 'My accounts'),
       h('span', { class: 'muted small' }, nw.status === 'unknown' ? '' : `Net worth ${nw.total < 0 ? '−' : ''}${formatPence(Math.abs(nw.total))}`, nw.status === 'unknown' ? null : kindTag(nw.status === 'verified' ? 'verified' : 'estimated'))),

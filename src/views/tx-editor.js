@@ -4,7 +4,8 @@ import { h } from '../ui/dom.js';
 import { formatPence, parsePence } from '../lib/money.js';
 import { equalShares, suggestIouMatches } from '../lib/analytics.js';
 import { shortDay, alertLine } from '../ui/parts.js';
-import { updateTransaction, enrich, addPerson, addSplit, removeSplit, settleSplit, deleteTransaction } from '../lib/data.js';
+import { updateTransaction, enrich, addPerson, addSplit, removeSplit, settleSplit, deleteTransaction, updateSplit } from '../lib/data.js';
+import { checkSplitChange } from '../lib/shares.js';
 import { decode } from './inbox.js';
 import { fundSelect, readFund } from '../ui/fund-picker.js';
 
@@ -40,7 +41,11 @@ export function txEditor(ctx, t, rerender) {
       const p = parsePence(amountIn.value);
       if (!p || p <= 0) { alertLine(save, 'Type the amount, e.g. 4.50.'); return; }
       if (!dateIn.value) { alertLine(save, 'Choose the date.'); return; }
-      if (p !== Math.abs(t.amount_pence)) line.amount_pence = t.amount_pence < 0 ? -p : p;
+      if (p !== Math.abs(t.amount_pence)) {
+        const ok = checkSplitChange(mySplits, -t.amount_pence, { total: p });
+        if (t.amount_pence < 0 && ok.error) { alertLine(save, ok.error); return; }
+        line.amount_pence = t.amount_pence < 0 ? -p : p;
+      }
       if (dateIn.value !== t.date) line.date = dateIn.value;
       if (accIn.value !== t.account_id) {
         if (pair && accIn.value === pair.account_id) { alertLine(save, 'A move needs two different accounts.'); return; }
@@ -86,9 +91,29 @@ export function txEditor(ctx, t, rerender) {
       } catch (err) { alertLine(add, err.message); }
     } }, 'Add split');
     parts.push(h('div', { class: 'split' },
-      h('p', { class: 'small', style: { margin: '0 0 6px', fontWeight: 600 } }, `Split: your share ${formatPence(yours)}`),
-      mySplits.map((s) => h('div', { class: 'billrow' }, h('span', { class: 'muted small' }, s.settled_by_transaction_id ? 'Paid' : 'Owes'), h('span', null, personName(s.person_id)), h('span', null, formatPence(s.amount_pence), ' ',
-        h('button', { class: 'linkbtn', type: 'button', onclick: async () => { await removeSplit(s.id); ctx.ref.splits = ctx.ref.splits.filter((x) => x.id !== s.id); ctx.refresh(); rerender(); } }, 'Remove')))),
+      h('p', { class: 'small', style: { margin: '0 0 6px', fontWeight: 600 } }, mySplits.length ? `Paid ${formatPence(-t.amount_pence)}: your share ${formatPence(yours)}, others owe ${formatPence(-t.amount_pence - yours)}` : 'Split it, or someone paying you back'),
+      mySplits.map((s) => {
+        const paidBack = Boolean(s.settled_by_transaction_id);
+        const amt = paidBack ? null : h('input', { class: 'input money', inputmode: 'decimal', value: (s.amount_pence / 100).toFixed(2), 'aria-label': `${personName(s.person_id)} owes`, style: { width: '96px' } });
+        const change = paidBack ? null : h('button', { class: 'linkbtn', type: 'button', onclick: async () => {
+          const pence = parsePence(amt.value);
+          if (pence === s.amount_pence) return;
+          const ok = checkSplitChange(mySplits, -t.amount_pence, { setAmount: { id: s.id, pence } });
+          if (ok.error) { alertLine(change, ok.error); return; }
+          // Changing what's owed is confirmed first: tap again.
+          if (change.dataset.armed !== '1') { change.dataset.armed = '1'; change.textContent = `Tap again: ${personName(s.person_id)} owes ${formatPence(pence)}, your share ${formatPence(ok.myShare)}`; return; }
+          try { const saved = await updateSplit(s.id, { amount_pence: pence }); ctx.ref.splits = ctx.ref.splits.map((x) => (x.id === saved.id ? saved : x)); ctx.refresh(); rerender(); } catch (err) { alertLine(change, err.message); }
+        } }, 'Change');
+        const remove = paidBack ? null : h('button', { class: 'linkbtn', type: 'button', onclick: async () => {
+          const ok = checkSplitChange(mySplits, -t.amount_pence, { remove: s.id });
+          if (ok.error) { alertLine(remove, ok.error); return; }
+          if (remove.dataset.armed !== '1') { remove.dataset.armed = '1'; remove.textContent = `Tap again to remove: your share becomes ${formatPence(ok.myShare)}`; return; }
+          try { await removeSplit(s.id); ctx.ref.splits = ctx.ref.splits.filter((x) => x.id !== s.id); ctx.refresh(); rerender(); } catch (err) { alertLine(remove, err.message); }
+        } }, 'Remove');
+        return h('div', { class: 'iou-link' },
+          h('span', null, h('span', null, personName(s.person_id)), h('br'), h('span', { class: 'muted small' }, paidBack ? 'paid back' : `owes you${s.due_date ? `, expected by ${shortDay(s.due_date)}` : ''}${s.note ? ` · ${s.note}` : ''}`)),
+          paidBack ? h('span', null, formatPence(s.amount_pence)) : h('span', { class: 'iou-edit' }, amt, change, remove));
+      }),
       h('div', { class: 'edit-grid' }, who, amt, h('label', { class: 'check' }, 'Equal split with', many, 'friend(s)'), add),
       h('datalist', { id: 'people-list' }, ctx.ref.people.map((p) => h('option', { value: p.name })))));
   }
@@ -118,9 +143,10 @@ export function txEditor(ctx, t, rerender) {
 
   if (t.source === 'manual') {
     const del = h('button', { class: 'linkbtn', type: 'button', onclick: async () => {
-      if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = 'Tap again to delete'; return; }
+      if (mySplits.some((x) => x.settled_by_transaction_id)) { alertLine(del, 'Someone has paid you back for this, so it can’t be deleted. Undo that repayment first.'); return; }
+      if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = mySplits.length ? `Tap again to delete it and its ${mySplits.length} IOU${mySplits.length === 1 ? '' : 's'}` : 'Tap again to delete'; return; }
       // Deleting a move deletes both halves, so neither account is left with half of it.
-      try { const gone = [t.id, pair?.source === 'manual' ? pair.id : null].filter(Boolean); for (const id of gone) await deleteTransaction(id); ctx.all = ctx.all.filter((x) => !gone.includes(x.id)); ctx.refresh(); rerender(); } catch (err) { alertLine(del, err.message); }
+      try { const gone = [t.id, pair?.source === 'manual' ? pair.id : null].filter(Boolean); for (const id of gone) await deleteTransaction(id); ctx.all = ctx.all.filter((x) => !gone.includes(x.id)); ctx.ref.splits = ctx.ref.splits.filter((x) => !gone.includes(x.transaction_id)); ctx.refresh(); rerender(); } catch (err) { alertLine(del, err.message); }
     } }, 'Delete this entry');
     parts.push(del);
   }

@@ -14,7 +14,7 @@ import { lineChart } from '../ui/charts.js';
 import { addSnapshot } from '../lib/data.js';
 import { balanceNow, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
-import { balancesOf } from './accounts.js';
+import { balancesOf, owedToYou } from './accounts.js';
 import { trackedNetWorth, liveGroups } from '../lib/balances.js';
 import { historyRows } from './history.js';
 import { fundsOf } from './state.js';
@@ -36,16 +36,18 @@ export function wealthPage(ctx, rerender) {
   const tile = (label, value, sub, cls = '') => h('div', { class: 'card tile' }, h('span', { class: 'muted small' }, label), h('span', { class: `tile-v display ${cls}` }, value), h('span', { class: 'muted small' }, sub));
   // The live figure (typed-in balances plus what's happened since), from the same calculation as the Overview.
   const liveRows = balancesOf(ctx);
-  const live = trackedNetWorth(liveRows);
+  const owed = owedToYou(ctx);
+  const live = trackedNetWorth(liveRows, owed);
   // Every tile is live too: typed-in balances plus what's happened since, grouped (same figures as the accounts).
   const g = liveGroups(liveRows);
   const liveSub = (grp, types) => (grp.status === 'unknown' ? 'no balance yet' : grp.status === 'verified' ? `verified, ${when(lastOf(types))}` : `typed in ${ago(lastOf(types) || ctx.today, ctx.today)}, plus since`);
   const tiles = h('div', { class: 'tiles' },
     tile('Net worth now', live.status === 'unknown' ? 'Not verified' : signed(live.total), live.status === 'verified' ? 'your typed-in balances' : live.status === 'estimated' ? `${nw.known ? `verified ${signed(nw.total)}` : 'typed-in balances'} + since` : 'needs your balances', live.status === 'unknown' ? 'unset' : ''),
-    tile('Assets', live.status === 'unknown' ? 'Not entered' : formatPence(g.assets), 'everything you own, now', live.status === 'unknown' ? 'unset' : ''),
+    tile('Assets', live.status === 'unknown' ? 'Not entered' : formatPence(g.assets + owed), 'everything you own, now', live.status === 'unknown' ? 'unset' : ''),
     tile('Liabilities', g.debt.status === 'unknown' ? 'Not entered' : formatPence(g.liabilities), liveSub(g.debt, ['credit_card']), g.debt.status === 'unknown' ? 'unset' : g.liabilities ? 'over' : ''),
     tile('Cash and savings', g.cash.status === 'unknown' ? 'Not entered' : signed(g.cash.pence), liveSub(g.cash, ['current', 'savings', 'cash']), g.cash.status === 'unknown' ? 'unset' : ''),
     tile('ISAs and investments', g.investments.status === 'unknown' ? 'Not entered' : formatPence(g.investments.pence), liveSub(g.investments, ['isa', 'investment']), g.investments.status === 'unknown' ? 'unset' : ''),
+    tile('Owed to you', formatPence(owed), owed ? h('a', { href: '#people' }, 'IOUs still open') : 'no open IOUs', ''),
     tile('Pension', g.pension.status === 'unknown' ? 'Not entered' : formatPence(g.pension.pence), liveSub(g.pension, ['pension']), g.pension.status === 'unknown' ? 'unset' : ''));
 
   // ---- net worth, assets and liabilities over time

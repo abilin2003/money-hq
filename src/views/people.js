@@ -9,20 +9,22 @@ import { dayDiff } from '../lib/dates.js';
 import { peopleBalances } from '../lib/analytics.js';
 import { allocateRepayment, repaymentCandidates } from '../lib/ious.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
-import { settleSplit, settlePartOfSplit, updateTransaction, addTransaction, enrich } from '../lib/data.js';
+import { settleSplit, settlePartOfSplit, updateTransaction, addTransaction, enrich, saveAccount } from '../lib/data.js';
 
 export function peoplePage(ctx, rerender) {
   const txById = Object.fromEntries(ctx.all.map((t) => [t.id, t]));
   const people = peopleBalances(ctx.ref.splits || [], ctx.ref.people || [], txById);
   const total = people.reduce((a, p) => a + p.owed, 0);
   const st = ctx.iouState || (ctx.iouState = { open: null });
-  const accounts = ctx.ref.accounts.filter((a) => a.is_active !== false && ['current', 'savings', 'credit_card'].includes(a.type));
+  const accounts = ctx.ref.accounts.filter((a) => a.is_active !== false && ['current', 'savings', 'credit_card', 'cash'].includes(a.type));
+  const hasCash = accounts.some((a) => a.type === 'cash');
 
   const iou = (s) => {
     const t = txById[s.transaction_id];
     const age = t ? dayDiff(t.date, ctx.today) : 0;
     return h('div', { class: 'iou' },
-      h('span', null, h('span', null, t?.raw_description || 'Payment'), h('br'), h('span', { class: `small ${age > 30 ? 'warn' : 'muted'}` }, t ? `${shortDay(t.date)} · ${age} days ago` : '')),
+      h('span', null, h('span', null, s.note || t?.raw_description || 'Payment'), h('br'),
+        h('span', { class: `small ${(s.due_date && s.due_date < ctx.today) || (!s.due_date && age > 30) ? 'warn' : 'muted'}` }, t ? `${s.note ? `${t.raw_description} · ` : ''}${shortDay(t.date)} · ${age} days ago` : '', s.due_date ? ` · ${s.due_date < ctx.today ? 'was due' : 'expected by'} ${shortDay(s.due_date)}` : '')),
       h('span', { class: 'r' }, formatPence(s.amount_pence)));
   };
 
@@ -30,7 +32,8 @@ export function peoplePage(ctx, rerender) {
     const amount = h('input', { class: 'input money', inputmode: 'decimal', value: (p.owed / 100).toFixed(2), 'aria-label': 'Amount received' });
     const date = h('input', { class: 'input', type: 'date', value: ctx.today, max: ctx.today, 'aria-label': 'Date received' });
     const into = h('select', { class: 'input', 'aria-label': 'Account it went into' }, h('option', { value: '' }, 'Choose the account…'),
-      accounts.map((a) => h('option', { value: a.id, selected: a.id === ctx.lastRepayAccount }, a.name)));
+      accounts.map((a) => h('option', { value: a.id, selected: a.id === ctx.lastRepayAccount }, a.name)),
+      hasCash ? null : h('option', { value: '__cash' }, 'Cash (in hand)'));
     const note = h('input', { class: 'input', placeholder: 'Note (optional)', 'aria-label': 'Note' });
     // Optional: the payment is already in your records (e.g. imported). Only money in that could be it is listed.
     const found = repaymentCandidates(ctx.transactions, ctx.ref.splits || [], p, p.owed, ctx.today);
@@ -52,9 +55,12 @@ export function peoplePage(ctx, rerender) {
           tx = enrich(await updateTransaction(use.id, { kind: 'repayment', category_id: null, status: 'reviewed', note: [use.note, note.value.trim()].filter(Boolean).join(' · ') || null }), ctx.ref);
           ctx.replace(tx);
         } else {
-          tx = enrich(await addTransaction({ account_id: into.value, date: date.value, amount_pence: pence, raw_description: `${p.name}: paid back`, kind: 'repayment', category_id: null, note: note.value.trim() || null }), ctx.ref);
+          // Cash: the first time, a Cash account is set up for you (paying cash into the bank later is a Move).
+          let intoId = into.value;
+          if (intoId === '__cash') { const cash = await saveAccount({ name: 'Cash', type: 'cash', institution: null, import_format: 'manual' }); ctx.ref.accounts = [...ctx.ref.accounts, cash]; intoId = cash.id; }
+          tx = enrich(await addTransaction({ account_id: intoId, date: date.value, amount_pence: pence, raw_description: `${p.name}: paid back`, kind: 'repayment', category_id: null, note: note.value.trim() || null }), ctx.ref);
           ctx.add(tx);
-          ctx.lastRepayAccount = into.value;
+          ctx.lastRepayAccount = intoId;
         }
         for (const id of plan.settle) { const saved = await settleSplit(id, tx.id); ctx.ref.splits = ctx.ref.splits.map((x) => (x.id === saved.id ? saved : x)); }
         if (plan.partial) {

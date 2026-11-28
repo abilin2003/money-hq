@@ -147,7 +147,7 @@ export async function saveCategory(cat) {
 }
 
 // ---------------------------------------------------------------- the rest: transactions, IOUs, wealth, goals, backups
-const SPLIT_COLUMNS = 'id, transaction_id, person_id, amount_pence, settled_by_transaction_id';
+const SPLIT_COLUMNS = 'id, transaction_id, person_id, amount_pence, settled_by_transaction_id, due_date, note';
 const SNAP_COLUMNS = 'id, account_id, date, balance_pence';
 const GOAL_COLUMNS = 'id, name, target_pence, target_date, account_id, sinking_fund_id, monthly_pence, growth_rate, priority';
 
@@ -175,6 +175,20 @@ export async function deleteTransaction(id) {
   must(await supabase.from('transactions').delete().eq('id', id), 'delete the transaction');
 }
 
+// A purchase and the IOUs it creates, saved together by one database function (all or nothing). Returns the saved
+// purchase, its IOUs and anyone newly added to your people.
+export async function addPurchaseWithIous(tx, ious) {
+  const id = must(await supabase.rpc('add_purchase_with_ious', { tx, ious }), 'save the purchase and IOUs');
+  const [saved, splits, people] = await Promise.all([
+    supabase.from('transactions').select(TX_COLUMNS).eq('id', id).single().then((r) => must(r, 'load the purchase')),
+    supabase.from('splits').select(SPLIT_COLUMNS).eq('transaction_id', id).then((r) => must(r, 'load its IOUs')),
+    supabase.from('people').select('id, name').then((r) => must(r, 'load people')),
+  ]);
+  return { saved, splits, people };
+}
+export async function updateSplit(id, patch) {
+  return must(await supabase.from('splits').update(patch).eq('id', id).select(SPLIT_COLUMNS).single(), 'change the IOU');
+}
 export async function addPerson(name) {
   return must(await supabase.from('people').upsert({ name }, { onConflict: 'user_id,name' }).select('id, name').single(), 'save the person');
 }
