@@ -15,7 +15,7 @@ import { addSnapshot } from '../lib/data.js';
 import { balanceNow, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
 import { balancesOf, owedToYou } from './accounts.js';
-import { trackedNetWorth, liveGroups } from '../lib/balances.js';
+import { trackedNetWorth, liveGroups, balanceHistory } from '../lib/balances.js';
 import { historyRows } from './history.js';
 import { fundsOf } from './state.js';
 
@@ -84,14 +84,17 @@ export function wealthPage(ctx, rerender) {
   // ---- one account's balance history
   const withHistory = nw.rows.filter((r) => ctx.ref.snapshots.some((s) => s.account_id === r.id));
   const pickId = withHistory.some((r) => r.id === ctx.wealthAccount) ? ctx.wealthAccount : withHistory[0]?.id;
-  const snaps = ctx.ref.snapshots.filter((s) => s.account_id === pickId).sort((a, b) => a.date.localeCompare(b.date));
+  // Typed-in balances plus today's live balance, so the history ends on the same figure as everywhere else.
+  const pickedAccount = nw.rows.find((r) => r.id === pickId);
+  const hist = pickedAccount ? balanceHistory(pickedAccount, ctx.ref.snapshots, ctx.transactions, ctx.today) : { points: [], isDebt: false };
+  const snaps = hist.points.map((p) => ({ date: p.date, balance_pence: p.pence, kind: p.kind, status: p.status }));
   const histCard = h('section', { class: 'card', 'aria-labelledby': 'wh' },
     h('div', { class: 'ch' }, h('h2', { id: 'wh' }, 'Balance history'),
       withHistory.length ? h('select', { class: 'input', style: { width: 'auto' }, 'aria-label': 'Account', onchange: (e) => { ctx.wealthAccount = e.target.value; rerender(); } }, withHistory.map((r) => h('option', { value: r.id, selected: r.id === pickId }, r.name))) : null),
     !snaps.length ? h('p', { class: 'muted', style: { margin: 0 } }, 'No balances typed in yet.')
-      : [snaps.length >= 2 ? lineChart({ labels: snaps.map((s) => shortDay(s.date)), series: [{ name: 'Balance', colour: '#8B9CFF', values: snaps.map((s) => s.balance_pence) }], label: 'Balance over time' }) : null,
-        h('div', { class: 'stats' }, [...snaps].reverse().slice(0, 6).map((s, i, arr) => h('div', null, h('span', { class: 'muted' }, `${shortDay(s.date)} ${s.date.slice(0, 4)}`), h('span', null, formatPence(s.balance_pence),
-          arr[i + 1] ? h('span', { class: `small ${s.balance_pence >= arr[i + 1].balance_pence ? 'good' : 'over'}` }, ` ${s.balance_pence >= arr[i + 1].balance_pence ? '+' : '−'}${formatPence(Math.abs(s.balance_pence - arr[i + 1].balance_pence))}`) : null))))]);
+      : [snaps.length >= 2 ? lineChart({ labels: snaps.map((s) => shortDay(s.date)), series: [{ name: hist.isDebt ? 'Owed' : 'Balance', colour: hist.isDebt ? '#FF8A80' : '#8B9CFF', values: snaps.map((s) => s.balance_pence) }], label: hist.isDebt ? 'Amount owed over time' : 'Balance over time' }) : null,
+        h('div', { class: 'stats' }, [...snaps].reverse().slice(0, 6).map((s, i, arr) => h('div', null, h('span', { class: 'muted' }, s.kind === 'now' ? `Now (${s.status})` : `${shortDay(s.date)} ${s.date.slice(0, 4)}`), h('span', null, `${formatPence(s.balance_pence)}${hist.isDebt ? ' owed' : ''}`,
+          arr[i + 1] ? (() => { const up = s.balance_pence >= arr[i + 1].balance_pence; const good = hist.isDebt ? !up : up; return h('span', { class: `small ${good ? 'good' : 'over'}` }, ` ${up ? '+' : '−'}${formatPence(Math.abs(s.balance_pence - arr[i + 1].balance_pence))}`); })() : null))))]);
 
   // ---- update every balance at once
   const date = h('input', { class: 'input', type: 'date', value: ctx.today, max: ctx.today, 'aria-label': 'Date of these balances' });

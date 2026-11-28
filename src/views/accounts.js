@@ -7,7 +7,7 @@ import { formatPence, parsePence } from '../lib/money.js';
 import { head, shortDay, alertLine } from '../ui/parts.js';
 import { lineChart } from '../ui/charts.js';
 import { addSnapshot, saveFund, saveSettings } from '../lib/data.js';
-import { allBalances, accountBalance, trackedNetWorth, allocationsIn } from '../lib/balances.js';
+import { allBalances, accountBalance, trackedNetWorth, allocationsIn, balanceHistory } from '../lib/balances.js';
 import { kindTag } from './overview.js';
 import { fundsOf } from './state.js';
 import { ago } from '../lib/planning.js';
@@ -45,6 +45,7 @@ export function accountPage(ctx, rerender, id) {
   const b = accountBalance(a, ctx.ref.snapshots || [], ctx.transactions, ctx.today);
   const debt = b.isDebt;
   const snaps = (ctx.ref.snapshots || []).filter((s) => s.account_id === a.id).sort((x, y) => x.date.localeCompare(y.date));
+  const history = balanceHistory(a, ctx.ref.snapshots || [], ctx.transactions, ctx.today).points;
   const lines = ctx.transactions.filter((t) => t.account_id === a.id).sort((x, y) => y.date.localeCompare(x.date) || 0);
   const pending = lines.filter((t) => t.status === 'needs_review');
   const approved = lines.filter((t) => t.status !== 'needs_review');
@@ -128,9 +129,9 @@ export function accountPage(ctx, rerender, id) {
       h('h2', { id: 'ra-h' }, 'Recent activity'),
       lines.length ? h('div', { class: 'acct-lines' }, [...pending, ...approved].slice(0, 25).map(lineRow)) : h('p', { class: 'muted', style: { margin: 0 } }, 'Nothing recorded on this account yet.'),
       lines.length > 25 ? h('p', { class: 'small' }, h('a', { href: '#transactions' }, 'All transactions')) : null),
-    snaps.length ? h('section', { class: 'card', 'aria-labelledby': 'bh-h' },
+    history.length ? h('section', { class: 'card', 'aria-labelledby': 'bh-h' },
       h('h2', { id: 'bh-h' }, 'Balance history'),
-      snaps.length >= 2 ? lineChart({ labels: snaps.map((s) => shortDay(s.date)), series: [{ name: debt ? 'Owed' : 'Balance', colour: '#8B9CFF', values: snaps.map((s) => s.balance_pence) }], label: 'Typed-in balances' }) : null,
-      h('div', { class: 'stats' }, [...snaps].reverse().slice(0, 8).map((s) => h('div', null, h('span', { class: 'muted' }, `${shortDay(s.date)} ${s.date.slice(0, 4)}`), h('span', null, formatPence(Math.abs(s.balance_pence)))))),
-      h('p', { class: 'muted small' }, 'The balances you’ve typed in. Between them, the balance is worked out from your transactions.')) : null);
+      history.length >= 2 ? lineChart({ labels: history.map((p) => (p.kind === 'now' ? 'Now' : shortDay(p.date))), series: [{ name: debt ? 'Owed' : 'Balance', colour: debt ? '#FF8A80' : '#8B9CFF', values: history.map((p) => p.pence) }], label: debt ? 'Amount owed over time' : 'Balance over time' }) : null,
+      h('div', { class: 'stats' }, [...history].reverse().slice(0, 8).map((p) => h('div', null, h('span', { class: 'muted' }, p.kind === 'now' ? `Now (${p.status})` : `${shortDay(p.date)} ${p.date.slice(0, 4)}`), h('span', null, `${formatPence(p.pence)}${debt ? ' owed' : ''}`)))),
+      h('p', { class: 'muted small' }, 'The balances you’ve typed in, and where the balance is now: your last typed-in balance plus the transactions since.')) : null);
 }

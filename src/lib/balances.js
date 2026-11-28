@@ -64,3 +64,18 @@ export function liveGroups(rows) {
   out.liabilities = out.debt.pence;
   return out;
 }
+
+// An account's balance history: the balances you typed in, oldest first, plus today's live balance (typed-in
+// balance + approved lines since) as the last point, so the history always ends on the figure shown everywhere
+// else. Nothing is invented: no typed-in balance means no history, and no point is added when nothing has
+// happened since your last balance. A card's points are what you owe (positive), a liability.
+export function balanceHistory(account, snapshots, txs, today) {
+  const mine = snapshots.filter((s) => s.account_id === account.id).sort((a, b) => a.date.localeCompare(b.date));
+  const isDebt = DEBT_TYPES.has(account.type);
+  const points = mine.map((s) => ({ date: s.date, pence: isDebt ? Math.abs(s.balance_pence) : s.balance_pence, kind: 'typed', status: 'verified' }));
+  if (!mine.length) return { points: [], isDebt };
+  const live = accountBalance(account, snapshots, txs, today);
+  const last = points[points.length - 1];
+  if (live.pence !== null && (live.pence !== last.pence || live.since > 0)) points.push({ date: today, pence: live.pence, kind: 'now', status: live.status });
+  return { points, isDebt };
+}
