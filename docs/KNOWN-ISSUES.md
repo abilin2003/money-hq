@@ -14,7 +14,7 @@ exposes are marked with the test's name.
 2. **Words in "Amount they owe" are taken as the whole amount.** Typing text into the reimbursement amount
    (which shows "The whole amount" in grey) saves the purchase with the full amount owed, with no error.
    Cause: `src/views/add-for.js` turns unreadable text into "no amount given", and no amount means the whole
-   amount. Exposed by the browser test *"words typed as the amount owed are refused…"* (marked expected to fail).
+   amount. Exposed by the browser test *"KNOWN ISSUE #2 (expected to fail until fixed): words typed as the amount owed are refused…"*. That test describes the correct behaviour and fails today; it shows as "passed" only because it is marked as an expected failure, not because the feature works.
 3. **Capital One balance history in Wealth shows £0** although other sections show the right balance.
 4. **Keep live balances and figures consistent** across every page.
 
@@ -36,5 +36,5 @@ exposes are marked with the test's name.
 ## Found while building the tests
 
 - **An expected-by date that isn't a date** isn't checked before saving: the database refuses it (nothing is
-  saved), and the date picker normally prevents it. Unit test *"KNOWN DIFFERENCE: an invalid expected-by date
+  saved), and the date picker normally prevents it. Unit test *"KNOWN DIFFERENCE (expected to fail until fixed): an invalid expected-by date
   is caught before saving"* (marked expected to fail).

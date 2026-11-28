@@ -102,3 +102,17 @@ A real test database for the database-level checks (Row Level Security, the SQL 
 3. Create a test user in that project with a made-up email.
 4. Put its address and publishable key in a new, uncommitted `.env.test.local`.
 Then tests can be added that run only when that file is present, and refuse to run against your real project.
+
+## Expected failures right now
+
+These tests describe the correct behaviour and **fail today** because of known bugs. They are marked as
+expected failures, so the test summary counts them as "passed" and doesn't block publishing: that means
+"still broken, as recorded", **not** "working". Each name starts with "KNOWN" so it can't be mistaken.
+
+| Test | What's wrong | Issue |
+|---|---|---|
+| Browser: *KNOWN ISSUE #2 (expected to fail until fixed): words typed as the amount owed are refused…* | Words in "Amount they owe" are saved as the whole amount, with no error | `docs/KNOWN-ISSUES.md` #2 |
+| Unit: *KNOWN DIFFERENCE (expected to fail until fixed): an invalid expected-by date is caught before saving* | An invalid date isn't checked before saving (the database refuses it, nothing is saved) | `docs/KNOWN-ISSUES.md`, "Found while building the tests" |
+
+When one is fixed, its test starts passing, the runner reports it, and the "expected to fail" marker must be
+removed in the same change.

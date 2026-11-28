@@ -54,7 +54,7 @@ test.describe('Add a transaction', () => {
   // KNOWN ISSUE #2 (docs/KNOWN-ISSUES.md): words typed as the amount owed are taken as "the whole amount" and
   // saved, instead of being refused. This test describes the correct behaviour and is marked as expected to
   // fail until the bug is fixed; once it passes, Playwright reports it and the marker must be removed.
-  test('words typed as the amount owed are refused, nothing is saved, and what you typed stays', async ({ page }) => {
+  test('KNOWN ISSUE #2 (expected to fail until fixed): words typed as the amount owed are refused, nothing is saved, and what you typed stays', async ({ page }) => {
     test.fail(true, 'Known issue #2: words in "Amount they owe" are treated as the whole amount');
     await signIn(page);
     await fillSpend(page, { amount: '150.00', where: 'Headphones' });
