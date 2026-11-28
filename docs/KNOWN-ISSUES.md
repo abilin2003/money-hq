@@ -5,16 +5,23 @@ exposes are marked with the test's name.
 
 ## Critical / financial
 
-1. **A recent purchase marked as reimbursable by a family member is missing.** Checked read-only: the purchase
-   and its IOU are not in the database, so it was never saved. Whether it was rejected
-   (and the error missed) or entered before "Who is this purchase for?" was live is not yet known. Note: the
-   successful path of the database function `add_purchase_with_ious` has not yet been run against a real
-   Postgres database (only its all-or-nothing failure was checked); the fake database copies its rules but
-   can't prove the SQL. Investigate with a test Supabase project.
-2. **Words in "Amount they owe" are taken as the whole amount.** Typing text into the reimbursement amount
-   (which shows "The whole amount" in grey) saves the purchase with the full amount owed, with no error.
-   Cause: `src/views/add-for.js` turns unreadable text into "no amount given", and no amount means the whole
-   amount. Exposed by the browser test *"KNOWN ISSUE #2 (expected to fail until fixed): words typed as the amount owed are refused…"*. That test describes the correct behaviour and fails today; it shows as "passed" only because it is marked as an expected failure, not because the feature works.
+1. **A recent purchase marked as reimbursable by a family member is missing.** Investigated in Phase 2A
+   (read-only): the purchase and its IOU are not in the database. Supabase's request log (24 hours, covering
+   the whole time the "paying me back" option has been live) shows **no save request of any kind** for it: the
+   only call to `add_purchase_with_ious` was a deliberate failure test run by Claude before the feature went
+   live, and the only other saves were three ordinary transactions that did save. So the save never left the
+   browser: it was stopped by one of the form's checks. Which one can't be told from the logs. At the time, the
+   form's error message was squeezed between the two Save buttons in small text (on a phone, in the bar fixed to
+   the bottom of the screen), so it was easy to miss. **Fixed in Phase 2A:** messages now appear once, full width
+   above the buttons and on screen, and the field at fault is outlined (browser test *"a refused save shows one
+   clear message…"*). The database function itself still needs proving on a real database: see "Real test
+   database" in TESTING.md (`npm run test:db`). The missing purchase will be re-entered with your approval.
+2. **Fixed in Phase 2A: words in "Amount they owe" were taken as the whole amount.** Cause:
+   `src/views/add-for.js` treated unreadable text as "no amount given", and no amount meant the whole amount.
+   Now the field starts as the full amount in numbers, follows the purchase amount until you type your own
+   figure, and anything that isn't an amount (or is empty, £0, negative or more than the purchase) is refused
+   with a message naming the field. Regression test: *"words typed as the amount owed are refused, nothing is
+   saved, and what you typed stays"*.
 3. **Capital One balance history in Wealth shows £0** although other sections show the right balance.
 4. **Keep live balances and figures consistent** across every page.
 
@@ -35,6 +42,5 @@ exposes are marked with the test's name.
 
 ## Found while building the tests
 
-- **An expected-by date that isn't a date** isn't checked before saving: the database refuses it (nothing is
-  saved), and the date picker normally prevents it. Unit test *"KNOWN DIFFERENCE (expected to fail until fixed): an invalid expected-by date
-  is caught before saving"* (marked expected to fail).
+- **Fixed in Phase 2A: an expected-by date that isn't a date** wasn't checked before saving (the database
+  refused it). Now checked first. Unit test: *"an invalid expected-by date is caught before saving"*.

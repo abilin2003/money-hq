@@ -64,8 +64,30 @@ export function twoStepButton(first, second, onConfirm, cls = 'btn') {
   return btn;
 }
 
-// Shows an error message next to an element (in the page, never a pop-up).
-export function alertLine(el, message) {
-  const p = h('p', { class: 'error', role: 'alert' }, message);
-  el.after(p);
+// Shows an error message for an action (in the page, never a pop-up). It replaces any earlier message for the same
+// action, so they never pile up, and it is never squeezed between buttons: in the Add form it spans the Save bar
+// above the buttons (the bar stays on screen), otherwise it goes just below the row. It's scrolled into view so it can't be missed.
+// field (optional): the input at fault, outlined and focused; the outline clears as soon as it's edited.
+const BUTTON_ROWS = '.add-actions, .chips, .explain-btns, .inbox-btns, .edit-grid, .repay-grid, .bulkbar, .match-row';
+export function alertLine(el, message, field = null) {
+  const row = el.closest?.(BUTTON_ROWS) || el;
+  const host = row.parentElement;
+  if (host) for (const old of host.querySelectorAll(':scope > .form-error, :scope > .add-actions > .form-error')) old.remove();
+  const p = h('p', { class: 'error form-error', role: 'alert' }, message);
+  // The Add form's Save bar stays on screen, so its message goes inside it, full width above the buttons.
+  if (row.classList?.contains('add-actions')) row.prepend(p); else row.after(p);
+  if (field) markInvalid(field);
+  p.scrollIntoView?.({ block: 'nearest' });
+  if (field) field.focus?.({ preventScroll: false });
+  return p;
+}
+// Outline a field as wrong (screen readers hear it too) until it's changed.
+export function markInvalid(field) {
+  field.setAttribute('aria-invalid', 'true');
+  field.addEventListener('input', () => field.removeAttribute('aria-invalid'), { once: true });
+  field.addEventListener('change', () => field.removeAttribute('aria-invalid'), { once: true });
+}
+export function clearInvalid(root) {
+  for (const f of root.querySelectorAll('[aria-invalid="true"]')) f.removeAttribute('aria-invalid');
+  for (const e of root.querySelectorAll('.form-error')) e.remove();
 }

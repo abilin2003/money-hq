@@ -22,7 +22,12 @@ export function forPanel(ctx, st, totalOf) {
 
   // ---- someone else is paying me back
   const who = h('input', { class: 'input', placeholder: 'e.g. Dad', 'aria-label': 'Who owes you', list: 'people-list', autocomplete: 'off' });
-  const owed = h('input', { class: 'input money', inputmode: 'decimal', placeholder: 'The whole amount', 'aria-label': 'Amount they owe you' });
+  // Starts as the whole purchase (a real number you can see and change) and follows the amount above until you
+  // type your own figure, which is then never overwritten.
+  const owed = h('input', { class: 'input money', inputmode: 'decimal', placeholder: '0.00', value: money(totalOf() || null), 'aria-label': 'Amount they owe you' });
+  let owedTouched = false;
+  owed.addEventListener('input', () => { owedTouched = true; });
+  const followTotal = () => { if (!owedTouched) owed.value = money(totalOf() || null); };
   const due = h('input', { class: 'input', type: 'date', 'aria-label': 'Expected repayment date (optional)' });
   const reason = h('input', { class: 'input', placeholder: 'e.g. Christmas present for my brother', 'aria-label': 'What it was for (optional)' });
   const whoChips = quick.length ? h('div', { class: 'chips' }, quick.map((p) => h('button', { type: 'button', class: 'chip-btn', onclick: () => { who.value = p.name; } }, p.name))) : null;
@@ -65,6 +70,7 @@ export function forPanel(ctx, st, totalOf) {
   addRow();
 
   function update() {
+    followTotal();
     if (st.for !== 'split') return;
     const total = totalOf();
     const parts = [parsePence(mine.value) || 0, ...[...rows.querySelectorAll('.split-row')].map((r) => parsePence(r.children[1].value) || 0)];
@@ -85,15 +91,30 @@ export function forPanel(ctx, st, totalOf) {
     h('div', { class: 'seg wide for-seg', role: 'group', 'aria-label': 'Who is this purchase for?' }, opt('mine', 'My own spending'), opt('payback', 'Someone’s paying me back'), opt('split', 'Split with others')),
     payback, split);
 
-  // What was answered, checked: { myShare, ious } or { error }.
+  // What was answered, checked: { myShare, ious } or { error, field } (field: the input to fix).
+  // Text that isn't an amount is refused by name: it's never guessed at or treated as "the whole amount".
+  const notAmount = (input, what) => `“${input.value.trim()}” isn’t an amount. Type ${what} in numbers, e.g. 150.00.`;
   function read() {
     const total = totalOf();
-    if (st.for === 'payback') return planShares(total, 'payback', { name: who.value, owed: owed.value.trim() ? parsePence(owed.value) : total, due: due.value || null, reason: reason.value.trim() || null });
+    if (st.for === 'payback') {
+      if (!who.value.trim()) return { error: 'Who owes you?', field: who };
+      if (!owed.value.trim()) return { error: `Type how much they owe you${total ? ` (the purchase is ${formatPence(total)})` : ''}.`, field: owed };
+      const p = parsePence(owed.value);
+      if (p === null) return { error: notAmount(owed, 'what they owe'), field: owed };
+      const r = planShares(total, 'payback', { name: who.value, owed: p, due: due.value || null, reason: reason.value.trim() || null });
+      return r.error ? { ...r, field: /date/i.test(r.error) ? due : owed } : r;
+    }
     if (st.for === 'split') {
-      return planShares(total, 'split', {
+      if (mine.value.trim() && parsePence(mine.value) === null) return { error: notAmount(mine, 'your share'), field: mine };
+      for (const row of rows.querySelectorAll('.split-row')) {
+        const a = row.children[1];
+        if (a.value.trim() && parsePence(a.value) === null) return { error: notAmount(a, 'what they owe'), field: a };
+      }
+      const r = planShares(total, 'split', {
         myShare: mine.value.trim() ? parsePence(mine.value) : null,
-        people: [...rows.querySelectorAll('.split-row')].filter((r) => r.children[0].value.trim() || r.children[1].value.trim()).map((r) => ({ name: r.children[0].value, pence: parsePence(r.children[1].value) })),
+        people: [...rows.querySelectorAll('.split-row')].filter((x) => x.children[0].value.trim() || x.children[1].value.trim()).map((x) => ({ name: x.children[0].value, pence: parsePence(x.children[1].value) })),
       });
+      return r.error ? { ...r, field: /share/i.test(r.error) ? mine : rows.querySelector('input') } : r;
     }
     return planShares(total, 'mine');
   }

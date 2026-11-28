@@ -12,6 +12,7 @@ Money HQ handles real money, so every change is checked automatically before you
 | Unit tests only | `npm test` | a few seconds |
 | Browser tests only | `npm run test:e2e` | under a minute |
 | Browser tests you can watch and step through | `npm run test:e2e:ui` | |
+| Real-database tests (needs the test project, see below) | `npm run test:db` | under a minute |
 
 None of these touch your real Supabase data.
 
@@ -94,25 +95,42 @@ Only ever use made-up names, shops and amounts in tests. The repository is publi
 - Never weaken or delete a failing test to make a change pass; fix the change or report it.
 - Never apply a database migration to production as part of testing.
 
-## Still to set up (optional, needs you)
-
-A real test database for the database-level checks (Row Level Security, the SQL functions):
-1. Create a second free Supabase project, for example `money-hq-test`, and keep it empty of real data.
-2. Run the migrations in `supabase/migrations/` there, in order.
-3. Create a test user in that project with a made-up email.
-4. Put its address and publishable key in a new, uncommitted `.env.test.local`.
-Then tests can be added that run only when that file is present, and refuse to run against your real project.
-
 ## Expected failures right now
 
-These tests describe the correct behaviour and **fail today** because of known bugs. They are marked as
-expected failures, so the test summary counts them as "passed" and doesn't block publishing: that means
-"still broken, as recorded", **not** "working". Each name starts with "KNOWN" so it can't be mistaken.
+None. The two known problems found in Phase 1 (words in "Amount they owe" taken as the whole amount, and an
+invalid expected-by date not checked before saving) were fixed in Phase 2A, and their tests are now normal
+regression tests. If a known bug is ever recorded this way again, its test is marked expected-to-fail, its name
+starts with "KNOWN", and it's listed here and in `docs/KNOWN-ISSUES.md`: "passed" then means "still broken, as
+recorded", not "working".
 
-| Test | What's wrong | Issue |
-|---|---|---|
-| Browser: *KNOWN ISSUE #2 (expected to fail until fixed): words typed as the amount owed are refused…* | Words in "Amount they owe" are saved as the whole amount, with no error | `docs/KNOWN-ISSUES.md` #2 |
-| Unit: *KNOWN DIFFERENCE (expected to fail until fixed): an invalid expected-by date is caught before saving* | An invalid date isn't checked before saving (the database refuses it, nothing is saved) | `docs/KNOWN-ISSUES.md`, "Found while building the tests" |
+## Real test database (Row Level Security and the SQL functions)
 
-When one is fixed, its test starts passing, the runner reports it, and the "expected to fail" marker must be
-removed in the same change.
+The fake database can't prove the real database's security rules or its SQL functions (such as
+`add_purchase_with_ious`, which saves a purchase and its IOUs all or nothing). `tests/integration/` checks those
+against a **separate, empty Supabase project used only for tests**. Until it exists, `npm run test:db` skips
+itself and says why.
+
+Safeguards: the tests read `.env.test.local` (never committed), refuse to run if its address is your real
+project's (from `.env.local`) or the key looks secret, refuse if a test user has any account not named "TEST …",
+only ever create rows named "TEST … run-…", and delete them again afterwards.
+
+### Setting it up (once, about 10 minutes, in your browser)
+
+1. Go to supabase.com/dashboard and choose **New project** (in the same organisation is fine; the free plan
+   allows two projects).
+2. Name it **money-hq-test**, choose a region, and let Supabase generate the database password. You won't need
+   it for the tests, but keep it in your password manager. Create the project and wait for it to finish.
+3. In this folder, run `npm run test-db:schema`. It writes `test-results/test-db-setup.sql`: every migration
+   joined into one file, with structure and security rules only and no data.
+4. In the **money-hq-test** project (check the project name at the top before you run anything): **SQL Editor →
+   New query**, paste the whole file, **Run**.
+5. **Authentication → Users → Add user → Create new user**, twice: `test-a@example.test` and
+   `test-b@example.test`, each with a made-up password, and tick **Auto Confirm User**.
+6. **Project Settings → API Keys**: copy the project URL and the **publishable** key (never the secret one).
+7. Copy `.env.test.example` to `.env.test.local` and fill in the URL, the publishable key and the two test users.
+8. Run `npm run test:db`. The six tests should pass: a fully repaid purchase, a part-repaid one, invalid
+   amounts refused, all-or-nothing saving, still there after signing in again, and another user can't see or
+   change them.
+
+Never put real data in the test project, and never put your real project's details in `.env.test.local`.
+When a migration is added later, run it in the test project first.

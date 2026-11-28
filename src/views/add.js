@@ -4,7 +4,7 @@
 import { h } from '../ui/dom.js';
 import { parsePence } from '../lib/money.js';
 import { addDays } from '../lib/dates.js';
-import { head, alertLine } from '../ui/parts.js';
+import { head, alertLine, clearInvalid } from '../ui/parts.js';
 import { addTransaction, addTransfer, enrich, addPurchaseWithIous } from '../lib/data.js';
 import { forPanel } from './add-for.js';
 import { sayPanel } from './say.js';
@@ -52,20 +52,30 @@ export function addPage(ctx, rerender) {
   const typeBtn = (id, label) => h('button', { type: 'button', 'aria-pressed': String(st.type === id), onclick: () => { st.type = id; rerender(); } }, label);
   const dayBtn = (iso, label) => h('button', { type: 'button', class: 'chip-btn', 'aria-pressed': String(st.date === iso), onclick: () => { st.date = iso; date.value = iso; rerender(); } }, label);
 
+  // One save at a time: a second tap (or the other Save button) while saving does nothing, so a purchase can
+  // never be saved twice. The message for a refused save names the field and keeps everything you typed.
+  let saving = false;
+  const busy = (on) => { saving = on; saveBtn.disabled = on; againBtn.disabled = on; };
   async function save(another, btn) {
+    if (saving) return;
+    busy(true);
+    try { await saveOnce(another, btn); } finally { if (document.contains(btn)) busy(false); }
+  }
+  async function saveOnce(another, btn) {
+    clearInvalid(btn.closest('.add-card') || document);
     const p = parsePence(amount.value);
-    if (!p || p <= 0) { alertLine(btn, 'Type the amount, e.g. 4.50.'); amount.focus(); return; }
+    if (!p || p <= 0) { alertLine(btn, amount.value.trim() && p === null ? `“${amount.value.trim()}” isn’t an amount. Type it in numbers, e.g. 4.50.` : 'Type the amount, e.g. 4.50.', amount); return; }
     if (st.type === 'move' && !where.value.trim()) where.value = 'Move between my accounts';
-    if (!where.value.trim()) { alertLine(btn, 'Say where (or who from).'); where.focus(); return; }
+    if (!where.value.trim()) { alertLine(btn, 'Say where (or who from).', where); return; }
     if (st.type === 'move' && (!toAcc.value || toAcc.value === paid.value)) { alertLine(btn, 'Choose the account the money went to (a different one).'); return; }
     const out = st.type !== 'in';
     let kind = 'spend'; let category_id = null;
     // What others owe (if anyone): checked before anything is saved.
     const shares = whoFor ? whoFor.read() : null;
-    if (shares?.error) { alertLine(btn, shares.error); return; }
+    if (shares?.error) { alertLine(btn, shares.error, shares.field); return; }
     // A category is needed for your share; when all of it is someone else's, it's optional.
-    if (st.type === 'out') { if (!cat.value && shares.myShare > 0) { alertLine(btn, 'Choose a category.'); return; } category_id = cat.value || null; }
-    else if (st.type === 'in') { if (!cat.value) { alertLine(btn, 'Choose what it is.'); return; } kind = cat.value; }
+    if (st.type === 'out') { if (!cat.value && shares.myShare > 0) { alertLine(btn, 'Choose a category.', cat); return; } category_id = cat.value || null; }
+    else if (st.type === 'in') { if (!cat.value) { alertLine(btn, 'Choose what it is.', cat); return; } kind = cat.value; }
     else kind = 'transfer';
     const signed = out ? -p : p;
     const dupKey = `${paid.value}|${st.date}|${signed}`;
@@ -75,7 +85,6 @@ export function addPage(ctx, rerender) {
       alertLine(btn, `You already have ${dups.map((d) => `${d.raw_description} ${formatPence(Math.abs(d.amount_pence))} on ${shortDay(d.date)}`).join('; ')} on this account. Press Save again to add this one too.`);
       return;
     }
-    btn.disabled = true;
     // A move is saved as both halves, linked: out of one account, into the other.
     if (st.type === 'move') {
       try {
@@ -83,7 +92,7 @@ export function addPage(ctx, rerender) {
         for (const t of both) ctx.add(enrich(t, ctx.ref));
         st.saved = `Moved ${formatPence(p)}.`;
         if (another) rerender(); else { ctx.addState = null; location.hash = 'overview'; }
-      } catch (err) { btn.disabled = false; alertLine(btn, err.message); }
+      } catch (err) { alertLine(btn, `Not saved: ${err.message}`); }
       return;
     }
     try {
@@ -102,7 +111,7 @@ export function addPage(ctx, rerender) {
       }
       if (another) st.for = 'mine';
       if (another) rerender(); else { ctx.addState = null; location.hash = 'overview'; }
-    } catch (err) { btn.disabled = false; alertLine(btn, err.message); }
+    } catch (err) { alertLine(btn, `Not saved: ${err.message}`); }
   }
   const saveBtn = h('button', { class: 'btn primary', type: 'button', onclick: (e) => save(false, e.currentTarget) }, 'Save');
   const againBtn = h('button', { class: 'btn', type: 'button', onclick: (e) => save(true, e.currentTarget) }, 'Save and add another');

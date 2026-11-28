@@ -11,6 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:db": "vitest run -c vitest.db.config.js",
+    "test-db:schema": "node scripts/test-db-schema.mjs",
     "check:quick": "vitest run && vite build",
     "check": "vitest run && vite build && playwright test",
     "fake-db": "node tests/e2e/fake-supabase.mjs 54329",

@@ -118,7 +118,7 @@ describe('G: invalid and unexpected inputs', () => {
   // and so into the whole amount: covered by the browser test "words typed as the amount owed are refused".
   // Here: an expected-by date that isn't a date isn't checked before saving (the database refuses it, and
   // nothing is saved; the date picker normally prevents it). Recorded as a difference, not changed.
-  it.fails('KNOWN DIFFERENCE (expected to fail until fixed): an invalid expected-by date is caught before saving', () => {
+  it('an invalid expected-by date is caught before saving (regression: used to be left to the database)', () => {
     expect(planShares(15000, 'payback', { name: 'Dad', due: 'not-a-date' }).error).toBeTruthy();
   });
 });

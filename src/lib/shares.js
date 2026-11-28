@@ -6,6 +6,7 @@
 //   split   - you and others share it (an IOU per person; your share plus theirs must equal the total)
 
 const pounds = (p) => `£${(Math.abs(p) / 100).toFixed(2)}`;
+const realDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(`${s}T12:00:00Z`).toISOString().slice(0, 10) === s;
 
 // total: the purchase in pence (> 0). Returns { myShare, ious: [{ name, amount_pence, due_date, note }] } or { error }.
 export function planShares(total, mode, input = {}) {
@@ -14,8 +15,9 @@ export function planShares(total, mode, input = {}) {
     const name = String(input.name || '').trim();
     if (!name) return { error: 'Who owes you?' };
     const owed = input.owed ?? total;
-    if (!Number.isInteger(owed) || owed <= 0) return { error: 'How much do they owe you?' };
+    if (!Number.isInteger(owed) || owed <= 0) return { error: 'Type the amount they owe you, more than £0.' };
     if (owed > total) return { error: `They can’t owe more than the purchase (${pounds(total)}).` };
+    if (input.due && !realDate(input.due)) return { error: 'The expected-by date isn’t a real date.' };
     return { myShare: total - owed, ious: [{ name, amount_pence: owed, due_date: input.due || null, note: input.reason || null }] };
   }
   if (mode === 'split') {

@@ -39,6 +39,7 @@ Money HQ is a financial app: calculation accuracy and data integrity come first.
 - Unit tests (Vitest): `npm test`
 - Everything (unit tests, build, browser tests against the fake database): `npm run check`; quick: `npm run check:quick`
 - Browser tests only: `npm run test:e2e` (report: `npx playwright show-report`)
+- Real-database tests against the separate TEST Supabase project (never production): `npm run test:db` (needs `.env.test.local`, see TESTING.md)
 - Build: `npm run build`
 - Prove signed-out visitors see nothing: `npm run rls-check`
 - Move data from old backups: `npm run migrate -- --dry-run` first, then `npm run migrate` (asks for my password)
