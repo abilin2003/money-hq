@@ -1,8 +1,10 @@
-# Builds Money HQ and publishes it to GitHub Pages on every push to main.
+# Builds Money HQ and publishes it to GitHub Pages on every push to main, only after the checks pass.
 # One-time set-up on github.com (repository Settings):
 #   1. Pages -> Build and deployment -> Source: "GitHub Actions".
 #   2. Secrets and variables -> Actions -> Variables: add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
 #      (the same two values as .env.local). Never add the Supabase secret key.
+# The checks job uses the fake database (tests/e2e/fake-supabase.mjs) and never your real Supabase project:
+# it doesn't get the VITE_ variables at all.
 name: Deploy to GitHub Pages
 
 on:
@@ -20,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +32,26 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+  build:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}

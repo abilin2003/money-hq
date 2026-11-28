@@ -14,6 +14,17 @@ Reference designs are in `docs/design/` (Midnight, dark theme).
 - Never lose saved data. Nothing on page load may wipe or overwrite existing data, and any change to the data's shape needs a migration and a test.
 - Ask before pushing to GitHub: `main` is the live site.
 
+## Testing and data integrity (permanent)
+Money HQ is a financial app: calculation accuracy and data integrity come first. How to test: `TESTING.md`.
+- Automated tests never touch my real Supabase data. Browser tests use the fake database (`tests/e2e/fake-supabase.mjs`) with made-up data; never weaken or bypass its production guards.
+- New money logic gets unit tests (Vitest, `tests/unit/`); new screens or flows get browser tests (Playwright, `tests/e2e/`) that check what was really saved, at phone and laptop sizes.
+- Every bug fix starts with a test that reproduces the bug, and keeps it as a regression test.
+- Known bugs not yet fixed: a correct test marked expected-to-fail, plus an entry in `docs/KNOWN-ISSUES.md`. Never weaken a test to make it pass.
+- All figures come from the shared logic (`src/lib/balances.js`, `summary.js`, `shares.js`, `ious.js`); never a second calculation for one screen.
+- A failed database operation must never be reported as success; say so and keep what I typed.
+- Don't break existing behaviour to add a feature. After every change run `npm run check` (or at least `npm run check:quick`) and report the real results, including failures.
+- Any correction to my real financial records needs my explicit approval first, with the exact change shown.
+
 ## Workflow
 - Work one phase of `docs/SPEC.md` section 8 at a time. Start each phase in plan mode and get my OK on the plan.
 - Ask me (with AskUserQuestion) when the spec is unclear. Don't guess bank formats, category names or budgets.
@@ -26,12 +37,14 @@ Reference designs are in `docs/design/` (Midnight, dark theme).
 ## Commands
 - Dev server: `npm run dev`, then open http://localhost:5173 (needs `.env.local`, see `.env.example`)
 - Unit tests (Vitest): `npm test`
+- Everything (unit tests, build, browser tests against the fake database): `npm run check`; quick: `npm run check:quick`
+- Browser tests only: `npm run test:e2e` (report: `npx playwright show-report`)
 - Build: `npm run build`
 - Prove signed-out visitors see nothing: `npm run rls-check`
 - Move data from old backups: `npm run migrate -- --dry-run` first, then `npm run migrate` (asks for my password)
 - Apply the 16 agreed categories (`src/lib/categories.js`) to stored data: `npm run merge-categories` (asks for my password; safe to re-run)
 - Save a payday plan from a private file: `npm run set-plan -- data/plan-YYYY-MM-DD.json`
-- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0008 have been run.
+- Migrations in `supabase/migrations/` are run in order in the Supabase SQL Editor; 0001 to 0012 have been run.
 - The previous app lives in `legacy/`: `npm run legacy` (http://localhost:8080) and `npm run test:legacy`.
 - Deploy: `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on push to `main` (needs the two
   `VITE_` values as repository variables, and Pages source set to GitHub Actions).
