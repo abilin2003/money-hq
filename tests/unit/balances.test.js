@@ -1,7 +1,7 @@
 // Live account balances: one calculation, the examples from the brief, and allocations kept apart from balances.
 // Made-up figures.
 import { describe, it, expect } from 'vitest';
-import { accountBalance, allBalances, trackedNetWorth, allocationsIn } from '../../src/lib/balances.js';
+import { accountBalance, allBalances, trackedNetWorth, allocationsIn, liveGroups } from '../../src/lib/balances.js';
 import { summarise } from '../../src/lib/summary.js';
 
 const ul = { id: 'ul', name: 'Bank', type: 'current' };
@@ -95,5 +95,19 @@ describe('what the money in an account is for', () => {
     expect(allocationsIn(isa, funds, 500000)).toMatchObject({ allocated: 500000, unallocated: 0 });
     expect(allocationsIn(isa, funds, 600000).unallocated).toBe(100000);
     expect(allocationsIn(isa, funds, null).unallocated).toBe(null);
+  });
+});
+
+describe('Wealth’s live groups', () => {
+  it('cash, investments, pension and debt from the same live balances; assets minus liabilities is net worth', () => {
+    const fuel = line('cc', -5000, 'spend', { raw_description: 'Fuel' });
+    const spend = line('rv', -1000, 'spend');
+    const rows = allBalances([ul, rv, isa, cc, pen], snaps, [fuel, spend], '2026-11-27');
+    const g = liveGroups(rows);
+    expect(g.cash).toMatchObject({ pence: 20000 + 29000, status: 'estimated' });
+    expect(g.investments).toMatchObject({ pence: 600000, status: 'verified' });
+    expect(g.pension).toMatchObject({ pence: 0, status: 'unknown' });
+    expect(g.debt).toMatchObject({ pence: 5000, status: 'estimated' });
+    expect(g.assets - g.liabilities).toBe(trackedNetWorth(rows).total);
   });
 });

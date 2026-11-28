@@ -42,3 +42,22 @@ export function allocationsIn(account, funds, balance) {
   const allocated = mine.reduce((a, f) => a + (f.balance_pence || 0), 0);
   return { funds: mine, allocated, unallocated: balance === null || balance === undefined ? null : balance - allocated };
 }
+
+// The live balances grouped the way Wealth shows them. Each group says whether all its accounts are verified,
+// some are worked out since (estimated), or none has a balance yet (unknown).
+const GROUP_OF = (type) => (DEBT_TYPES.has(type) ? 'debt' : type === 'pension' ? 'pension' : type === 'isa' || type === 'investment' ? 'investments' : 'cash');
+export function liveGroups(rows) {
+  const out = {};
+  for (const g of ['cash', 'investments', 'pension', 'debt']) {
+    const mine = rows.filter((r) => GROUP_OF(r.account.type) === g);
+    const known = mine.filter((r) => r.value !== null);
+    out[g] = {
+      pence: g === 'debt' ? known.reduce((a, r) => a + (r.pence || 0), 0) : known.reduce((a, r) => a + r.value, 0),
+      status: !known.length ? 'unknown' : known.every((r) => r.status === 'verified') && known.length === mine.length ? 'verified' : 'estimated',
+      count: mine.length,
+    };
+  }
+  out.assets = out.cash.pence + out.investments.pence + out.pension.pence;
+  out.liabilities = out.debt.pence;
+  return out;
+}

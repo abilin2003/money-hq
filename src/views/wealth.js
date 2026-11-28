@@ -15,7 +15,7 @@ import { addSnapshot } from '../lib/data.js';
 import { balanceNow, cardOwed } from '../lib/position.js';
 import { kindTag } from './overview.js';
 import { balancesOf } from './accounts.js';
-import { trackedNetWorth } from '../lib/balances.js';
+import { trackedNetWorth, liveGroups } from '../lib/balances.js';
 import { historyRows } from './history.js';
 import { fundsOf } from './state.js';
 
@@ -35,14 +35,18 @@ export function wealthPage(ctx, rerender) {
   // ---- summary tiles
   const tile = (label, value, sub, cls = '') => h('div', { class: 'card tile' }, h('span', { class: 'muted small' }, label), h('span', { class: `tile-v display ${cls}` }, value), h('span', { class: 'muted small' }, sub));
   // The live figure (typed-in balances plus what's happened since), from the same calculation as the Overview.
-  const live = trackedNetWorth(balancesOf(ctx));
+  const liveRows = balancesOf(ctx);
+  const live = trackedNetWorth(liveRows);
+  // Every tile is live too: typed-in balances plus what's happened since, grouped (same figures as the accounts).
+  const g = liveGroups(liveRows);
+  const liveSub = (grp, types) => (grp.status === 'unknown' ? 'no balance yet' : grp.status === 'verified' ? `verified, ${when(lastOf(types))}` : `typed in ${ago(lastOf(types) || ctx.today, ctx.today)}, plus since`);
   const tiles = h('div', { class: 'tiles' },
     tile('Net worth now', live.status === 'unknown' ? 'Not verified' : signed(live.total), live.status === 'verified' ? 'your typed-in balances' : live.status === 'estimated' ? `${nw.known ? `verified ${signed(nw.total)}` : 'typed-in balances'} + since` : 'needs your balances', live.status === 'unknown' ? 'unset' : ''),
-    tile('Assets', nw.known ? formatPence(latest.assets) : 'Not entered', 'everything you own', nw.known ? '' : 'unset'),
-    tile('Liabilities', lastOf(['credit_card']) ? formatPence(latest.liabilities) : 'Not entered', when(lastOf(['credit_card'])), lastOf(['credit_card']) ? (latest.liabilities ? 'over' : '') : 'unset'),
-    tile('Cash and savings', lastOf(['current', 'savings', 'cash']) ? formatPence(latest.cash) : 'Not entered', when(lastOf(['current', 'savings', 'cash'])), lastOf(['current', 'savings', 'cash']) ? '' : 'unset'),
-    tile('ISAs and investments', lastOf(['isa', 'investment']) ? formatPence(latest.investments) : 'Not entered', when(lastOf(['isa', 'investment'])), lastOf(['isa', 'investment']) ? '' : 'unset'),
-    tile('Pension', lastOf(['pension']) ? formatPence(latest.pension) : 'Not entered', when(lastOf(['pension'])), lastOf(['pension']) ? '' : 'unset'));
+    tile('Assets', live.status === 'unknown' ? 'Not entered' : formatPence(g.assets), 'everything you own, now', live.status === 'unknown' ? 'unset' : ''),
+    tile('Liabilities', g.debt.status === 'unknown' ? 'Not entered' : formatPence(g.liabilities), liveSub(g.debt, ['credit_card']), g.debt.status === 'unknown' ? 'unset' : g.liabilities ? 'over' : ''),
+    tile('Cash and savings', g.cash.status === 'unknown' ? 'Not entered' : signed(g.cash.pence), liveSub(g.cash, ['current', 'savings', 'cash']), g.cash.status === 'unknown' ? 'unset' : ''),
+    tile('ISAs and investments', g.investments.status === 'unknown' ? 'Not entered' : formatPence(g.investments.pence), liveSub(g.investments, ['isa', 'investment']), g.investments.status === 'unknown' ? 'unset' : ''),
+    tile('Pension', g.pension.status === 'unknown' ? 'Not entered' : formatPence(g.pension.pence), liveSub(g.pension, ['pension']), g.pension.status === 'unknown' ? 'unset' : ''));
 
   // ---- net worth, assets and liabilities over time
   const labels = series.map((p) => shortDay(p.date));
@@ -129,7 +133,7 @@ export function wealthPage(ctx, rerender) {
   const fundTotal = funds.reduce((a, f) => a + f.balance_pence, 0);
 
   return h('div', { class: 'page' },
-    head('Wealth', nw.known ? `Net worth ${signed(nw.total)}, from the balances you’ve typed in (verified). Estimates are worked out from transactions and aren’t added in.` : 'Type in your balances to see your net worth. Until then nothing here is verified.',
+    head('Wealth', live.status !== 'unknown' ? `Net worth ${signed(live.total)} now: the balances you’ve typed in, plus what’s happened since${nw.known && live.total !== nw.total ? ` (verified ${signed(nw.total)})` : ''}. The chart shows your typed-in balances over time.` : 'Type in your balances to see your net worth. Until then nothing here is verified.',
       h('a', { href: '#update', class: 'btn primary tap', onclick: (e) => { e.preventDefault(); document.querySelector('#update')?.scrollIntoView({ behavior: 'smooth' }); } }, 'Update balances')),
     tiles,
     // Nothing typed in yet: one short note instead of empty charts (the gains card still shows what you've put in).
